@@ -1,0 +1,30 @@
+# 钱包监控配置示例文件
+# 将此文件复制为 wallets.yaml 并根据需要修改
+
+wallets:
+  # 高频交易钱包示例 - 适合短线交易策略
+  - address: "5ZWj7a1f8tWkjBESHKgrLmXshuXxqeY9SYcfbshpAqPG" # 钱包地址
+    name: "高频交易钱包1"                            # 钱包名称或标识
+    type: "high_frequency"                         # 钱包类型: high_frequency 或 low_frequency
+    take_profit_pct: 20                           # 止盈百分比
+    stop_loss_pct: 20                             # 止损百分比
+    exit_time_sec: 1                              # 持仓时间(秒)
+    enabled: true                                 # 是否启用
+
+  # 低频交易钱包示例 - 适合中长线交易策略
+  - address: "DYw8jMTz4bFiMRrZzKMStBnbpLkUgXjzH6NjRCMGxQcD" # 钱包地址
+    name: "低频交易钱包1"                            # 钱包名称或标识
+    type: "low_frequency"                         # 钱包类型: high_frequency 或 low_frequency
+    take_profit_pct: 50                           # 止盈百分比
+    stop_loss_pct: 50                             # 止损百分比
+    exit_time_sec: 5                              # 持仓时间(秒)
+    enabled: true                                 # 是否启用
+
+  # 可以添加更多钱包配置
+  # - address: "你的钱包地址"
+  #   name: "钱包名称"
+  #   type: "high_frequency"
+  #   take_profit_pct: 30
+  #   stop_loss_pct: 30
+  #   exit_time_sec: 2
+  #   enabled: true

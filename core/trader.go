@@ -1,0 +1,674 @@
+package core
+
+import (
+	"context"
+	"copytrade/calculator"
+	"copytrade/global"
+	"copytrade/logger"
+	"copytrade/pump"
+	"copytrade/pumpamm"
+	"copytrade/swqos"
+	"copytrade/types"
+	"copytrade/utils"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/binary"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/gagliardetto/solana-go"
+	associatedtokenaccount "github.com/gagliardetto/solana-go/programs/associated-token-account"
+	"github.com/gagliardetto/solana-go/programs/system"
+	"github.com/gagliardetto/solana-go/programs/token"
+	"github.com/gagliardetto/solana-go/rpc"
+)
+
+// Trader 定义交易接口
+type Trader interface {
+	Buy(ctx context.Context, params BuyParams) (string, error) // 返回交易签名
+	Sell(ctx context.Context, params SellParams) (string, error)
+}
+
+// TraderImpl 交易实现
+type TraderImpl struct {
+	Client       *rpc.Client
+	Wallet       *solana.Wallet
+	AccountsCalc *calculator.AccountsCalculator
+	AmountsCalc  *calculator.AmountsCalculator
+	Config       *utils.Config // 添加全局配置
+}
+
+// NewTrader 创建交易实例
+func NewTrader(endpoint string, privateKey solana.PrivateKey, config *utils.Config) *TraderImpl {
+	// 使用正确的 RPC URL 创建客户端
+	client := rpc.New(endpoint)
+	// 设置请求头，避免一些 RPC 节点的限制
+
+	return &TraderImpl{
+		Client:       client,
+		Wallet:       &solana.Wallet{PrivateKey: privateKey},
+		AccountsCalc: calculator.NewAccountsCalculator(endpoint),
+		AmountsCalc:  calculator.NewAmountsCalculator(endpoint),
+		Config:       config,
+	}
+}
+
+// Buy 执行买入交易
+func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string, error) {
+
+	if t.Config.SimulateMode {
+		logger.Infof("模拟模式，不执行买入交易 %s", params.TradeParams.Accounts.Mint)
+		return "mock", fmt.Errorf("模拟模式，不执行买入交易")
+	}
+	logger.Debugf("开始执行买入交易...")
+	logger.Debugf("Mint地址: %s", params.TradeParams.Accounts.Mint)
+	logger.Debugf("购买数量: %d", params.TradeParams.Amount)
+	logger.Debugf("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
+
+	// 构建交易指令
+	instructions := []solana.Instruction{}
+
+	// 添加计算单元限制指令（通常设置为 200,000 units）
+	instructions = append(instructions, createSetComputeUnitLimitInstruction(200_000))
+
+	// 添加优先级费用指令
+	instructions = append(instructions, createSetComputeUnitPriceInstruction(params.TradeParams.FeeConfig.PriorityFee))
+
+	if t.Config.SkipATACheck {
+		// 快速模式：直接添加创建ATA指令
+		logger.Infof("快速模式：跳过ATA检查，直接创建ATA账户")
+		createATAIx := associatedtokenaccount.NewCreateInstruction(
+			params.TradeParams.Accounts.User, // payer
+			params.TradeParams.Accounts.User, // owner
+			params.TradeParams.Accounts.Mint, // mint
+		).Build()
+		instructions = append(instructions, createATAIx)
+	} else {
+		// 安全模式：先检查再创建
+		account, err := t.Client.GetAccountInfo(ctx, params.TradeParams.Accounts.AssociatedTokenAccount)
+		if err != nil || account.Value == nil {
+			logger.Infof("ATA账户不存在，创建新账户...")
+			createATAIx := associatedtokenaccount.NewCreateInstruction(
+				params.TradeParams.Accounts.User, // payer
+				params.TradeParams.Accounts.User, // owner
+				params.TradeParams.Accounts.Mint, // mint
+			).Build()
+			instructions = append(instructions, createATAIx)
+		}
+	}
+
+	// 构建Buy指令
+	buyInstruction := pump.NewBuyInstructionBuilder().
+		SetGlobalAccount(GLOBAL_ACCOUNT).
+		SetFeeRecipientAccount(FEE_RECIPIENT).
+		SetMintAccount(params.TradeParams.Accounts.Mint).
+		SetBondingCurveAccount(params.TradeParams.Accounts.BondingCurve).
+		SetAssociatedBondingCurveAccount(params.TradeParams.Accounts.AssociatedBondingCurve).
+		SetAssociatedUserAccount(params.TradeParams.Accounts.AssociatedTokenAccount).
+		SetUserAccount(params.TradeParams.Accounts.User).
+		SetSystemProgramAccount(solana.SystemProgramID).
+		SetTokenProgramAccount(solana.TokenProgramID).
+		SetRentAccount(solana.SysVarRentPubkey).
+		SetEventAuthorityAccount(EVENT_AUTHORITY).
+		SetProgramAccount(PUMP_PROGRAM_ID).
+		SetAmount(params.TradeParams.Amount).
+		SetMaxSolCost(params.TradeParams.Cost)
+
+	instructions = append(instructions, buyInstruction.Build())
+
+	// 创建通道
+	resultChan := make(chan string, 4)
+	errChan := make(chan error, 4)
+	timeout := time.After(30 * time.Second)
+
+	if params.BloXrouteParams != nil && params.BloXrouteParams.Enable {
+		logger.Debugf("[BloXroute] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionBloXroute(
+				t.Wallet.PrivateKey,
+				instructions,
+				*params.BloXrouteParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("BloXroute发送失败: %s", err)
+				errChan <- fmt.Errorf("BloXroute发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	// 检查各个模式是否启用并准备发送
+	if params.NextBlockParams != nil && params.NextBlockParams.Enable {
+		log.Printf("[NextBlock] 准备发送交易...")
+		go func() {
+			// 构建交易并发送到 NextBlock
+			sig, err := swqos.SendTransactionNextBlock(
+				t.Wallet,
+				instructions,
+				params.NextBlockParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("NextBlock发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.JitoParams != nil && params.JitoParams.Enable {
+		log.Printf("[Jito] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionJito(
+				t.Wallet,
+				instructions,
+				params.JitoParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("jito发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.TemporalParams != nil && params.TemporalParams.Enable {
+		log.Printf("[Temporal] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionTemporal(
+				t.Wallet,
+				instructions,
+				params.TemporalParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("temporal发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	if t.Config.Normal.Enable {
+		log.Printf("[Normal] 准备发送交易...")
+		go func() {
+			// 构建交易
+			tx, err := solana.NewTransaction(
+				instructions,
+				params.TradeParams.Blockhash,
+				solana.TransactionPayer(t.Wallet.PublicKey()),
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("创建交易失败: %w", err)
+				return
+			}
+
+			// 签名交易
+			_, err = tx.Sign(
+				func(key solana.PublicKey) *solana.PrivateKey {
+					if key.Equals(t.Wallet.PublicKey()) {
+						return &t.Wallet.PrivateKey
+					}
+					return nil
+				},
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("签名交易失败: %w", err)
+				return
+			}
+
+			// 发送交易
+			sig, err := t.Client.SendTransaction(ctx, tx)
+			if err != nil {
+				errChan <- fmt.Errorf("发送交易失败: %w", err)
+				return
+			}
+
+			resultChan <- sig.String()
+		}()
+	}
+
+	// 等待结果
+	select {
+	case sig := <-resultChan:
+		logger.Infof("买入交易已发送! 交易ID: %s", sig)
+		return sig, nil
+	case err := <-errChan:
+		return "", err
+	case <-timeout:
+		return "", fmt.Errorf("transaction timeout")
+	}
+}
+
+// Sell 实现卖出交易
+func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string, error) {
+	logger.Infof("开始执行卖出交易...")
+
+	mintAddress := params.TradeParams.Accounts.Mint.String()
+	logger.Infof("Mint地址: %s ,卖出数量: %d, 最小获得: %d SOL, time: %v", mintAddress, params.TradeParams.Amount, params.TradeParams.Cost, time.Now().Format("2006-01-02 15:04:05.000"))
+
+	// 检查是否可以卖出（5秒内同一个币最多卖出一次）
+	if !global.CanSellToken(mintAddress) {
+		logger.Warnf("代币 %s 卖出频率过高，5秒内只能卖出一次", mintAddress)
+		return "", fmt.Errorf("代币 %s 卖出频率过高，5秒内只能卖出一次", mintAddress)
+	}
+
+	// 构建交易指令
+	instructions := []solana.Instruction{}
+
+	// 添加计算单元限制指令（通常设置为 200,000 units）
+	instructions = append(instructions, createSetComputeUnitLimitInstruction(200_000))
+
+	// 添加优先级费用指令
+	instructions = append(instructions, createSetComputeUnitPriceInstruction(params.TradeParams.FeeConfig.PriorityFee))
+
+	// 构建Sell指令
+	sellInstruction := pump.NewSellInstructionBuilder().
+		SetGlobalAccount(GLOBAL_ACCOUNT).
+		SetFeeRecipientAccount(FEE_RECIPIENT).
+		SetMintAccount(params.TradeParams.Accounts.Mint).
+		SetBondingCurveAccount(params.TradeParams.Accounts.BondingCurve).
+		SetAssociatedBondingCurveAccount(params.TradeParams.Accounts.AssociatedBondingCurve).
+		SetAssociatedUserAccount(params.TradeParams.Accounts.AssociatedTokenAccount).
+		SetUserAccount(params.TradeParams.Accounts.User).
+		SetSystemProgramAccount(solana.SystemProgramID).
+		SetAssociatedTokenProgramAccount(associatedtokenaccount.ProgramID).
+		SetTokenProgramAccount(solana.TokenProgramID).
+		SetEventAuthorityAccount(EVENT_AUTHORITY).
+		SetProgramAccount(PUMP_PROGRAM_ID).
+		SetAmount(params.TradeParams.Amount).
+		SetMinSolOutput(params.TradeParams.Cost)
+
+	ix, err := sellInstruction.ValidateAndBuild()
+	if err != nil {
+		logger.Errorf("构建Sell指令失败: %v", err)
+		return "", fmt.Errorf("构建Sell指令失败: %w", err)
+	}
+
+	instructions = append(instructions, ix)
+
+	// 创建通道
+	resultChan := make(chan string, 4)
+	errChan := make(chan error, 4)
+	timeout := time.After(30 * time.Second)
+
+	// 检查各个模式是否启用并准备发送
+	if params.BloXrouteParams != nil && params.BloXrouteParams.Enable {
+		logger.Infof("[BloXroute] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionBloXroute(
+				t.Wallet.PrivateKey,
+				instructions,
+				*params.BloXrouteParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("BloXroute发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.NextBlockParams != nil && params.NextBlockParams.Enable {
+		logger.Debugf("[NextBlock] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionNextBlock(
+				t.Wallet,
+				instructions,
+				params.NextBlockParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("NextBlock发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	if params.JitoParams != nil && params.JitoParams.Enable {
+		log.Printf("[Jito] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionJito(
+				t.Wallet,
+				instructions,
+				params.JitoParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("jito发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	if params.TemporalParams != nil && params.TemporalParams.Enable {
+		log.Printf("[Temporal] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionTemporal(
+				t.Wallet,
+				instructions,
+				params.TemporalParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("temporal发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	if t.Config.Normal.Enable {
+		log.Printf("[Normal] 准备发送交易...")
+		go func() {
+			// 构建交易
+			tx, err := solana.NewTransaction(
+				instructions,
+				params.TradeParams.Blockhash,
+				solana.TransactionPayer(t.Wallet.PublicKey()),
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("创建交易失败: %w", err)
+				return
+			}
+
+			// 签名交易
+			_, err = tx.Sign(
+				func(key solana.PublicKey) *solana.PrivateKey {
+					if key.Equals(t.Wallet.PublicKey()) {
+						return &t.Wallet.PrivateKey
+					}
+					return nil
+				},
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("签名交易失败: %w", err)
+				return
+			}
+
+			// 发送交易
+			sig, err := t.Client.SendTransaction(ctx, tx)
+			if err != nil {
+				errChan <- fmt.Errorf("发送交易失败: %w", err)
+				return
+			}
+
+			resultChan <- sig.String()
+		}()
+	}
+
+	// 等待结果
+	select {
+	case sig := <-resultChan:
+		logger.Infof("卖出交易已发送! 交易ID: %s", sig)
+		// 更新代币卖出时间，防止短时间内重复卖出
+		global.UpdateTokenSellTime(mintAddress)
+		return sig, nil
+	case err := <-errChan:
+		global.DelPendingHoldAsset(mintAddress)
+		return "", err
+	case <-timeout:
+		return "", fmt.Errorf("transaction timeout")
+	}
+}
+
+func createSetComputeUnitPriceInstruction(microLamports uint64) solana.Instruction {
+	data := make([]byte, 9)
+	data[0] = 3 // 指令索引
+	binary.LittleEndian.PutUint64(data[1:], microLamports)
+
+	return solana.NewInstruction(
+		solana.MustPublicKeyFromBase58("ComputeBudget111111111111111111111111111111"),
+		solana.AccountMetaSlice{},
+		data,
+	)
+}
+
+// createSetComputeUnitLimitInstruction 创建设置计算单元限制的指令
+func createSetComputeUnitLimitInstruction(units uint32) solana.Instruction {
+	data := make([]byte, 5)
+	data[0] = 2 // 指令索引为 2
+	binary.LittleEndian.PutUint32(data[1:], units)
+
+	return solana.NewInstruction(
+		solana.MustPublicKeyFromBase58("ComputeBudget111111111111111111111111111111"),
+		solana.AccountMetaSlice{},
+		data,
+	)
+}
+
+// AmmSell 实现卖出交易
+func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, balanceNeeded uint64) (string, error) {
+	logger.Infof("开始执行 AMM 卖出交易...")
+
+	mintAddress := params.TradeParams.Accounts.Mint.String()
+	logger.Infof("Mint地址: %s, 卖出数量: %d, 最小获得: %d SOL, time: %v",
+		mintAddress, params.TradeParams.Amount, params.TradeParams.Cost, time.Now().Format("2006-01-02 15:04:05.000"))
+
+	// 检查是否可以卖出（5秒内同一个币最多卖出一次）
+	if !global.CanSellToken(mintAddress) {
+		logger.Warnf("代币 %s 卖出频率过高，5秒内只能卖出一次", mintAddress)
+		return "", fmt.Errorf("代币 %s 卖出频率过高，5秒内只能卖出一次", mintAddress)
+	}
+
+	// 构建交易指令
+	instructions := []solana.Instruction{}
+
+	// 添加计算单元限制指令（通常设置为 200,000 units）
+	instructions = append(instructions, createSetComputeUnitLimitInstruction(200_000))
+
+	// 添加优先级费用指令
+	instructions = append(instructions, createSetComputeUnitPriceInstruction(params.TradeParams.FeeConfig.PriorityFee))
+	// 为WSOL账户生成种子
+	logger.Info("AmmSell: Generating seed for WSOL account...")
+	randomBytes := make([]byte, 24)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		logger.Errorf("AmmSell生成随机种子失败: %v", err)
+		return "", fmt.Errorf("failed to generate random bytes: %v", err)
+	}
+	seed := base64.URLEncoding.EncodeToString(randomBytes)
+
+	//@TODO 创建WSOL账户地址（with seed）
+	wsolTokenAccount, err := solana.CreateWithSeed(
+		t.Wallet.PublicKey(),
+		seed,
+		solana.TokenProgramID,
+	)
+	if err != nil {
+		logger.Errorf("AmmSell创建WSOL账户失败: %v", err)
+		return "", fmt.Errorf("failed to create WSOL account with seed: %v", err)
+	}
+
+	// 检查WSOL账户是否已存在
+	accountInfo, err := t.Client.GetAccountInfo(ctx, wsolTokenAccount)
+	if err != nil {
+		logger.Errorf("AmmSell检查WSOL账户存在失败: %v", err)
+		return "", fmt.Errorf("error checking WSOL account existence: %v", err)
+	}
+
+	if accountInfo.Value == nil {
+		logger.Info("AmmSell: WSOL账户不存在，创建并初始化...")
+		// 创建WSOL账户指令
+		createWsolAccountInstruction := system.NewCreateAccountWithSeedInstruction(
+			t.Wallet.PublicKey(),
+			seed,
+			balanceNeeded,
+			ACCOUNT_SPACE,
+			solana.TokenProgramID,
+			t.Wallet.PublicKey(),
+			t.Wallet.PublicKey(),
+			wsolTokenAccount,
+		).Build()
+		// 初始化WSOL账户指令
+		initWsolAccountInstruction := token.NewInitializeAccountInstruction(
+			wsolTokenAccount,
+			WSOL,
+			t.Wallet.PublicKey(),
+			solana.SysVarRentPubkey,
+		).Build()
+		instructions = append(instructions, createWsolAccountInstruction, initWsolAccountInstruction)
+	} else {
+		logger.Info("WSOL账户已存在，跳过创建和初始化步骤")
+	}
+	// 构建Sell指令
+	sellInstruction := pumpamm.NewSellInstructionBuilder().
+		SetGlobalConfigAccount(GLOBAL_CONFIG).
+		SetProtocolFeeRecipientAccount(PROTOCOL_FEE_RECIPIENT).
+		SetProtocolFeeRecipientTokenAccountAccount(PROTOCOL_FEE_RECIPIENT_TOKEN_ACCOUNT).
+		SetBaseMintAccount(params.TradeParams.Accounts.Mint).
+		SetQuoteMintAccount(params.TradeParams.Accounts.QuoteMint).
+		SetPoolAccount(params.TradeParams.Accounts.Pool).
+		SetPoolBaseTokenAccountAccount(params.TradeParams.Accounts.PoolBaseTokenAccount).
+		SetPoolQuoteTokenAccountAccount(params.TradeParams.Accounts.PoolQuoteTokenAccount).
+		SetAssociatedTokenProgramAccount(associatedtokenaccount.ProgramID).
+		SetUserAccount(params.TradeParams.Accounts.User).
+		SetUserBaseTokenAccountAccount(params.TradeParams.Accounts.UserBaseTokenAccount).
+		SetUserQuoteTokenAccountAccount(wsolTokenAccount).
+		SetBaseTokenProgramAccount(solana.TokenProgramID).
+		SetQuoteTokenProgramAccount(solana.TokenProgramID).
+		SetSystemProgramAccount(solana.SystemProgramID).
+		SetEventAuthorityAccount(AMM_EVENT_AUTHORITY).
+		SetProgramAccount(AMM_PROGRAM_ID).
+		SetBaseAmountIn(params.TradeParams.Amount).
+		SetMinQuoteAmountOut(params.TradeParams.Cost)
+
+	ix, err := sellInstruction.ValidateAndBuild()
+	if err != nil {
+		logger.Errorf("AmmSell构建指令失败: %v", err)
+		return "", fmt.Errorf("AmmSell构建指令失败: %w", err)
+	}
+
+	instructions = append(instructions, ix)
+
+	// 创建通道
+	resultChan := make(chan string, 4)
+	errChan := make(chan error, 4)
+	timeout := time.After(30 * time.Second)
+
+	// 检查各个模式是否启用并准备发送
+	if params.BloXrouteParams != nil && params.BloXrouteParams.Enable {
+		logger.Infof("[BloXroute] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionBloXroute(
+				t.Wallet.PrivateKey,
+				instructions,
+				*params.BloXrouteParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("BloXroute发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.NextBlockParams != nil && params.NextBlockParams.Enable {
+		logger.Infof("[NextBlock] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionNextBlock(
+				t.Wallet,
+				instructions,
+				params.NextBlockParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("NextBlock发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	if params.JitoParams != nil && params.JitoParams.Enable {
+		logger.Infof("[Jito] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionJito(
+				t.Wallet,
+				instructions,
+				params.JitoParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("jito发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	if params.TemporalParams != nil && params.TemporalParams.Enable {
+		logger.Infof("[Temporal] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionTemporal(
+				t.Wallet,
+				instructions,
+				params.TemporalParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("temporal发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	if t.Config.Normal.Enable {
+		logger.Infof("[Normal] 准备发送交易...")
+		go func() {
+			// 构建交易
+			tx, err := solana.NewTransaction(
+				instructions,
+				params.TradeParams.Blockhash,
+				solana.TransactionPayer(t.Wallet.PublicKey()),
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("创建交易失败: %w", err)
+				return
+			}
+
+			// 签名交易
+			_, err = tx.Sign(
+				func(key solana.PublicKey) *solana.PrivateKey {
+					if key.Equals(t.Wallet.PublicKey()) {
+						return &t.Wallet.PrivateKey
+					}
+					return nil
+				},
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("签名交易失败: %w", err)
+				return
+			}
+
+			// 发送交易
+			sig, err := t.Client.SendTransaction(ctx, tx)
+			if err != nil {
+				errChan <- fmt.Errorf("发送交易失败: %w", err)
+				return
+			}
+
+			resultChan <- sig.String()
+		}()
+	}
+
+	// 等待结果
+	select {
+	case sig := <-resultChan:
+		logger.Infof("AMM卖出交易已发送! 交易ID: %s", sig)
+		// 更新代币卖出时间，防止短时间内重复卖出
+		global.UpdateTokenSellTime(mintAddress)
+		return sig, nil
+	case err := <-errChan:
+		// 更新代币卖出时间，防止短时间内重复卖出
+		global.UpdateTokenSellTime(mintAddress)
+		return "", err
+	case <-timeout:
+		return "", fmt.Errorf("transaction timeout")
+	}
+}

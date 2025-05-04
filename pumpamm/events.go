@@ -1,0 +1,1788 @@
+package pumpamm
+
+import (
+	"encoding/base64"
+	"fmt"
+	ag_binary "github.com/gagliardetto/binary"
+	ag_solanago "github.com/gagliardetto/solana-go"
+	ag_rpc "github.com/gagliardetto/solana-go/rpc"
+	ag_base58 "github.com/mr-tron/base58"
+	"reflect"
+	"strings"
+)
+
+type BuyEventEventData struct {
+	Timestamp                        int64
+	BaseAmountOut                    uint64
+	MaxQuoteAmountIn                 uint64
+	UserBaseTokenReserves            uint64
+	UserQuoteTokenReserves           uint64
+	PoolBaseTokenReserves            uint64
+	PoolQuoteTokenReserves           uint64
+	QuoteAmountIn                    uint64
+	LpFeeBasisPoints                 uint64
+	LpFee                            uint64
+	ProtocolFeeBasisPoints           uint64
+	ProtocolFee                      uint64
+	QuoteAmountInWithLpFee           uint64
+	UserQuoteAmountIn                uint64
+	Pool                             ag_solanago.PublicKey
+	User                             ag_solanago.PublicKey
+	UserBaseTokenAccount             ag_solanago.PublicKey
+	UserQuoteTokenAccount            ag_solanago.PublicKey
+	ProtocolFeeRecipient             ag_solanago.PublicKey
+	ProtocolFeeRecipientTokenAccount ag_solanago.PublicKey
+}
+
+var BuyEventEventDataDiscriminator = [8]byte{103, 244, 82, 31, 44, 245, 119, 119}
+
+func (obj BuyEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
+	// Write account discriminator:
+	err = encoder.WriteBytes(BuyEventEventDataDiscriminator[:], false)
+	if err != nil {
+		return err
+	}
+	// Serialize `Timestamp` param:
+	err = encoder.Encode(obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Serialize `BaseAmountOut` param:
+	err = encoder.Encode(obj.BaseAmountOut)
+	if err != nil {
+		return err
+	}
+	// Serialize `MaxQuoteAmountIn` param:
+	err = encoder.Encode(obj.MaxQuoteAmountIn)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserBaseTokenReserves` param:
+	err = encoder.Encode(obj.UserBaseTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserQuoteTokenReserves` param:
+	err = encoder.Encode(obj.UserQuoteTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `PoolBaseTokenReserves` param:
+	err = encoder.Encode(obj.PoolBaseTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `PoolQuoteTokenReserves` param:
+	err = encoder.Encode(obj.PoolQuoteTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `QuoteAmountIn` param:
+	err = encoder.Encode(obj.QuoteAmountIn)
+	if err != nil {
+		return err
+	}
+	// Serialize `LpFeeBasisPoints` param:
+	err = encoder.Encode(obj.LpFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Serialize `LpFee` param:
+	err = encoder.Encode(obj.LpFee)
+	if err != nil {
+		return err
+	}
+	// Serialize `ProtocolFeeBasisPoints` param:
+	err = encoder.Encode(obj.ProtocolFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Serialize `ProtocolFee` param:
+	err = encoder.Encode(obj.ProtocolFee)
+	if err != nil {
+		return err
+	}
+	// Serialize `QuoteAmountInWithLpFee` param:
+	err = encoder.Encode(obj.QuoteAmountInWithLpFee)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserQuoteAmountIn` param:
+	err = encoder.Encode(obj.UserQuoteAmountIn)
+	if err != nil {
+		return err
+	}
+	// Serialize `Pool` param:
+	err = encoder.Encode(obj.Pool)
+	if err != nil {
+		return err
+	}
+	// Serialize `User` param:
+	err = encoder.Encode(obj.User)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserBaseTokenAccount` param:
+	err = encoder.Encode(obj.UserBaseTokenAccount)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserQuoteTokenAccount` param:
+	err = encoder.Encode(obj.UserQuoteTokenAccount)
+	if err != nil {
+		return err
+	}
+	// Serialize `ProtocolFeeRecipient` param:
+	err = encoder.Encode(obj.ProtocolFeeRecipient)
+	if err != nil {
+		return err
+	}
+	// Serialize `ProtocolFeeRecipientTokenAccount` param:
+	err = encoder.Encode(obj.ProtocolFeeRecipientTokenAccount)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (obj *BuyEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
+	// Read and check account discriminator:
+	{
+		discriminator, err := decoder.ReadTypeID()
+		if err != nil {
+			return err
+		}
+		if !discriminator.Equal(BuyEventEventDataDiscriminator[:]) {
+			return fmt.Errorf(
+				"wrong discriminator: wanted %s, got %s",
+				"[103 244 82 31 44 245 119 119]",
+				fmt.Sprint(discriminator[:]))
+		}
+	}
+	// Deserialize `Timestamp`:
+	err = decoder.Decode(&obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Deserialize `BaseAmountOut`:
+	err = decoder.Decode(&obj.BaseAmountOut)
+	if err != nil {
+		return err
+	}
+	// Deserialize `MaxQuoteAmountIn`:
+	err = decoder.Decode(&obj.MaxQuoteAmountIn)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserBaseTokenReserves`:
+	err = decoder.Decode(&obj.UserBaseTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserQuoteTokenReserves`:
+	err = decoder.Decode(&obj.UserQuoteTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `PoolBaseTokenReserves`:
+	err = decoder.Decode(&obj.PoolBaseTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `PoolQuoteTokenReserves`:
+	err = decoder.Decode(&obj.PoolQuoteTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `QuoteAmountIn`:
+	err = decoder.Decode(&obj.QuoteAmountIn)
+	if err != nil {
+		return err
+	}
+	// Deserialize `LpFeeBasisPoints`:
+	err = decoder.Decode(&obj.LpFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Deserialize `LpFee`:
+	err = decoder.Decode(&obj.LpFee)
+	if err != nil {
+		return err
+	}
+	// Deserialize `ProtocolFeeBasisPoints`:
+	err = decoder.Decode(&obj.ProtocolFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Deserialize `ProtocolFee`:
+	err = decoder.Decode(&obj.ProtocolFee)
+	if err != nil {
+		return err
+	}
+	// Deserialize `QuoteAmountInWithLpFee`:
+	err = decoder.Decode(&obj.QuoteAmountInWithLpFee)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserQuoteAmountIn`:
+	err = decoder.Decode(&obj.UserQuoteAmountIn)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Pool`:
+	err = decoder.Decode(&obj.Pool)
+	if err != nil {
+		return err
+	}
+	// Deserialize `User`:
+	err = decoder.Decode(&obj.User)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserBaseTokenAccount`:
+	err = decoder.Decode(&obj.UserBaseTokenAccount)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserQuoteTokenAccount`:
+	err = decoder.Decode(&obj.UserQuoteTokenAccount)
+	if err != nil {
+		return err
+	}
+	// Deserialize `ProtocolFeeRecipient`:
+	err = decoder.Decode(&obj.ProtocolFeeRecipient)
+	if err != nil {
+		return err
+	}
+	// Deserialize `ProtocolFeeRecipientTokenAccount`:
+	err = decoder.Decode(&obj.ProtocolFeeRecipientTokenAccount)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*BuyEventEventData) isEventData() {}
+
+type CreateConfigEventEventData struct {
+	Timestamp              int64
+	Admin                  ag_solanago.PublicKey
+	LpFeeBasisPoints       uint64
+	ProtocolFeeBasisPoints uint64
+	ProtocolFeeRecipients  [8]ag_solanago.PublicKey
+}
+
+var CreateConfigEventEventDataDiscriminator = [8]byte{107, 52, 89, 129, 55, 226, 81, 22}
+
+func (obj CreateConfigEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
+	// Write account discriminator:
+	err = encoder.WriteBytes(CreateConfigEventEventDataDiscriminator[:], false)
+	if err != nil {
+		return err
+	}
+	// Serialize `Timestamp` param:
+	err = encoder.Encode(obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Serialize `Admin` param:
+	err = encoder.Encode(obj.Admin)
+	if err != nil {
+		return err
+	}
+	// Serialize `LpFeeBasisPoints` param:
+	err = encoder.Encode(obj.LpFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Serialize `ProtocolFeeBasisPoints` param:
+	err = encoder.Encode(obj.ProtocolFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Serialize `ProtocolFeeRecipients` param:
+	err = encoder.Encode(obj.ProtocolFeeRecipients)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (obj *CreateConfigEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
+	// Read and check account discriminator:
+	{
+		discriminator, err := decoder.ReadTypeID()
+		if err != nil {
+			return err
+		}
+		if !discriminator.Equal(CreateConfigEventEventDataDiscriminator[:]) {
+			return fmt.Errorf(
+				"wrong discriminator: wanted %s, got %s",
+				"[107 52 89 129 55 226 81 22]",
+				fmt.Sprint(discriminator[:]))
+		}
+	}
+	// Deserialize `Timestamp`:
+	err = decoder.Decode(&obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Admin`:
+	err = decoder.Decode(&obj.Admin)
+	if err != nil {
+		return err
+	}
+	// Deserialize `LpFeeBasisPoints`:
+	err = decoder.Decode(&obj.LpFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Deserialize `ProtocolFeeBasisPoints`:
+	err = decoder.Decode(&obj.ProtocolFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Deserialize `ProtocolFeeRecipients`:
+	err = decoder.Decode(&obj.ProtocolFeeRecipients)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*CreateConfigEventEventData) isEventData() {}
+
+type CreatePoolEventEventData struct {
+	Timestamp             int64
+	Index                 uint16
+	Creator               ag_solanago.PublicKey
+	BaseMint              ag_solanago.PublicKey
+	QuoteMint             ag_solanago.PublicKey
+	BaseMintDecimals      uint8
+	QuoteMintDecimals     uint8
+	BaseAmountIn          uint64
+	QuoteAmountIn         uint64
+	PoolBaseAmount        uint64
+	PoolQuoteAmount       uint64
+	MinimumLiquidity      uint64
+	InitialLiquidity      uint64
+	LpTokenAmountOut      uint64
+	PoolBump              uint8
+	Pool                  ag_solanago.PublicKey
+	LpMint                ag_solanago.PublicKey
+	UserBaseTokenAccount  ag_solanago.PublicKey
+	UserQuoteTokenAccount ag_solanago.PublicKey
+}
+
+var CreatePoolEventEventDataDiscriminator = [8]byte{177, 49, 12, 210, 160, 118, 167, 116}
+
+func (obj CreatePoolEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
+	// Write account discriminator:
+	err = encoder.WriteBytes(CreatePoolEventEventDataDiscriminator[:], false)
+	if err != nil {
+		return err
+	}
+	// Serialize `Timestamp` param:
+	err = encoder.Encode(obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Serialize `Index` param:
+	err = encoder.Encode(obj.Index)
+	if err != nil {
+		return err
+	}
+	// Serialize `Creator` param:
+	err = encoder.Encode(obj.Creator)
+	if err != nil {
+		return err
+	}
+	// Serialize `BaseMint` param:
+	err = encoder.Encode(obj.BaseMint)
+	if err != nil {
+		return err
+	}
+	// Serialize `QuoteMint` param:
+	err = encoder.Encode(obj.QuoteMint)
+	if err != nil {
+		return err
+	}
+	// Serialize `BaseMintDecimals` param:
+	err = encoder.Encode(obj.BaseMintDecimals)
+	if err != nil {
+		return err
+	}
+	// Serialize `QuoteMintDecimals` param:
+	err = encoder.Encode(obj.QuoteMintDecimals)
+	if err != nil {
+		return err
+	}
+	// Serialize `BaseAmountIn` param:
+	err = encoder.Encode(obj.BaseAmountIn)
+	if err != nil {
+		return err
+	}
+	// Serialize `QuoteAmountIn` param:
+	err = encoder.Encode(obj.QuoteAmountIn)
+	if err != nil {
+		return err
+	}
+	// Serialize `PoolBaseAmount` param:
+	err = encoder.Encode(obj.PoolBaseAmount)
+	if err != nil {
+		return err
+	}
+	// Serialize `PoolQuoteAmount` param:
+	err = encoder.Encode(obj.PoolQuoteAmount)
+	if err != nil {
+		return err
+	}
+	// Serialize `MinimumLiquidity` param:
+	err = encoder.Encode(obj.MinimumLiquidity)
+	if err != nil {
+		return err
+	}
+	// Serialize `InitialLiquidity` param:
+	err = encoder.Encode(obj.InitialLiquidity)
+	if err != nil {
+		return err
+	}
+	// Serialize `LpTokenAmountOut` param:
+	err = encoder.Encode(obj.LpTokenAmountOut)
+	if err != nil {
+		return err
+	}
+	// Serialize `PoolBump` param:
+	err = encoder.Encode(obj.PoolBump)
+	if err != nil {
+		return err
+	}
+	// Serialize `Pool` param:
+	err = encoder.Encode(obj.Pool)
+	if err != nil {
+		return err
+	}
+	// Serialize `LpMint` param:
+	err = encoder.Encode(obj.LpMint)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserBaseTokenAccount` param:
+	err = encoder.Encode(obj.UserBaseTokenAccount)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserQuoteTokenAccount` param:
+	err = encoder.Encode(obj.UserQuoteTokenAccount)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (obj *CreatePoolEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
+	// Read and check account discriminator:
+	{
+		discriminator, err := decoder.ReadTypeID()
+		if err != nil {
+			return err
+		}
+		if !discriminator.Equal(CreatePoolEventEventDataDiscriminator[:]) {
+			return fmt.Errorf(
+				"wrong discriminator: wanted %s, got %s",
+				"[177 49 12 210 160 118 167 116]",
+				fmt.Sprint(discriminator[:]))
+		}
+	}
+	// Deserialize `Timestamp`:
+	err = decoder.Decode(&obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Index`:
+	err = decoder.Decode(&obj.Index)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Creator`:
+	err = decoder.Decode(&obj.Creator)
+	if err != nil {
+		return err
+	}
+	// Deserialize `BaseMint`:
+	err = decoder.Decode(&obj.BaseMint)
+	if err != nil {
+		return err
+	}
+	// Deserialize `QuoteMint`:
+	err = decoder.Decode(&obj.QuoteMint)
+	if err != nil {
+		return err
+	}
+	// Deserialize `BaseMintDecimals`:
+	err = decoder.Decode(&obj.BaseMintDecimals)
+	if err != nil {
+		return err
+	}
+	// Deserialize `QuoteMintDecimals`:
+	err = decoder.Decode(&obj.QuoteMintDecimals)
+	if err != nil {
+		return err
+	}
+	// Deserialize `BaseAmountIn`:
+	err = decoder.Decode(&obj.BaseAmountIn)
+	if err != nil {
+		return err
+	}
+	// Deserialize `QuoteAmountIn`:
+	err = decoder.Decode(&obj.QuoteAmountIn)
+	if err != nil {
+		return err
+	}
+	// Deserialize `PoolBaseAmount`:
+	err = decoder.Decode(&obj.PoolBaseAmount)
+	if err != nil {
+		return err
+	}
+	// Deserialize `PoolQuoteAmount`:
+	err = decoder.Decode(&obj.PoolQuoteAmount)
+	if err != nil {
+		return err
+	}
+	// Deserialize `MinimumLiquidity`:
+	err = decoder.Decode(&obj.MinimumLiquidity)
+	if err != nil {
+		return err
+	}
+	// Deserialize `InitialLiquidity`:
+	err = decoder.Decode(&obj.InitialLiquidity)
+	if err != nil {
+		return err
+	}
+	// Deserialize `LpTokenAmountOut`:
+	err = decoder.Decode(&obj.LpTokenAmountOut)
+	if err != nil {
+		return err
+	}
+	// Deserialize `PoolBump`:
+	err = decoder.Decode(&obj.PoolBump)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Pool`:
+	err = decoder.Decode(&obj.Pool)
+	if err != nil {
+		return err
+	}
+	// Deserialize `LpMint`:
+	err = decoder.Decode(&obj.LpMint)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserBaseTokenAccount`:
+	err = decoder.Decode(&obj.UserBaseTokenAccount)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserQuoteTokenAccount`:
+	err = decoder.Decode(&obj.UserQuoteTokenAccount)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*CreatePoolEventEventData) isEventData() {}
+
+type DepositEventEventData struct {
+	Timestamp              int64
+	LpTokenAmountOut       uint64
+	MaxBaseAmountIn        uint64
+	MaxQuoteAmountIn       uint64
+	UserBaseTokenReserves  uint64
+	UserQuoteTokenReserves uint64
+	PoolBaseTokenReserves  uint64
+	PoolQuoteTokenReserves uint64
+	BaseAmountIn           uint64
+	QuoteAmountIn          uint64
+	LpMintSupply           uint64
+	Pool                   ag_solanago.PublicKey
+	User                   ag_solanago.PublicKey
+	UserBaseTokenAccount   ag_solanago.PublicKey
+	UserQuoteTokenAccount  ag_solanago.PublicKey
+	UserPoolTokenAccount   ag_solanago.PublicKey
+}
+
+var DepositEventEventDataDiscriminator = [8]byte{120, 248, 61, 83, 31, 142, 107, 144}
+
+func (obj DepositEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
+	// Write account discriminator:
+	err = encoder.WriteBytes(DepositEventEventDataDiscriminator[:], false)
+	if err != nil {
+		return err
+	}
+	// Serialize `Timestamp` param:
+	err = encoder.Encode(obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Serialize `LpTokenAmountOut` param:
+	err = encoder.Encode(obj.LpTokenAmountOut)
+	if err != nil {
+		return err
+	}
+	// Serialize `MaxBaseAmountIn` param:
+	err = encoder.Encode(obj.MaxBaseAmountIn)
+	if err != nil {
+		return err
+	}
+	// Serialize `MaxQuoteAmountIn` param:
+	err = encoder.Encode(obj.MaxQuoteAmountIn)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserBaseTokenReserves` param:
+	err = encoder.Encode(obj.UserBaseTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserQuoteTokenReserves` param:
+	err = encoder.Encode(obj.UserQuoteTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `PoolBaseTokenReserves` param:
+	err = encoder.Encode(obj.PoolBaseTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `PoolQuoteTokenReserves` param:
+	err = encoder.Encode(obj.PoolQuoteTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `BaseAmountIn` param:
+	err = encoder.Encode(obj.BaseAmountIn)
+	if err != nil {
+		return err
+	}
+	// Serialize `QuoteAmountIn` param:
+	err = encoder.Encode(obj.QuoteAmountIn)
+	if err != nil {
+		return err
+	}
+	// Serialize `LpMintSupply` param:
+	err = encoder.Encode(obj.LpMintSupply)
+	if err != nil {
+		return err
+	}
+	// Serialize `Pool` param:
+	err = encoder.Encode(obj.Pool)
+	if err != nil {
+		return err
+	}
+	// Serialize `User` param:
+	err = encoder.Encode(obj.User)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserBaseTokenAccount` param:
+	err = encoder.Encode(obj.UserBaseTokenAccount)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserQuoteTokenAccount` param:
+	err = encoder.Encode(obj.UserQuoteTokenAccount)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserPoolTokenAccount` param:
+	err = encoder.Encode(obj.UserPoolTokenAccount)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (obj *DepositEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
+	// Read and check account discriminator:
+	{
+		discriminator, err := decoder.ReadTypeID()
+		if err != nil {
+			return err
+		}
+		if !discriminator.Equal(DepositEventEventDataDiscriminator[:]) {
+			return fmt.Errorf(
+				"wrong discriminator: wanted %s, got %s",
+				"[120 248 61 83 31 142 107 144]",
+				fmt.Sprint(discriminator[:]))
+		}
+	}
+	// Deserialize `Timestamp`:
+	err = decoder.Decode(&obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Deserialize `LpTokenAmountOut`:
+	err = decoder.Decode(&obj.LpTokenAmountOut)
+	if err != nil {
+		return err
+	}
+	// Deserialize `MaxBaseAmountIn`:
+	err = decoder.Decode(&obj.MaxBaseAmountIn)
+	if err != nil {
+		return err
+	}
+	// Deserialize `MaxQuoteAmountIn`:
+	err = decoder.Decode(&obj.MaxQuoteAmountIn)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserBaseTokenReserves`:
+	err = decoder.Decode(&obj.UserBaseTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserQuoteTokenReserves`:
+	err = decoder.Decode(&obj.UserQuoteTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `PoolBaseTokenReserves`:
+	err = decoder.Decode(&obj.PoolBaseTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `PoolQuoteTokenReserves`:
+	err = decoder.Decode(&obj.PoolQuoteTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `BaseAmountIn`:
+	err = decoder.Decode(&obj.BaseAmountIn)
+	if err != nil {
+		return err
+	}
+	// Deserialize `QuoteAmountIn`:
+	err = decoder.Decode(&obj.QuoteAmountIn)
+	if err != nil {
+		return err
+	}
+	// Deserialize `LpMintSupply`:
+	err = decoder.Decode(&obj.LpMintSupply)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Pool`:
+	err = decoder.Decode(&obj.Pool)
+	if err != nil {
+		return err
+	}
+	// Deserialize `User`:
+	err = decoder.Decode(&obj.User)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserBaseTokenAccount`:
+	err = decoder.Decode(&obj.UserBaseTokenAccount)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserQuoteTokenAccount`:
+	err = decoder.Decode(&obj.UserQuoteTokenAccount)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserPoolTokenAccount`:
+	err = decoder.Decode(&obj.UserPoolTokenAccount)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*DepositEventEventData) isEventData() {}
+
+type DisableEventEventData struct {
+	Timestamp         int64
+	Admin             ag_solanago.PublicKey
+	DisableCreatePool bool
+	DisableDeposit    bool
+	DisableWithdraw   bool
+	DisableBuy        bool
+	DisableSell       bool
+}
+
+var DisableEventEventDataDiscriminator = [8]byte{107, 253, 193, 76, 228, 202, 27, 104}
+
+func (obj DisableEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
+	// Write account discriminator:
+	err = encoder.WriteBytes(DisableEventEventDataDiscriminator[:], false)
+	if err != nil {
+		return err
+	}
+	// Serialize `Timestamp` param:
+	err = encoder.Encode(obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Serialize `Admin` param:
+	err = encoder.Encode(obj.Admin)
+	if err != nil {
+		return err
+	}
+	// Serialize `DisableCreatePool` param:
+	err = encoder.Encode(obj.DisableCreatePool)
+	if err != nil {
+		return err
+	}
+	// Serialize `DisableDeposit` param:
+	err = encoder.Encode(obj.DisableDeposit)
+	if err != nil {
+		return err
+	}
+	// Serialize `DisableWithdraw` param:
+	err = encoder.Encode(obj.DisableWithdraw)
+	if err != nil {
+		return err
+	}
+	// Serialize `DisableBuy` param:
+	err = encoder.Encode(obj.DisableBuy)
+	if err != nil {
+		return err
+	}
+	// Serialize `DisableSell` param:
+	err = encoder.Encode(obj.DisableSell)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (obj *DisableEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
+	// Read and check account discriminator:
+	{
+		discriminator, err := decoder.ReadTypeID()
+		if err != nil {
+			return err
+		}
+		if !discriminator.Equal(DisableEventEventDataDiscriminator[:]) {
+			return fmt.Errorf(
+				"wrong discriminator: wanted %s, got %s",
+				"[107 253 193 76 228 202 27 104]",
+				fmt.Sprint(discriminator[:]))
+		}
+	}
+	// Deserialize `Timestamp`:
+	err = decoder.Decode(&obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Admin`:
+	err = decoder.Decode(&obj.Admin)
+	if err != nil {
+		return err
+	}
+	// Deserialize `DisableCreatePool`:
+	err = decoder.Decode(&obj.DisableCreatePool)
+	if err != nil {
+		return err
+	}
+	// Deserialize `DisableDeposit`:
+	err = decoder.Decode(&obj.DisableDeposit)
+	if err != nil {
+		return err
+	}
+	// Deserialize `DisableWithdraw`:
+	err = decoder.Decode(&obj.DisableWithdraw)
+	if err != nil {
+		return err
+	}
+	// Deserialize `DisableBuy`:
+	err = decoder.Decode(&obj.DisableBuy)
+	if err != nil {
+		return err
+	}
+	// Deserialize `DisableSell`:
+	err = decoder.Decode(&obj.DisableSell)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*DisableEventEventData) isEventData() {}
+
+type ExtendAccountEventEventData struct {
+	Timestamp   int64
+	Account     ag_solanago.PublicKey
+	User        ag_solanago.PublicKey
+	CurrentSize uint64
+	NewSize     uint64
+}
+
+var ExtendAccountEventEventDataDiscriminator = [8]byte{97, 97, 215, 144, 93, 146, 22, 124}
+
+func (obj ExtendAccountEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
+	// Write account discriminator:
+	err = encoder.WriteBytes(ExtendAccountEventEventDataDiscriminator[:], false)
+	if err != nil {
+		return err
+	}
+	// Serialize `Timestamp` param:
+	err = encoder.Encode(obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Serialize `Account` param:
+	err = encoder.Encode(obj.Account)
+	if err != nil {
+		return err
+	}
+	// Serialize `User` param:
+	err = encoder.Encode(obj.User)
+	if err != nil {
+		return err
+	}
+	// Serialize `CurrentSize` param:
+	err = encoder.Encode(obj.CurrentSize)
+	if err != nil {
+		return err
+	}
+	// Serialize `NewSize` param:
+	err = encoder.Encode(obj.NewSize)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (obj *ExtendAccountEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
+	// Read and check account discriminator:
+	{
+		discriminator, err := decoder.ReadTypeID()
+		if err != nil {
+			return err
+		}
+		if !discriminator.Equal(ExtendAccountEventEventDataDiscriminator[:]) {
+			return fmt.Errorf(
+				"wrong discriminator: wanted %s, got %s",
+				"[97 97 215 144 93 146 22 124]",
+				fmt.Sprint(discriminator[:]))
+		}
+	}
+	// Deserialize `Timestamp`:
+	err = decoder.Decode(&obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Account`:
+	err = decoder.Decode(&obj.Account)
+	if err != nil {
+		return err
+	}
+	// Deserialize `User`:
+	err = decoder.Decode(&obj.User)
+	if err != nil {
+		return err
+	}
+	// Deserialize `CurrentSize`:
+	err = decoder.Decode(&obj.CurrentSize)
+	if err != nil {
+		return err
+	}
+	// Deserialize `NewSize`:
+	err = decoder.Decode(&obj.NewSize)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*ExtendAccountEventEventData) isEventData() {}
+
+type SellEventEventData struct {
+	Timestamp                        int64
+	BaseAmountIn                     uint64
+	MinQuoteAmountOut                uint64
+	UserBaseTokenReserves            uint64
+	UserQuoteTokenReserves           uint64
+	PoolBaseTokenReserves            uint64
+	PoolQuoteTokenReserves           uint64
+	QuoteAmountOut                   uint64
+	LpFeeBasisPoints                 uint64
+	LpFee                            uint64
+	ProtocolFeeBasisPoints           uint64
+	ProtocolFee                      uint64
+	QuoteAmountOutWithoutLpFee       uint64
+	UserQuoteAmountOut               uint64
+	Pool                             ag_solanago.PublicKey
+	User                             ag_solanago.PublicKey
+	UserBaseTokenAccount             ag_solanago.PublicKey
+	UserQuoteTokenAccount            ag_solanago.PublicKey
+	ProtocolFeeRecipient             ag_solanago.PublicKey
+	ProtocolFeeRecipientTokenAccount ag_solanago.PublicKey
+}
+
+var SellEventEventDataDiscriminator = [8]byte{62, 47, 55, 10, 165, 3, 220, 42}
+
+func (obj SellEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
+	// Write account discriminator:
+	err = encoder.WriteBytes(SellEventEventDataDiscriminator[:], false)
+	if err != nil {
+		return err
+	}
+	// Serialize `Timestamp` param:
+	err = encoder.Encode(obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Serialize `BaseAmountIn` param:
+	err = encoder.Encode(obj.BaseAmountIn)
+	if err != nil {
+		return err
+	}
+	// Serialize `MinQuoteAmountOut` param:
+	err = encoder.Encode(obj.MinQuoteAmountOut)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserBaseTokenReserves` param:
+	err = encoder.Encode(obj.UserBaseTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserQuoteTokenReserves` param:
+	err = encoder.Encode(obj.UserQuoteTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `PoolBaseTokenReserves` param:
+	err = encoder.Encode(obj.PoolBaseTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `PoolQuoteTokenReserves` param:
+	err = encoder.Encode(obj.PoolQuoteTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `QuoteAmountOut` param:
+	err = encoder.Encode(obj.QuoteAmountOut)
+	if err != nil {
+		return err
+	}
+	// Serialize `LpFeeBasisPoints` param:
+	err = encoder.Encode(obj.LpFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Serialize `LpFee` param:
+	err = encoder.Encode(obj.LpFee)
+	if err != nil {
+		return err
+	}
+	// Serialize `ProtocolFeeBasisPoints` param:
+	err = encoder.Encode(obj.ProtocolFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Serialize `ProtocolFee` param:
+	err = encoder.Encode(obj.ProtocolFee)
+	if err != nil {
+		return err
+	}
+	// Serialize `QuoteAmountOutWithoutLpFee` param:
+	err = encoder.Encode(obj.QuoteAmountOutWithoutLpFee)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserQuoteAmountOut` param:
+	err = encoder.Encode(obj.UserQuoteAmountOut)
+	if err != nil {
+		return err
+	}
+	// Serialize `Pool` param:
+	err = encoder.Encode(obj.Pool)
+	if err != nil {
+		return err
+	}
+	// Serialize `User` param:
+	err = encoder.Encode(obj.User)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserBaseTokenAccount` param:
+	err = encoder.Encode(obj.UserBaseTokenAccount)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserQuoteTokenAccount` param:
+	err = encoder.Encode(obj.UserQuoteTokenAccount)
+	if err != nil {
+		return err
+	}
+	// Serialize `ProtocolFeeRecipient` param:
+	err = encoder.Encode(obj.ProtocolFeeRecipient)
+	if err != nil {
+		return err
+	}
+	// Serialize `ProtocolFeeRecipientTokenAccount` param:
+	err = encoder.Encode(obj.ProtocolFeeRecipientTokenAccount)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (obj *SellEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
+	// Read and check account discriminator:
+	{
+		discriminator, err := decoder.ReadTypeID()
+		if err != nil {
+			return err
+		}
+		if !discriminator.Equal(SellEventEventDataDiscriminator[:]) {
+			return fmt.Errorf(
+				"wrong discriminator: wanted %s, got %s",
+				"[62 47 55 10 165 3 220 42]",
+				fmt.Sprint(discriminator[:]))
+		}
+	}
+	// Deserialize `Timestamp`:
+	err = decoder.Decode(&obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Deserialize `BaseAmountIn`:
+	err = decoder.Decode(&obj.BaseAmountIn)
+	if err != nil {
+		return err
+	}
+	// Deserialize `MinQuoteAmountOut`:
+	err = decoder.Decode(&obj.MinQuoteAmountOut)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserBaseTokenReserves`:
+	err = decoder.Decode(&obj.UserBaseTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserQuoteTokenReserves`:
+	err = decoder.Decode(&obj.UserQuoteTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `PoolBaseTokenReserves`:
+	err = decoder.Decode(&obj.PoolBaseTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `PoolQuoteTokenReserves`:
+	err = decoder.Decode(&obj.PoolQuoteTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `QuoteAmountOut`:
+	err = decoder.Decode(&obj.QuoteAmountOut)
+	if err != nil {
+		return err
+	}
+	// Deserialize `LpFeeBasisPoints`:
+	err = decoder.Decode(&obj.LpFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Deserialize `LpFee`:
+	err = decoder.Decode(&obj.LpFee)
+	if err != nil {
+		return err
+	}
+	// Deserialize `ProtocolFeeBasisPoints`:
+	err = decoder.Decode(&obj.ProtocolFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Deserialize `ProtocolFee`:
+	err = decoder.Decode(&obj.ProtocolFee)
+	if err != nil {
+		return err
+	}
+	// Deserialize `QuoteAmountOutWithoutLpFee`:
+	err = decoder.Decode(&obj.QuoteAmountOutWithoutLpFee)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserQuoteAmountOut`:
+	err = decoder.Decode(&obj.UserQuoteAmountOut)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Pool`:
+	err = decoder.Decode(&obj.Pool)
+	if err != nil {
+		return err
+	}
+	// Deserialize `User`:
+	err = decoder.Decode(&obj.User)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserBaseTokenAccount`:
+	err = decoder.Decode(&obj.UserBaseTokenAccount)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserQuoteTokenAccount`:
+	err = decoder.Decode(&obj.UserQuoteTokenAccount)
+	if err != nil {
+		return err
+	}
+	// Deserialize `ProtocolFeeRecipient`:
+	err = decoder.Decode(&obj.ProtocolFeeRecipient)
+	if err != nil {
+		return err
+	}
+	// Deserialize `ProtocolFeeRecipientTokenAccount`:
+	err = decoder.Decode(&obj.ProtocolFeeRecipientTokenAccount)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*SellEventEventData) isEventData() {}
+
+type UpdateAdminEventEventData struct {
+	Timestamp int64
+	Admin     ag_solanago.PublicKey
+	NewAdmin  ag_solanago.PublicKey
+}
+
+var UpdateAdminEventEventDataDiscriminator = [8]byte{225, 152, 171, 87, 246, 63, 66, 234}
+
+func (obj UpdateAdminEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
+	// Write account discriminator:
+	err = encoder.WriteBytes(UpdateAdminEventEventDataDiscriminator[:], false)
+	if err != nil {
+		return err
+	}
+	// Serialize `Timestamp` param:
+	err = encoder.Encode(obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Serialize `Admin` param:
+	err = encoder.Encode(obj.Admin)
+	if err != nil {
+		return err
+	}
+	// Serialize `NewAdmin` param:
+	err = encoder.Encode(obj.NewAdmin)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (obj *UpdateAdminEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
+	// Read and check account discriminator:
+	{
+		discriminator, err := decoder.ReadTypeID()
+		if err != nil {
+			return err
+		}
+		if !discriminator.Equal(UpdateAdminEventEventDataDiscriminator[:]) {
+			return fmt.Errorf(
+				"wrong discriminator: wanted %s, got %s",
+				"[225 152 171 87 246 63 66 234]",
+				fmt.Sprint(discriminator[:]))
+		}
+	}
+	// Deserialize `Timestamp`:
+	err = decoder.Decode(&obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Admin`:
+	err = decoder.Decode(&obj.Admin)
+	if err != nil {
+		return err
+	}
+	// Deserialize `NewAdmin`:
+	err = decoder.Decode(&obj.NewAdmin)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*UpdateAdminEventEventData) isEventData() {}
+
+type UpdateFeeConfigEventEventData struct {
+	Timestamp              int64
+	Admin                  ag_solanago.PublicKey
+	LpFeeBasisPoints       uint64
+	ProtocolFeeBasisPoints uint64
+	ProtocolFeeRecipients  [8]ag_solanago.PublicKey
+}
+
+var UpdateFeeConfigEventEventDataDiscriminator = [8]byte{90, 23, 65, 35, 62, 244, 188, 208}
+
+func (obj UpdateFeeConfigEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
+	// Write account discriminator:
+	err = encoder.WriteBytes(UpdateFeeConfigEventEventDataDiscriminator[:], false)
+	if err != nil {
+		return err
+	}
+	// Serialize `Timestamp` param:
+	err = encoder.Encode(obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Serialize `Admin` param:
+	err = encoder.Encode(obj.Admin)
+	if err != nil {
+		return err
+	}
+	// Serialize `LpFeeBasisPoints` param:
+	err = encoder.Encode(obj.LpFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Serialize `ProtocolFeeBasisPoints` param:
+	err = encoder.Encode(obj.ProtocolFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Serialize `ProtocolFeeRecipients` param:
+	err = encoder.Encode(obj.ProtocolFeeRecipients)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (obj *UpdateFeeConfigEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
+	// Read and check account discriminator:
+	{
+		discriminator, err := decoder.ReadTypeID()
+		if err != nil {
+			return err
+		}
+		if !discriminator.Equal(UpdateFeeConfigEventEventDataDiscriminator[:]) {
+			return fmt.Errorf(
+				"wrong discriminator: wanted %s, got %s",
+				"[90 23 65 35 62 244 188 208]",
+				fmt.Sprint(discriminator[:]))
+		}
+	}
+	// Deserialize `Timestamp`:
+	err = decoder.Decode(&obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Admin`:
+	err = decoder.Decode(&obj.Admin)
+	if err != nil {
+		return err
+	}
+	// Deserialize `LpFeeBasisPoints`:
+	err = decoder.Decode(&obj.LpFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Deserialize `ProtocolFeeBasisPoints`:
+	err = decoder.Decode(&obj.ProtocolFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Deserialize `ProtocolFeeRecipients`:
+	err = decoder.Decode(&obj.ProtocolFeeRecipients)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*UpdateFeeConfigEventEventData) isEventData() {}
+
+type WithdrawEventEventData struct {
+	Timestamp              int64
+	LpTokenAmountIn        uint64
+	MinBaseAmountOut       uint64
+	MinQuoteAmountOut      uint64
+	UserBaseTokenReserves  uint64
+	UserQuoteTokenReserves uint64
+	PoolBaseTokenReserves  uint64
+	PoolQuoteTokenReserves uint64
+	BaseAmountOut          uint64
+	QuoteAmountOut         uint64
+	LpMintSupply           uint64
+	Pool                   ag_solanago.PublicKey
+	User                   ag_solanago.PublicKey
+	UserBaseTokenAccount   ag_solanago.PublicKey
+	UserQuoteTokenAccount  ag_solanago.PublicKey
+	UserPoolTokenAccount   ag_solanago.PublicKey
+}
+
+var WithdrawEventEventDataDiscriminator = [8]byte{22, 9, 133, 26, 160, 44, 71, 192}
+
+func (obj WithdrawEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
+	// Write account discriminator:
+	err = encoder.WriteBytes(WithdrawEventEventDataDiscriminator[:], false)
+	if err != nil {
+		return err
+	}
+	// Serialize `Timestamp` param:
+	err = encoder.Encode(obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Serialize `LpTokenAmountIn` param:
+	err = encoder.Encode(obj.LpTokenAmountIn)
+	if err != nil {
+		return err
+	}
+	// Serialize `MinBaseAmountOut` param:
+	err = encoder.Encode(obj.MinBaseAmountOut)
+	if err != nil {
+		return err
+	}
+	// Serialize `MinQuoteAmountOut` param:
+	err = encoder.Encode(obj.MinQuoteAmountOut)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserBaseTokenReserves` param:
+	err = encoder.Encode(obj.UserBaseTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserQuoteTokenReserves` param:
+	err = encoder.Encode(obj.UserQuoteTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `PoolBaseTokenReserves` param:
+	err = encoder.Encode(obj.PoolBaseTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `PoolQuoteTokenReserves` param:
+	err = encoder.Encode(obj.PoolQuoteTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `BaseAmountOut` param:
+	err = encoder.Encode(obj.BaseAmountOut)
+	if err != nil {
+		return err
+	}
+	// Serialize `QuoteAmountOut` param:
+	err = encoder.Encode(obj.QuoteAmountOut)
+	if err != nil {
+		return err
+	}
+	// Serialize `LpMintSupply` param:
+	err = encoder.Encode(obj.LpMintSupply)
+	if err != nil {
+		return err
+	}
+	// Serialize `Pool` param:
+	err = encoder.Encode(obj.Pool)
+	if err != nil {
+		return err
+	}
+	// Serialize `User` param:
+	err = encoder.Encode(obj.User)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserBaseTokenAccount` param:
+	err = encoder.Encode(obj.UserBaseTokenAccount)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserQuoteTokenAccount` param:
+	err = encoder.Encode(obj.UserQuoteTokenAccount)
+	if err != nil {
+		return err
+	}
+	// Serialize `UserPoolTokenAccount` param:
+	err = encoder.Encode(obj.UserPoolTokenAccount)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (obj *WithdrawEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
+	// Read and check account discriminator:
+	{
+		discriminator, err := decoder.ReadTypeID()
+		if err != nil {
+			return err
+		}
+		if !discriminator.Equal(WithdrawEventEventDataDiscriminator[:]) {
+			return fmt.Errorf(
+				"wrong discriminator: wanted %s, got %s",
+				"[22 9 133 26 160 44 71 192]",
+				fmt.Sprint(discriminator[:]))
+		}
+	}
+	// Deserialize `Timestamp`:
+	err = decoder.Decode(&obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Deserialize `LpTokenAmountIn`:
+	err = decoder.Decode(&obj.LpTokenAmountIn)
+	if err != nil {
+		return err
+	}
+	// Deserialize `MinBaseAmountOut`:
+	err = decoder.Decode(&obj.MinBaseAmountOut)
+	if err != nil {
+		return err
+	}
+	// Deserialize `MinQuoteAmountOut`:
+	err = decoder.Decode(&obj.MinQuoteAmountOut)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserBaseTokenReserves`:
+	err = decoder.Decode(&obj.UserBaseTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserQuoteTokenReserves`:
+	err = decoder.Decode(&obj.UserQuoteTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `PoolBaseTokenReserves`:
+	err = decoder.Decode(&obj.PoolBaseTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `PoolQuoteTokenReserves`:
+	err = decoder.Decode(&obj.PoolQuoteTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `BaseAmountOut`:
+	err = decoder.Decode(&obj.BaseAmountOut)
+	if err != nil {
+		return err
+	}
+	// Deserialize `QuoteAmountOut`:
+	err = decoder.Decode(&obj.QuoteAmountOut)
+	if err != nil {
+		return err
+	}
+	// Deserialize `LpMintSupply`:
+	err = decoder.Decode(&obj.LpMintSupply)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Pool`:
+	err = decoder.Decode(&obj.Pool)
+	if err != nil {
+		return err
+	}
+	// Deserialize `User`:
+	err = decoder.Decode(&obj.User)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserBaseTokenAccount`:
+	err = decoder.Decode(&obj.UserBaseTokenAccount)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserQuoteTokenAccount`:
+	err = decoder.Decode(&obj.UserQuoteTokenAccount)
+	if err != nil {
+		return err
+	}
+	// Deserialize `UserPoolTokenAccount`:
+	err = decoder.Decode(&obj.UserPoolTokenAccount)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*WithdrawEventEventData) isEventData() {}
+
+var eventTypes = map[[8]byte]reflect.Type{
+	BuyEventEventDataDiscriminator:             reflect.TypeOf(BuyEventEventData{}),
+	CreateConfigEventEventDataDiscriminator:    reflect.TypeOf(CreateConfigEventEventData{}),
+	CreatePoolEventEventDataDiscriminator:      reflect.TypeOf(CreatePoolEventEventData{}),
+	DepositEventEventDataDiscriminator:         reflect.TypeOf(DepositEventEventData{}),
+	DisableEventEventDataDiscriminator:         reflect.TypeOf(DisableEventEventData{}),
+	ExtendAccountEventEventDataDiscriminator:   reflect.TypeOf(ExtendAccountEventEventData{}),
+	SellEventEventDataDiscriminator:            reflect.TypeOf(SellEventEventData{}),
+	UpdateAdminEventEventDataDiscriminator:     reflect.TypeOf(UpdateAdminEventEventData{}),
+	UpdateFeeConfigEventEventDataDiscriminator: reflect.TypeOf(UpdateFeeConfigEventEventData{}),
+	WithdrawEventEventDataDiscriminator:        reflect.TypeOf(WithdrawEventEventData{}),
+}
+var eventNames = map[[8]byte]string{
+	BuyEventEventDataDiscriminator:             "BuyEvent",
+	CreateConfigEventEventDataDiscriminator:    "CreateConfigEvent",
+	CreatePoolEventEventDataDiscriminator:      "CreatePoolEvent",
+	DepositEventEventDataDiscriminator:         "DepositEvent",
+	DisableEventEventDataDiscriminator:         "DisableEvent",
+	ExtendAccountEventEventDataDiscriminator:   "ExtendAccountEvent",
+	SellEventEventDataDiscriminator:            "SellEvent",
+	UpdateAdminEventEventDataDiscriminator:     "UpdateAdminEvent",
+	UpdateFeeConfigEventEventDataDiscriminator: "UpdateFeeConfigEvent",
+	WithdrawEventEventDataDiscriminator:        "WithdrawEvent",
+}
+var (
+	_ *strings.Builder = nil
+)
+var (
+	_ *base64.Encoding = nil
+)
+var (
+	_ *ag_binary.Decoder = nil
+)
+var (
+	_ *fmt.Formatter = nil
+)
+var (
+	_ *ag_rpc.GetTransactionResult = nil
+)
+var (
+	_ *ag_base58.Alphabet = nil
+)
+
+type Event struct {
+	Name string
+	Data EventData
+}
+
+type EventData interface {
+	UnmarshalWithDecoder(decoder *ag_binary.Decoder) error
+	isEventData()
+}
+
+const eventLogPrefix = "Program data: "
+
+func DecodeEvents(txData *ag_rpc.GetTransactionResult, targetProgramId ag_solanago.PublicKey, getAddressTables func(altAddresses []ag_solanago.PublicKey) (tables map[ag_solanago.PublicKey]ag_solanago.PublicKeySlice, err error)) (evts []*Event, err error) {
+	var tx *ag_solanago.Transaction
+	if tx, err = txData.Transaction.GetTransaction(); err != nil {
+		return
+	}
+
+	altAddresses := make([]ag_solanago.PublicKey, len(tx.Message.AddressTableLookups))
+	for i, alt := range tx.Message.AddressTableLookups {
+		altAddresses[i] = alt.AccountKey
+	}
+	if len(altAddresses) > 0 {
+		var tables map[ag_solanago.PublicKey]ag_solanago.PublicKeySlice
+		if tables, err = getAddressTables(altAddresses); err != nil {
+			return
+		}
+		tx.Message.SetAddressTables(tables)
+		if err = tx.Message.ResolveLookups(); err != nil {
+			return
+		}
+	}
+
+	var base64Binaries [][]byte
+	logMessageEventBinaries, err := decodeEventsFromLogMessage(txData.Meta.LogMessages)
+	if err != nil {
+		return
+	}
+
+	emitedCPIEventBinaries, err := decodeEventsFromEmitCPI(txData.Meta.InnerInstructions, tx.Message.AccountKeys, targetProgramId)
+	if err != nil {
+		return
+	}
+
+	base64Binaries = append(base64Binaries, logMessageEventBinaries...)
+	base64Binaries = append(base64Binaries, emitedCPIEventBinaries...)
+	evts, err = parseEvents(base64Binaries)
+	return
+}
+func DecodeEventsInLogs(logMessages []string) (evts []*Event, err error) {
+	var base64Binaries [][]byte
+	logMessageEventBinaries, err := decodeEventsFromLogMessage(logMessages)
+	if err != nil {
+		return
+	}
+
+	base64Binaries = append(base64Binaries, logMessageEventBinaries...)
+	evts, err = parseEvents(base64Binaries)
+	return
+}
+
+func decodeEventsFromLogMessage(logMessages []string) (eventBinaries [][]byte, err error) {
+	for _, log := range logMessages {
+		if strings.HasPrefix(log, eventLogPrefix) {
+			eventBase64 := log[len(eventLogPrefix):]
+
+			var eventBinary []byte
+			if eventBinary, err = base64.StdEncoding.DecodeString(eventBase64); err != nil {
+				err = fmt.Errorf("failed to decode logMessage event: %s", eventBase64)
+				return
+			}
+			eventBinaries = append(eventBinaries, eventBinary)
+		}
+	}
+	return
+}
+
+func decodeEventsFromEmitCPI(InnerInstructions []ag_rpc.InnerInstruction, accountKeys ag_solanago.PublicKeySlice, targetProgramId ag_solanago.PublicKey) (eventBinaries [][]byte, err error) {
+	for _, parsedIx := range InnerInstructions {
+		for _, ix := range parsedIx.Instructions {
+			if accountKeys[ix.ProgramIDIndex] != targetProgramId {
+				continue
+			}
+
+			var ixData []byte
+			if ixData, err = ag_base58.Decode(ix.Data.String()); err != nil {
+				return
+			}
+			if len(ixData) < 8 {
+				continue
+			}
+
+			eventBase64 := base64.StdEncoding.EncodeToString(ixData[8:])
+			var eventBinary []byte
+			if eventBinary, err = base64.StdEncoding.DecodeString(eventBase64); err != nil {
+				return
+			}
+			eventBinaries = append(eventBinaries, eventBinary)
+		}
+	}
+	return
+}
+
+func parseEvents(base64Binaries [][]byte) (evts []*Event, err error) {
+	decoder := ag_binary.NewDecoderWithEncoding(nil, ag_binary.EncodingBorsh)
+
+	for _, eventBinary := range base64Binaries {
+		if len(eventBinary) < 8 {
+			continue
+		}
+		eventDiscriminator := ag_binary.TypeID(eventBinary[:8])
+		if eventType, ok := eventTypes[eventDiscriminator]; ok {
+			eventData := reflect.New(eventType).Interface().(EventData)
+			decoder.Reset(eventBinary)
+			if err = eventData.UnmarshalWithDecoder(decoder); err != nil {
+				err = fmt.Errorf("failed to unmarshal event %s: %w", eventType.String(), err)
+				return
+			}
+			evts = append(evts, &Event{
+				Name: eventNames[eventDiscriminator],
+				Data: eventData,
+			})
+		}
+	}
+	return
+}

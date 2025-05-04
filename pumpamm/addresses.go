@@ -1,0 +1,11 @@
+package pumpamm
+
+import ag_solanago "github.com/gagliardetto/solana-go"
+
+var Addresses = map[string]ag_solanago.PublicKey{
+	"11111111111111111111111111111111":             ag_solanago.MustPublicKeyFromBase58("11111111111111111111111111111111"),
+	"8LWu7QM2dGR1G8nKDHthckea57bkCzXyBTAKPJUBDHo8": ag_solanago.MustPublicKeyFromBase58("8LWu7QM2dGR1G8nKDHthckea57bkCzXyBTAKPJUBDHo8"),
+	"ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL": ag_solanago.MustPublicKeyFromBase58("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"),
+	"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA":  ag_solanago.MustPublicKeyFromBase58("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"),
+	"TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb":  ag_solanago.MustPublicKeyFromBase58("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"),
+}
