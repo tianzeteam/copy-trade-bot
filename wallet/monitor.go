@@ -104,7 +104,7 @@ func (m *WalletMonitor) GetWallet(address solana.PublicKey) *WalletSettings {
 }
 
 // RecordTrade 记录原始交易者的交易
-func (m *WalletMonitor) RecordTrade(mintAddress string, copyAddress solana.PublicKey, entryPrice float64, amount uint64) {
+func (m *WalletMonitor) RecordTrade(mintAddress string, copyAddress solana.PublicKey, entryPrice float64, originAmount uint64) {
 	m.Mux.Lock()
 	defer m.Mux.Unlock()
 
@@ -130,7 +130,7 @@ func (m *WalletMonitor) RecordTrade(mintAddress string, copyAddress solana.Publi
 		MintAddress:   mintAddress,
 		WalletAddress: copyAddress.String(),
 		EntryPrice:    entryPrice,
-		Amount:        amount,
+		Amount:        originAmount,
 		Timestamp:     time.Now(),
 		ExitDeadline:  exitDeadline,
 		Settings:      walletSettings,
@@ -140,12 +140,12 @@ func (m *WalletMonitor) RecordTrade(mintAddress string, copyAddress solana.Publi
 	m.TradedTokens[mintAddress] = true
 
 	logger.Infof("记录原始交易: 代币=%s, 脑明钱包=%s, 入场价格=%.6f, 数量=%d, 止盈=%d%%, 止损=%d%%, 持仓时间=%d秒",
-		mintAddress, copyAddress.String(), entryPrice, amount,
+		mintAddress, copyAddress.String(), entryPrice, originAmount,
 		walletSettings.TakeProfitPct, walletSettings.StopLossPct, walletSettings.ExitTimeSec)
 }
 
 // RecordBotTrade 记录机器人的跟单交易
-func (m *WalletMonitor) RecordBotTrade(mintAddress string, botAddress solana.PublicKey, entryPrice float64, amount uint64) {
+func (m *WalletMonitor) RecordBotTrade(mintAddress string, botAddress solana.PublicKey, entryPrice float64) {
 	m.Mux.Lock()
 	defer m.Mux.Unlock()
 
@@ -179,7 +179,7 @@ func (m *WalletMonitor) RecordBotTrade(mintAddress string, botAddress solana.Pub
 		MintAddress:   mintAddress,
 		WalletAddress: botAddress.String(),
 		EntryPrice:    entryPrice,
-		Amount:        amount,
+		Amount:        0,
 		Timestamp:     time.Now(),
 		ExitDeadline:  exitDeadline,
 		Settings:      walletSettings,
@@ -187,8 +187,8 @@ func (m *WalletMonitor) RecordBotTrade(mintAddress string, botAddress solana.Pub
 
 	m.BotTrades[mintAddress] = tradeRecord
 
-	logger.Infof("记录机器人跟单交易: 代币=%s, 机器人钱包=%s, 入场价格=%.6f, 数量=%d, 止盈=%d%%, 止损=%d%%, 持仓时间=%d秒",
-		mintAddress, botAddress.String(), entryPrice, amount,
+	logger.Infof("记录机器人跟单交易: 代币=%s, 机器人钱包=%s, 入场价格=%.6f, 止盈=%d%%, 止损=%d%%, 持仓时间=%d秒",
+		mintAddress, botAddress.String(), entryPrice,
 		walletSettings.TakeProfitPct, walletSettings.StopLossPct, walletSettings.ExitTimeSec)
 }
 

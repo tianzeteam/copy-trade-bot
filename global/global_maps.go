@@ -49,20 +49,20 @@ type CreateEventInfo struct {
 
 // AmmTradeEventInfo 存储AMM交易事件信息
 type AmmTradeEventInfo struct {
-	UserAddress  string    // 用户地址
-	SolAmount    uint64    // Sol数量
-	TokenAmount  uint64    // Token数量
-	IsBuy        bool      // 是否买入
-	MintAddress  string    // Mint地址
-	AmmPool      string    // AMM池地址
-	TimeStamp    int64     // 时间戳
-	BaseReserve  uint64    // 基础代币储备
-	QuoteReserve uint64    // 报价代币储备
-	CurrentPrice float64   // 当前价格
-	TradeTime    string    // 交易时间
-	ReceivedAt   time.Time // 接收时间
-	TxHash       string    // 交易哈希
-	Slot         uint64    // 区块槽位
+	UserAddress  solana.PublicKey // 用户地址
+	SolAmount    uint64           // Sol数量
+	TokenAmount  uint64           // Token数量
+	IsBuy        bool             // 是否买入
+	MintAddress  solana.PublicKey // Mint地址
+	AmmPool      solana.PublicKey // AMM池地址
+	TimeStamp    int64            // 时间戳
+	BaseReserve  uint64           // 基础代币储备
+	QuoteReserve uint64           // 报价代币储备
+	CurrentPrice float64          // 当前价格
+	TradeTime    string           // 交易时间
+	ReceivedAt   time.Time        // 接收时间
+	TxHash       string           // 交易哈希
+	Slot         uint64           // 区块槽位
 }
 
 // AmmPoolInfo 存储AMM池信息

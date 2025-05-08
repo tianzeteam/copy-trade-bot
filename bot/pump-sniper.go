@@ -311,22 +311,22 @@ func (b *Bot) parseMintTransaction(logMessages []string) *global.CreateEventInfo
 // PumpSellMint 处理代币卖出逻辑
 func (b *Bot) PumpSellMint(tokenInfo types.TokenInfo, bondingCurve solana.PublicKey, virtualTokenReserves, virtualSolReserves uint64) {
 	ctx := context.Background()
-	if b.config.SellMode == "delay_sell" {
+	if b.Config.SellMode == "delay_sell" {
 		logger.Infof("延迟卖出代币: %s", tokenInfo.Mint.String())
 		time.Sleep(time.Duration(b.delaySecond) * time.Second)
 		// 先计算卖出金额
-		pumpAccounts, err := b.trader.AccountsCalc.CalculatePumpAccounts(ctx, tokenInfo.Mint, tokenInfo.Owner, bondingCurve)
+		pumpAccounts, err := b.Trader.AccountsCalc.CalculatePumpAccounts(ctx, tokenInfo.Mint, tokenInfo.Owner)
 		if err != nil {
 			logger.Errorf("计算卖出账户失败: %v", err)
 			return
 		}
-		amounts, err := b.trader.AmountsCalc.CalculateSellAmounts(
+		amounts, err := b.Trader.AmountsCalc.CalculateSellAmounts(
 			context.Background(),
 			pumpAccounts.BondingCurve,
 			float64(tokenInfo.Amount),
 			virtualTokenReserves,
 			virtualSolReserves,
-			b.config.SellSlippage,
+			b.Config.SellSlippage,
 		)
 		if err != nil {
 			logger.Errorf("计算卖出金额失败: %v", err)
@@ -343,10 +343,10 @@ func (b *Bot) PumpSellMint(tokenInfo types.TokenInfo, bondingCurve solana.Public
 			},
 			Amount:    amounts.TokenAmount,
 			Cost:      amounts.MinOut, // 卖出时 Cost 表示最小获得数量
-			Blockhash: *b.blockhash,
+			Blockhash: *b.Blockhash,
 			FeeConfig: types.FeeConfig{
-				Slippage:    b.config.SellSlippage,
-				PriorityFee: uint64(b.config.SellPriorityFee * 1e9),
+				Slippage:    b.Config.SellSlippage,
+				PriorityFee: uint64(b.Config.SellPriorityFee * 1e9),
 			},
 		}
 
@@ -354,32 +354,32 @@ func (b *Bot) PumpSellMint(tokenInfo types.TokenInfo, bondingCurve solana.Public
 		orderParams := types.OrderParams{
 			TradeParams: tradeParams,
 			BloXrouteParams: &types.BloXrouteParams{
-				Enable:    b.config.BloXroute.Enable,
-				RpcUrl:    b.config.BloXroute.RpcUrl,
-				ApiKeys:   b.config.BloXroute.ApiKeys,
-				TipAmount: uint64(b.config.BloXroute.SellTip * 1e9),
+				Enable:    b.Config.BloXroute.Enable,
+				RpcUrl:    b.Config.BloXroute.RpcUrl,
+				ApiKeys:   b.Config.BloXroute.ApiKeys,
+				TipAmount: uint64(b.Config.BloXroute.SellTip * 1e9),
 			},
 			NextBlockParams: &types.NextBlockParams{
-				Enable:    b.config.NextBlock.Enable,
-				BundleUrl: b.config.NextBlock.RpcUrl,
-				ApiKey:    b.config.NextBlock.ApiKeys[0],
-				TipAmount: uint64(b.config.NextBlock.SellTip * 1e9),
+				Enable:    b.Config.NextBlock.Enable,
+				BundleUrl: b.Config.NextBlock.RpcUrl,
+				ApiKey:    b.Config.NextBlock.ApiKeys[0],
+				TipAmount: uint64(b.Config.NextBlock.SellTip * 1e9),
 			},
 			JitoParams: &types.JitoParams{
-				Enable:    b.config.Jito.Enable,
-				BundleUrl: b.config.Jito.RpcUrl,
-				TipAmount: uint64(b.config.Jito.SellTip * 1e9),
+				Enable:    b.Config.Jito.Enable,
+				BundleUrl: b.Config.Jito.RpcUrl,
+				TipAmount: uint64(b.Config.Jito.SellTip * 1e9),
 			},
 			TemporalParams: &types.TemporalParams{
-				Enable:    b.config.Temporal.Enable,
-				BundleUrl: b.config.Temporal.RpcUrl,
-				ApiKey:    b.config.Temporal.ApiKeys[0],
-				TipAmount: uint64(b.config.Temporal.SellTip * 1e9),
+				Enable:    b.Config.Temporal.Enable,
+				BundleUrl: b.Config.Temporal.RpcUrl,
+				ApiKey:    b.Config.Temporal.ApiKeys[0],
+				TipAmount: uint64(b.Config.Temporal.SellTip * 1e9),
 			},
 		}
 
 		// 执行卖出交易
-		txid, err := b.trader.Sell(ctx, orderParams)
+		txid, err := b.Trader.Sell(ctx, orderParams)
 		if err != nil {
 			logger.Errorf("卖出失败: %v", err)
 			return
@@ -388,13 +388,13 @@ func (b *Bot) PumpSellMint(tokenInfo types.TokenInfo, bondingCurve solana.Public
 		logger.Infof("卖出发送成功! 交易ID: %s", txid)
 		logger.Infof("卖出数量（token x 1e6 ）: %d token", amounts.TokenAmount)
 
-	} else if b.config.SellMode == "multi_sell" {
+	} else if b.Config.SellMode == "multi_sell" {
 		// 使用策略模式进行卖出
 		logger.Infof("使用策略模式卖出代币: %s", tokenInfo.Mint.String())
 
 		// 确保卖出策略已初始化
 		if b.sellStrategy == nil {
-			b.sellStrategy = NewMultiLevelSellStrategy(b.config.MultiSellLevels)
+			b.sellStrategy = NewMultiLevelSellStrategy(b.Config.MultiSellLevels)
 			logger.Errorf("初始化多级卖出策略: %s", b.sellStrategy.Name())
 		}
 
@@ -403,12 +403,12 @@ func (b *Bot) PumpSellMint(tokenInfo types.TokenInfo, bondingCurve solana.Public
 		return
 	} else {
 		// 如果卖出模式既不是延迟卖出也不是分批卖出，则输出错误日志
-		logger.Errorf("不支持的卖出模式: %s", b.config.SellMode)
+		logger.Errorf("不支持的卖出模式: %s", b.Config.SellMode)
 	}
 
 }
 
-func (b *Bot) PumpMintParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *goyser.Client, ctx context.Context) *global.TradeEventInfo {
+func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *goyser.Client, ctx context.Context) *global.TradeEventInfo {
 	if out.GetTransaction() == nil {
 		return nil
 	}
@@ -462,6 +462,7 @@ func (b *Bot) PumpMintParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *
 
 			}
 		case "CreateEvent":
+			continue
 
 		}
 	}

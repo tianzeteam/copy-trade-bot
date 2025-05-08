@@ -24,6 +24,9 @@ import (
 	"github.com/gagliardetto/solana-go/rpc"
 )
 
+// 定义Pump AMM常量
+var ()
+
 // Trader 定义交易接口
 type Trader interface {
 	Buy(ctx context.Context, params BuyParams) (string, error) // 返回交易签名
@@ -114,6 +117,198 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		SetProgramAccount(PUMP_PROGRAM_ID).
 		SetAmount(params.TradeParams.Amount).
 		SetMaxSolCost(params.TradeParams.Cost)
+
+	instructions = append(instructions, buyInstruction.Build())
+
+	// 创建通道
+	resultChan := make(chan string, 4)
+	errChan := make(chan error, 4)
+	timeout := time.After(30 * time.Second)
+
+	if params.BloXrouteParams != nil && params.BloXrouteParams.Enable {
+		logger.Debugf("[BloXroute] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionBloXroute(
+				t.Wallet.PrivateKey,
+				instructions,
+				*params.BloXrouteParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("BloXroute发送失败: %s", err)
+				errChan <- fmt.Errorf("BloXroute发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	// 检查各个模式是否启用并准备发送
+	if params.NextBlockParams != nil && params.NextBlockParams.Enable {
+		log.Printf("[NextBlock] 准备发送交易...")
+		go func() {
+			// 构建交易并发送到 NextBlock
+			sig, err := swqos.SendTransactionNextBlock(
+				t.Wallet,
+				instructions,
+				params.NextBlockParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("NextBlock发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.JitoParams != nil && params.JitoParams.Enable {
+		log.Printf("[Jito] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionJito(
+				t.Wallet,
+				instructions,
+				params.JitoParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("jito发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.TemporalParams != nil && params.TemporalParams.Enable {
+		log.Printf("[Temporal] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionTemporal(
+				t.Wallet,
+				instructions,
+				params.TemporalParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("temporal发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	if t.Config.Normal.Enable {
+		log.Printf("[Normal] 准备发送交易...")
+		go func() {
+			// 构建交易
+			tx, err := solana.NewTransaction(
+				instructions,
+				params.TradeParams.Blockhash,
+				solana.TransactionPayer(t.Wallet.PublicKey()),
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("创建交易失败: %w", err)
+				return
+			}
+
+			// 签名交易
+			_, err = tx.Sign(
+				func(key solana.PublicKey) *solana.PrivateKey {
+					if key.Equals(t.Wallet.PublicKey()) {
+						return &t.Wallet.PrivateKey
+					}
+					return nil
+				},
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("签名交易失败: %w", err)
+				return
+			}
+
+			// 发送交易
+			sig, err := t.Client.SendTransaction(ctx, tx)
+			if err != nil {
+				errChan <- fmt.Errorf("发送交易失败: %w", err)
+				return
+			}
+
+			resultChan <- sig.String()
+		}()
+	}
+
+	// 等待结果
+	select {
+	case sig := <-resultChan:
+		logger.Infof("买入交易已发送! 交易ID: %s", sig)
+		return sig, nil
+	case err := <-errChan:
+		return "", err
+	case <-timeout:
+		return "", fmt.Errorf("transaction timeout")
+	}
+}
+
+// pump Amm Buy 执行买入交易
+func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (string, error) {
+
+	if t.Config.SimulateMode {
+		logger.Infof("模拟模式，不执行买入交易 %s", params.TradeParams.Accounts.Mint)
+		return "mock", fmt.Errorf("模拟模式，不执行买入交易")
+	}
+	logger.Debugf("开始执行买入交易...")
+	logger.Debugf("Mint地址: %s", params.TradeParams.Accounts.Mint)
+	logger.Debugf("购买数量: %d", params.TradeParams.Amount)
+	logger.Debugf("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
+
+	// 构建交易指令
+	instructions := []solana.Instruction{}
+
+	// 添加计算单元限制指令（通常设置为 200,000 units）
+	instructions = append(instructions, createSetComputeUnitLimitInstruction(200_000))
+
+	// 添加优先级费用指令
+	instructions = append(instructions, createSetComputeUnitPriceInstruction(params.TradeParams.FeeConfig.PriorityFee))
+
+	if t.Config.SkipATACheck {
+		// 快速模式：直接添加创建ATA指令
+		logger.Infof("快速模式：跳过ATA检查，直接创建ATA账户")
+		createATAIx := associatedtokenaccount.NewCreateInstruction(
+			params.TradeParams.Accounts.User, // payer
+			params.TradeParams.Accounts.User, // owner
+			params.TradeParams.Accounts.Mint, // mint
+		).Build()
+		instructions = append(instructions, createATAIx)
+	} else {
+		// 安全模式：先检查再创建
+		account, err := t.Client.GetAccountInfo(ctx, params.TradeParams.Accounts.AssociatedTokenAccount)
+		if err != nil || account.Value == nil {
+			logger.Infof("ATA账户不存在，创建新账户...")
+			createATAIx := associatedtokenaccount.NewCreateInstruction(
+				params.TradeParams.Accounts.User, // payer
+				params.TradeParams.Accounts.User, // owner
+				params.TradeParams.Accounts.Mint, // mint
+			).Build()
+			instructions = append(instructions, createATAIx)
+		}
+	}
+
+	// 构建Buy指令
+	// 使用pumpamm包的正确API
+	buyInstruction := pumpamm.NewBuyInstructionBuilder().
+		SetPoolAccount(params.TradeParams.Accounts.Pool).
+		SetUserAccount(params.TradeParams.Accounts.User).
+		SetGlobalConfigAccount(GLOBAL_CONFIG_ACCOUNT).
+		SetBaseMintAccount(params.TradeParams.Accounts.BaseMint).
+		SetQuoteMintAccount(params.TradeParams.Accounts.QuoteMint).
+		SetUserBaseTokenAccountAccount(params.TradeParams.Accounts.UserBaseTokenAccount).
+		SetUserQuoteTokenAccountAccount(params.TradeParams.Accounts.UserQuoteTokenAccount).
+		SetPoolBaseTokenAccountAccount(params.TradeParams.Accounts.PoolBaseTokenAccount).
+		SetPoolQuoteTokenAccountAccount(params.TradeParams.Accounts.PoolQuoteTokenAccount).
+		SetProtocolFeeRecipientAccount(PROTOCOL_FEE_RECIPIENT).
+		SetProtocolFeeRecipientTokenAccountAccount(PROTOCOL_FEE_RECIPIENT_TOKEN_ACCOUNT).
+		SetBaseTokenProgramAccount(solana.TokenProgramID).
+		SetQuoteTokenProgramAccount(solana.TokenProgramID).
+		SetEventAuthorityAccount(EVENT_AUTHORITY_ACCOUNT).
+		SetProgramAccount(pumpamm.ProgramID).
+		SetBaseAmountOut(params.TradeParams.Amount).
+		SetMaxQuoteAmountIn(params.TradeParams.Cost)
 
 	instructions = append(instructions, buyInstruction.Build())
 

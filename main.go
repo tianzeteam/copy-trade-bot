@@ -31,6 +31,7 @@ var (
 	tradeBot           *bot.Bot                   = nil
 	walletMonitor      *wallet.WalletMonitor      = nil
 	transactionMonitor *wallet.TransactionMonitor = nil
+	tokenProgramID                                = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 )
 
 // processWaitingSellTokens 处理等待卖出的代币
@@ -150,10 +151,11 @@ func main() {
 	tradeBot.SkipATALookup = false
 
 	// 创建交易监控器
-	transactionMonitor = wallet.NewTransactionMonitor(walletMonitor, tradeBot.GetWalletPublicKey(), config.BuySolAmount)
+	transactionMonitor = wallet.NewTransactionMonitor(tradeBot, walletMonitor, tradeBot.GetWalletPublicKey(), config.BuySolAmount)
 
 	// 启动钱包监控服务
 	ctx := context.Background()
+
 	walletMonitor.StartMonitoring(ctx)
 
 	// 启动处理卖出请求的goroutine
@@ -179,15 +181,13 @@ func main() {
 
 	isVote := false
 	isFailed := false
-	//includeTransaction := true
+
 	// subscribe to the account you want to see txns from and set a custom filter name to filter them out later
 	if err = mintStreamClient.SubscribeTransaction("transaction_stream", &yellowstone_geyser_pb.SubscribeRequestFilterTransactions{
 		Vote:           &isVote,
 		Failed:         &isFailed,
 		AccountInclude: []string{core.PUMP_PROGRAM_ID.String(), core.AMM_PROGRAM_ID.String()},
-	}, /* , &yellowstone_geyser_pb.SubscribeRequestFilterBlocks{
-	AccountInclude:      []string{core.PUMP_PROGRAM_ID.String(), core.AMM_PROGRAM_ID.String()},
-	IncludeTransactions: &includeTransaction} */); err != nil {
+	}); err != nil {
 		logger.Fatalf("订阅交易失败: %v", err)
 		return
 	}
@@ -203,20 +203,9 @@ func main() {
 				continue
 			}
 
-			/* 		if out.GetBlock() == nil {
-				logger.Debug("Received update with nil block")
-				continue
-
-			}
-			block := out.GetBlock()
-
-			blockHash := block.Blockhash
-			tradeBot.CacheLatestBlockhash(blockHash)
-
-			logger.Debugf("block height %d ,blockHash %v", block.BlockHeight.GetBlockHeight(), blockHash) */
 			if out.GetTransaction() == nil {
 				logger.Info("Received update with nil transaction")
-				continue //
+				continue
 			}
 
 			accountKeys := out.GetTransaction().Transaction.Transaction.Message.AccountKeys
@@ -227,7 +216,7 @@ func main() {
 			}
 
 			if slices.Contains(accountsAddress, core.PUMP_PROGRAM_ID.String()) {
-				tradeInfo := tradeBot.PumpMintParse(out, client, ctx)
+				tradeInfo := tradeBot.PumpParse(out, client, ctx)
 				if tradeInfo != nil && transactionMonitor != nil {
 					transactionMonitor.ProcessTransaction(tradeInfo)
 
@@ -260,7 +249,6 @@ func main() {
 	// 创建账户过滤器 - 监控两种类型的账户：
 	// 1. 钱包主账户（SOL账户）
 	// 2. 与钱包关联的所有SPL代币账户（通过过滤器过滤）
-	tokenProgramID := "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 
 	// 创建两个订阅请求，一个监控主账户，一个监控代币账户
 	// 1. 监控钱包主账户
@@ -328,7 +316,7 @@ func main() {
 
 			// 处理账户数据 - 这里可以根据需要解析特定的账户数据结构
 			// 如果有特定的数据结构需要解析，可以在这里添加解析逻辑
-			if owner == "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" && len(accountData) >= 165 {
+			if owner == tokenProgramID && len(accountData) >= 165 {
 				// SPL代币账户数据结构
 				_mint := solana.PublicKeyFromBytes(accountData[0:32])
 				_owner := solana.PublicKeyFromBytes(accountData[32:64])

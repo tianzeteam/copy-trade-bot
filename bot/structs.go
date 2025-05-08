@@ -10,14 +10,16 @@ import (
 	"copytrade/logger"
 	"copytrade/utils"
 
+	"github.com/blocto/solana-go-sdk/client"
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
 )
 
 type Bot struct {
-	config    *utils.Config
-	trader    *core.TraderImpl
-	rpcClient *rpc.Client
+	Config      *utils.Config
+	Trader      *core.TraderImpl
+	rpcClient   *rpc.Client
+	nonceClient *client.Client
 
 	privateKey solana.PrivateKey
 
@@ -34,7 +36,7 @@ type Bot struct {
 	// in prod, should always be set to `true` since we should never have ATA for new coins.
 	SkipATALookup bool
 
-	blockhash     *solana.Hash
+	Blockhash     *solana.Hash
 	balanceNeeded uint64
 
 	// 卖出策略
@@ -114,14 +116,16 @@ func NewBot(config *utils.Config) (*Bot, error) {
 	trader := core.NewTrader(config.RPCUrl, privateKey, config)
 
 	rpcClient := rpc.New(config.RPCUrl)
+	nonceClient := client.NewClient(config.RPCUrl)
 	// 设置全局配置，供卖出策略使用
 	SetConfig(config)
 
 	b := &Bot{
-		config:     config,
-		privateKey: privateKey,
-		trader:     trader,
-		rpcClient:  rpcClient,
+		Config:      config,
+		privateKey:  privateKey,
+		Trader:      trader,
+		rpcClient:   rpcClient,
+		nonceClient: nonceClient,
 
 		// Convert BuyPriorityFee from SOL to lamports (1 SOL = 10^9 lamports)
 		feeMicroLamport: uint64(config.BuyPriorityFee * 1e9),
@@ -139,7 +143,6 @@ func NewBot(config *utils.Config) (*Bot, error) {
 		sellStrategy: NewMultiLevelSellStrategy(config.MultiSellLevels),
 	}
 
-	b.fetchBlockhashLoop()
 	return b, nil
 }
 

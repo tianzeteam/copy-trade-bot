@@ -245,20 +245,20 @@ func (b *Bot) executeSellOrder(tokenInfo types.TokenInfo, bondingCurve solana.Pu
 	logger.Infof("执行卖出订单: 代币=%s, 数量=%d", tokenInfo.Mint.String(), tokenInfo.Amount)
 
 	// 先计算卖出金额
-	pumpAccounts, err := b.trader.AccountsCalc.CalculatePumpAccounts(context.Background(), tokenInfo.Mint, tokenInfo.Owner, bondingCurve)
+	pumpAccounts, err := b.Trader.AccountsCalc.CalculatePumpAccounts(context.Background(), tokenInfo.Mint, tokenInfo.Owner)
 	if err != nil {
 		logger.Errorf("计算卖出金额失败: %v", err)
 		return
 	}
 
 	// 计算卖出金额
-	amounts, err := b.trader.AmountsCalc.CalculateSellAmounts(
+	amounts, err := b.Trader.AmountsCalc.CalculateSellAmounts(
 		context.Background(),
 		bondingCurve,
 		float64(tokenInfo.Amount),
 		vTokenReserves,
 		vSolReserves,
-		b.config.SellSlippage,
+		b.Config.SellSlippage,
 	)
 	if err != nil {
 		logger.Errorf("计算卖出金额失败: %v", err)
@@ -275,10 +275,10 @@ func (b *Bot) executeSellOrder(tokenInfo types.TokenInfo, bondingCurve solana.Pu
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MinOut, // 卖出时 Cost 表示最小获得数量
-		Blockhash: *b.blockhash,
+		Blockhash: *b.Blockhash,
 		FeeConfig: types.FeeConfig{
-			Slippage:    b.config.SellSlippage,
-			PriorityFee: uint64(b.config.SellPriorityFee * 1e9),
+			Slippage:    b.Config.SellSlippage,
+			PriorityFee: uint64(b.Config.SellPriorityFee * 1e9),
 		},
 	}
 
@@ -286,32 +286,32 @@ func (b *Bot) executeSellOrder(tokenInfo types.TokenInfo, bondingCurve solana.Pu
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
 		NextBlockParams: &types.NextBlockParams{
-			Enable:    b.config.NextBlock.Enable,
-			BundleUrl: b.config.NextBlock.RpcUrl,
-			ApiKey:    b.config.NextBlock.ApiKeys[0],
-			TipAmount: uint64(b.config.NextBlock.SellTip * 1e9),
+			Enable:    b.Config.NextBlock.Enable,
+			BundleUrl: b.Config.NextBlock.RpcUrl,
+			ApiKey:    b.Config.NextBlock.ApiKeys[0],
+			TipAmount: uint64(b.Config.NextBlock.SellTip * 1e9),
 		},
 		JitoParams: &types.JitoParams{
-			Enable:    b.config.Jito.Enable,
-			BundleUrl: b.config.Jito.RpcUrl,
-			TipAmount: uint64(b.config.Jito.SellTip * 1e9),
+			Enable:    b.Config.Jito.Enable,
+			BundleUrl: b.Config.Jito.RpcUrl,
+			TipAmount: uint64(b.Config.Jito.SellTip * 1e9),
 		},
 		TemporalParams: &types.TemporalParams{
-			Enable:    b.config.Temporal.Enable,
-			BundleUrl: b.config.Temporal.RpcUrl,
-			ApiKey:    b.config.Temporal.ApiKeys[0],
-			TipAmount: uint64(b.config.Temporal.SellTip * 1e9),
+			Enable:    b.Config.Temporal.Enable,
+			BundleUrl: b.Config.Temporal.RpcUrl,
+			ApiKey:    b.Config.Temporal.ApiKeys[0],
+			TipAmount: uint64(b.Config.Temporal.SellTip * 1e9),
 		},
 		BloXrouteParams: &types.BloXrouteParams{
-			Enable:    b.config.BloXroute.Enable,
-			RpcUrl:    b.config.BloXroute.RpcUrl,
-			ApiKeys:   b.config.BloXroute.ApiKeys,
-			TipAmount: uint64(b.config.BloXroute.SellTip * 1e9),
+			Enable:    b.Config.BloXroute.Enable,
+			RpcUrl:    b.Config.BloXroute.RpcUrl,
+			ApiKeys:   b.Config.BloXroute.ApiKeys,
+			TipAmount: uint64(b.Config.BloXroute.SellTip * 1e9),
 		},
 	}
 
 	// 调用交易接口执行卖出
-	b.trader.Sell(context.Background(), orderParams)
+	b.Trader.Sell(context.Background(), orderParams)
 }
 
 // ExecuteSellStrategy 执行卖出策略
@@ -368,8 +368,9 @@ func (b *Bot) executeAmmSellOrder(tokenInfo types.TokenInfo) {
 	logger.Infof("池代币账户: BaseToken=%s, QuoteToken=%s",
 		poolInfo.PoolBaseTokenAccount.String(), poolInfo.PoolQuoteTokenAccount.String())
 
-	pumpAccounts, err := b.trader.AccountsCalc.CalculateAmmAccounts(
+	pumpAccounts, err := b.Trader.AccountsCalc.CalculateAmmAccounts(
 		context.Background(),
+		poolInfo.AmmPool,
 		poolInfo.BaseMint,
 		b.privateKey.PublicKey(),
 	)
@@ -380,11 +381,11 @@ func (b *Bot) executeAmmSellOrder(tokenInfo types.TokenInfo) {
 	baseReserve := tradeInfo.BaseReserve
 	quoteReserve := tradeInfo.QuoteReserve
 	// Calculate buy amounts
-	amounts, err := b.trader.AmountsCalc.CalculateAmmSellAmounts(
+	amounts, err := b.Trader.AmountsCalc.CalculateAmmSellAmounts(
 		baseAmountIn,
 		baseReserve,
 		quoteReserve,
-		b.config.BuySlippage,
+		b.Config.BuySlippage,
 	)
 
 	if err != nil {
@@ -406,16 +407,16 @@ func (b *Bot) executeAmmSellOrder(tokenInfo types.TokenInfo) {
 			Mint:                  pumpAccounts.Mint,
 			BaseMint:              poolInfo.BaseMint,
 			QuoteMint:             poolInfo.QuoteMint,
-			UserBaseTokenAccount:  pumpAccounts.AssociatedTokenAccount,
+			UserBaseTokenAccount:  pumpAccounts.UserBaseTokenAccount,
 			PoolBaseTokenAccount:  poolInfo.PoolBaseTokenAccount,
 			PoolQuoteTokenAccount: poolInfo.PoolQuoteTokenAccount,
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MinOut,
-		Blockhash: *b.blockhash,
+		Blockhash: *b.Blockhash,
 		FeeConfig: types.FeeConfig{
-			Slippage:    b.config.SellSlippage,
-			PriorityFee: uint64(b.config.SellPriorityFee * 1e9),
+			Slippage:    b.Config.SellSlippage,
+			PriorityFee: uint64(b.Config.SellPriorityFee * 1e9),
 		},
 	}
 
@@ -423,31 +424,31 @@ func (b *Bot) executeAmmSellOrder(tokenInfo types.TokenInfo) {
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
 		NextBlockParams: &types.NextBlockParams{
-			Enable:    b.config.NextBlock.Enable,
-			BundleUrl: b.config.NextBlock.RpcUrl,
-			ApiKey:    b.config.NextBlock.ApiKeys[0],
-			TipAmount: uint64(b.config.NextBlock.BuyTip * 1e9),
+			Enable:    b.Config.NextBlock.Enable,
+			BundleUrl: b.Config.NextBlock.RpcUrl,
+			ApiKey:    b.Config.NextBlock.ApiKeys[0],
+			TipAmount: uint64(b.Config.NextBlock.BuyTip * 1e9),
 		},
 		JitoParams: &types.JitoParams{
-			Enable:    b.config.Jito.Enable,
-			BundleUrl: b.config.Jito.RpcUrl,
-			TipAmount: uint64(b.config.Jito.BuyTip * 1e9),
+			Enable:    b.Config.Jito.Enable,
+			BundleUrl: b.Config.Jito.RpcUrl,
+			TipAmount: uint64(b.Config.Jito.BuyTip * 1e9),
 		},
 		TemporalParams: &types.TemporalParams{
-			Enable:    b.config.Temporal.Enable,
-			BundleUrl: b.config.Temporal.RpcUrl,
-			ApiKey:    b.config.Temporal.ApiKeys[0],
-			TipAmount: uint64(b.config.Temporal.BuyTip * 1e9),
+			Enable:    b.Config.Temporal.Enable,
+			BundleUrl: b.Config.Temporal.RpcUrl,
+			ApiKey:    b.Config.Temporal.ApiKeys[0],
+			TipAmount: uint64(b.Config.Temporal.BuyTip * 1e9),
 		},
 		BloXrouteParams: &types.BloXrouteParams{
-			Enable:    b.config.BloXroute.Enable,
-			RpcUrl:    b.config.BloXroute.RpcUrl,
-			ApiKeys:   b.config.BloXroute.ApiKeys,
-			TipAmount: uint64(b.config.BloXroute.BuyTip * 1e9),
+			Enable:    b.Config.BloXroute.Enable,
+			RpcUrl:    b.Config.BloXroute.RpcUrl,
+			ApiKeys:   b.Config.BloXroute.ApiKeys,
+			TipAmount: uint64(b.Config.BloXroute.BuyTip * 1e9),
 		},
 	}
 
 	// 调用通用的卖出方法
-	b.trader.AmmSell(context.Background(), orderParams, b.balanceNeeded)
+	b.Trader.AmmSell(context.Background(), orderParams, b.balanceNeeded)
 
 }

@@ -90,6 +90,39 @@ type SellAmounts struct {
 	MinOut      uint64 // 最小获得数量（考虑滑点）
 }
 
+// TokensForSol 计算SOL兑换代币的数量
+func (c *AmountsCalculator) CalculateAmmBuyAmounts(solAmount float64, baseReserve, quoteReserve uint64, slippage float64) (*SellAmounts, error) {
+	// 使用恒定乘积公式计算
+	// (x + Δx) * (y - Δy) = x * y
+	// 解出 Δy
+
+	// 转换为big.Int进行精确计算
+	quoteAmountInBig := new(big.Int).SetUint64(uint64(solAmount * 1e9))
+	baseReserveBig := new(big.Int).SetUint64(baseReserve)
+	quoteReserveBig := new(big.Int).SetUint64(quoteReserve)
+
+	// 计算 x * y
+	product := new(big.Int).Mul(baseReserveBig, quoteReserveBig)
+
+	// 计算 y + Δy
+	newQuoteReserve := new(big.Int).Add(quoteReserveBig, quoteAmountInBig)
+
+	// 计算 (x * y) / (y + Δy)
+	newBaseReserve := new(big.Int).Div(product, newQuoteReserve)
+
+	// 计算 x - ((x * y) / (y + Δy))
+	baseAmountOut := new(big.Int).Sub(baseReserveBig, newBaseReserve)
+
+	// 计算最小获得数量（考虑滑点）
+	minOut := uint64(float64(baseAmountOut.Uint64()) * (1 - slippage))
+
+	return &SellAmounts{
+		TokenAmount: baseAmountOut.Uint64(),
+		SolAmount:   uint64(solAmount * 1e9),
+		MinOut:      minOut,
+	}, nil
+}
+
 // TokensForSol 计算代币兑换SOL的数量
 func (c *AmountsCalculator) CalculateAmmSellAmounts(baseAmountIn, baseReserve, quoteReserve uint64, slippage float64) (*SellAmounts, error) {
 	// 使用恒定乘积公式计算

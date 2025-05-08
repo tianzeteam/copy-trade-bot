@@ -10,10 +10,9 @@ import (
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/programs/system"
 	"github.com/gagliardetto/solana-go/rpc"
-)
 
-// NONCE_ACCOUNT_LENGTH 是nonce账户所需的空间大小（字节）
-const NONCE_ACCOUNT_LENGTH = 85
+	"github.com/mr-tron/base58"
+)
 
 // CreateNonceAccount 创建一个新的nonce账户
 func (b *Bot) CreateNonceAccount(ctx context.Context) (*solana.PrivateKey, string, error) {
@@ -44,7 +43,7 @@ func (b *Bot) CreateNonceAccount(ctx context.Context) (*solana.PrivateKey, strin
 		NONCE_ACCOUNT_LENGTH,
 		system.ProgramID,
 		b.privateKey.PublicKey(), // 付款人
-		nonceAccountPubkey,       // 新账户
+		nonceAccountPubkey,       // nonce账户
 	).Build()
 
 	// 创建交易
@@ -61,9 +60,7 @@ func (b *Bot) CreateNonceAccount(ctx context.Context) (*solana.PrivateKey, strin
 		if key.Equals(b.privateKey.PublicKey()) {
 			return &b.privateKey
 		}
-		if key.Equals(nonceAccountPubkey) {
-			return &nonceAccount.PrivateKey
-		}
+
 		return nil
 	})
 
@@ -88,20 +85,52 @@ func (b *Bot) CreateNonceAccount(ctx context.Context) (*solana.PrivateKey, strin
 }
 
 // GetNonce 获取nonce账户的信息
-func (b *Bot) GetNonce(ctx context.Context, nonceAccountAddress string) error {
+func (b *Bot) GetNonce(ctx context.Context, nonceAccountAddress string) (*solana.Hash, error) {
 	// 解析nonce账户地址
 	nonceAccountPubkey, err := solana.PublicKeyFromBase58(nonceAccountAddress)
 	if err != nil {
-		return fmt.Errorf("解析nonce账户地址失败: %v", err)
+		return nil, fmt.Errorf("解析nonce账户地址失败: %v", err)
 	}
+
+	// 获取租金豁免所需的最小余额
+	_, err = b.rpcClient.GetMinimumBalanceForRentExemption(
+		ctx,
+		NONCE_ACCOUNT_LENGTH,
+		rpc.CommitmentConfirmed,
+	)
+	if err != nil {
+		logger.Fatalf("GetMinimumBalanceForRentExemption : %v", err)
+
+	}
+	/*
+		nonce, err := b.nonceClient.GetNonceFromNonceAccount(ctx, nonceAccountAddress)
+		if err != nil {
+			logger.Fatalf("failed to get nonce account, err: %v", err)
+		} */
+
+	offset := uint64(40)
+	length := uint64(32)
+	accountResult, err := b.rpcClient.GetAccountInfoWithOpts(ctx, nonceAccountPubkey, &rpc.GetAccountInfoOpts{
+		DataSlice: &rpc.DataSlice{
+			Offset: &offset,
+			Length: &length,
+		},
+	})
+	if err != nil {
+		logger.Fatalf("failed to get nonce account, err: %v", err)
+	}
+	// Extract binary data from DataBytesOrJSON before encoding
+	data := accountResult.GetBinary()
+	nonceValue := solana.HashFromBytes(data[:])
+
+	logger.Infof("nonce::  %s", base58.Encode(data))
 
 	// 获取账户信息
-	accountInfo, err := b.rpcClient.GetAccountInfo(ctx, nonceAccountPubkey)
+	/* accountInfo, err := b.rpcClient.GetAccountInfo(ctx, nonceAccountPubkey)
 	if err != nil {
-		return fmt.Errorf("获取nonce账户信息失败: %v", err)
+		return nil, fmt.Errorf("获取nonce账户信息失败: %v", err)
 	}
 
-	// 在实际实现中，这里需要解析nonce账户的数据结构
 	// 由于当前库可能没有直接的NonceAccount解析函数，我们只显示原始数据
 	if accountInfo != nil && accountInfo.Value != nil && accountInfo.Value.Data != nil {
 		data := accountInfo.Value.Data.GetBinary()
@@ -112,25 +141,26 @@ func (b *Bot) GetNonce(ctx context.Context, nonceAccountAddress string) error {
 		if len(data) >= 80 {
 			// 尝试解析授权者公钥（假设在偏移量4后的32字节）
 			var authPubkeyBytes [32]byte
-			copy(authPubkeyBytes[:], data[4:36])
+			copy(authPubkeyBytes[:], data[8:40])
 			authPubkey := solana.PublicKeyFromBytes(authPubkeyBytes[:])
 
 			// 尝试解析nonce值（假设在授权者公钥后的32字节）
 			var nonceBytes [32]byte
-			copy(nonceBytes[:], data[36:68])
+			copy(nonceBytes[:], data[40:72])
 			nonceValue := solana.HashFromBytes(nonceBytes[:])
 
 			logger.Infof("授权者: %s", authPubkey.String())
 			logger.Infof("Nonce值: %s", nonceValue.String())
-			logger.Infof("手续费计算器: 每个签名5000 lamports (0.000005 SOL)")
+
+			return &nonceValue, nil
 		} else {
-			logger.Warnf("Nonce账户数据长度不足，无法解析")
+			return nil, fmt.Errorf("Nonce账户数据长度不足，无法解析")
 		}
 	} else {
 		logger.Warnf("获取到的账户信息为空")
 	}
-
-	return nil
+	*/
+	return &nonceValue, nil
 }
 
 // GetNonceAdvanceInstruction 创建一个推进使用nonce的指令

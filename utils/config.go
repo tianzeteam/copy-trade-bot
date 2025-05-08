@@ -24,8 +24,8 @@ type MultiSellLevel struct {
 
 // BatchSellConfig 批量卖出策略配置
 type BatchSellConfig struct {
-	NumBatches int     `yaml:"num_batches"`   // 卖出批次数量
-	Thresholds []int   `yaml:"thresholds"`   // 每批卖出的价格阈值（百分比）
+	NumBatches int   `yaml:"num_batches"` // 卖出批次数量
+	Thresholds []int `yaml:"thresholds"`  // 每批卖出的价格阈值（百分比）
 }
 
 // LogConfig 表示日志配置
@@ -37,26 +37,28 @@ type LogConfig struct {
 
 // Config 表示整个配置文件结构
 type Config struct {
-	SimulateMode    bool             `yaml:"simulate_mode"`
-	PrivateKey      string           `yaml:"private_key"`
-	GRPCUrl         string           `yaml:"grpc_url"`
-	RPCUrl          string           `yaml:"rpc_url"`
-	BuySolAmount    float64          `yaml:"buy_sol_amount"`
-	SellMode        string           `yaml:"sell_mode"`
-	SellDelayTime   int              `yaml:"sell_delay_time"`
-	MultiSellLevels []MultiSellLevel `yaml:"multi_sell_levels"`
-	BatchSellConfig BatchSellConfig  `yaml:"batch_sell_config"`
-	SkipATACheck    bool             `yaml:"skip_ata_check"`
-	BuySlippage     float64          `yaml:"buy_slippage"`      // 全局买入滑点
-	SellSlippage    float64          `yaml:"sell_slippage"`     // 全局卖出滑点
-	BuyPriorityFee  float64          `yaml:"buy_priority_fee"`  // 全局买入优先级费用
-	SellPriorityFee float64          `yaml:"sell_priority_fee"` // 全局卖出优先级费用
-	Logging         LogConfig        `yaml:"logging"`          // 日志配置
-	Normal          ModeConfig       `yaml:"normal"`
-	Jito            ModeConfig       `yaml:"jito"`
-	NextBlock       ModeConfig       `yaml:"nextblock"`
-	Temporal        ModeConfig       `yaml:"temporal"`
-	BloXroute       ModeConfig       `yaml:"bloXroute"`
+	CreateNonceAccount bool             `yaml:"create_nonce_account"`
+	NonceAccountPubkey string           `yaml:"nonce_account_pubkey"`
+	SimulateMode       bool             `yaml:"simulate_mode"`
+	PrivateKey         string           `yaml:"private_key"`
+	GRPCUrl            string           `yaml:"grpc_url"`
+	RPCUrl             string           `yaml:"rpc_url"`
+	BuySolAmount       float64          `yaml:"buy_sol_amount"`
+	SellMode           string           `yaml:"sell_mode"`
+	SellDelayTime      int              `yaml:"sell_delay_time"`
+	MultiSellLevels    []MultiSellLevel `yaml:"multi_sell_levels"`
+	BatchSellConfig    BatchSellConfig  `yaml:"batch_sell_config"`
+	SkipATACheck       bool             `yaml:"skip_ata_check"`
+	BuySlippage        float64          `yaml:"buy_slippage"`      // 全局买入滑点
+	SellSlippage       float64          `yaml:"sell_slippage"`     // 全局卖出滑点
+	BuyPriorityFee     float64          `yaml:"buy_priority_fee"`  // 全局买入优先级费用
+	SellPriorityFee    float64          `yaml:"sell_priority_fee"` // 全局卖出优先级费用
+	Logging            LogConfig        `yaml:"logging"`           // 日志配置
+	Normal             ModeConfig       `yaml:"normal"`
+	Jito               ModeConfig       `yaml:"jito"`
+	NextBlock          ModeConfig       `yaml:"nextblock"`
+	Temporal           ModeConfig       `yaml:"temporal"`
+	BloXroute          ModeConfig       `yaml:"bloXroute"`
 }
 
 // LoadConfig 从文件加载配置

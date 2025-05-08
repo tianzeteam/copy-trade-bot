@@ -35,7 +35,7 @@ func (b *Bot) fetchLatestBlockhash() error {
 		return err
 	}
 
-	b.blockhash = &recent.Value.Blockhash
+	b.Blockhash = &recent.Value.Blockhash
 	return nil
 }
 func (b *Bot) CacheLatestBlockhash(blockhash string) error {
@@ -51,7 +51,7 @@ func (b *Bot) CacheLatestBlockhash(blockhash string) error {
 	}
 	// 创建一个新的 solana.Hash 对象
 	hash := solana.HashFromBytes(hashBytes)
-	b.blockhash = &hash
+	b.Blockhash = &hash
 	return nil
 }
 func (b *Bot) fetchBalanceNeeded() error {

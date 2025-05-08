@@ -15,4 +15,9 @@ var (
 	PROTOCOL_FEE_RECIPIENT_TOKEN_ACCOUNT = solana.MustPublicKeyFromBase58("94qWNrtmfn42h3ZjUZwWvK1MEo9uVmmrBPd2hpNjYDjb")
 	ACCOUNT_SPACE                        = uint64(165)
 	WSOL                                 = solana.MustPublicKeyFromBase58("So11111111111111111111111111111111111111112")
+
+	GLOBAL_CONFIG_ACCOUNT = solana.MustPublicKeyFromBase58("ADyA8hdefvWN2dbGGWFotbzWxrAvLW83WG6QCVXvJKqw") // 请替换为正确的地址
+	//PROTOCOL_FEE_RECIPIENT               = solana.MustPublicKeyFromBase58("9rPYyANsfQZw3DnDmKE3YCQF5E8oD89UXoHn9JFEhJUz") // 请替换为正确的地址
+	//PROTOCOL_FEE_RECIPIENT_TOKEN_ACCOUNT = solana.MustPublicKeyFromBase58("Bvtgim23rfocUzxVX9j9QFxTbBnH8JZxnaGLCEkXvjKS") // 请替换为正确的地址
+	EVENT_AUTHORITY_ACCOUNT = solana.MustPublicKeyFromBase58("GS4CU59F31iL7aR2Q8zVS8DRrcRnXX1yjQ66TqNVQnaR") // 请替换为正确的地址
 )

@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"math/big"
-	"strings"
 	"time"
 
 	"copytrade/global"
@@ -42,12 +41,12 @@ func (b *Bot) parseAmmTransaction(logMessages []string, mintAddress string) *glo
 
 				// 创建交易事件信息对象
 				tradeInfo := &global.AmmTradeEventInfo{
-					UserAddress:  buyEvent.User.String(),
+					UserAddress:  buyEvent.User,
 					SolAmount:    buyEvent.QuoteAmountIn,
 					TokenAmount:  buyEvent.BaseAmountOut,
 					IsBuy:        true,
-					MintAddress:  mintAddress, // 需要从其他地方获取
-					AmmPool:      buyEvent.Pool.String(),
+					MintAddress:  solana.MustPublicKeyFromBase58(mintAddress), // 需要从其他地方获取
+					AmmPool:      buyEvent.Pool,
 					TimeStamp:    buyEvent.Timestamp,
 					BaseReserve:  buyEvent.PoolBaseTokenReserves,
 					QuoteReserve: buyEvent.PoolQuoteTokenReserves,
@@ -81,12 +80,12 @@ func (b *Bot) parseAmmTransaction(logMessages []string, mintAddress string) *glo
 			if sellEvent, ok := event.Data.(*pumpamm.SellEventEventData); ok {
 				// 从卖出事件中提取信息
 				tradeInfo := &global.AmmTradeEventInfo{
-					UserAddress:  sellEvent.User.String(),
+					UserAddress:  sellEvent.User,
 					SolAmount:    sellEvent.QuoteAmountOut,
 					TokenAmount:  sellEvent.BaseAmountIn,
 					IsBuy:        false,
-					MintAddress:  mintAddress, // 需要从其他地方获取
-					AmmPool:      sellEvent.Pool.String(),
+					MintAddress:  solana.MustPublicKeyFromBase58(mintAddress), // 需要从其他地方获取
+					AmmPool:      sellEvent.Pool,
 					TimeStamp:    sellEvent.Timestamp,
 					BaseReserve:  sellEvent.PoolBaseTokenReserves,
 					QuoteReserve: sellEvent.PoolQuoteTokenReserves,
@@ -133,30 +132,20 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 		return nil
 	}
 
-	// 检查是否是AMM交易
-	isPumpAmmTx := false
-	for _, log := range logMessages {
-		if strings.Contains(log, "Program "+PumpAmmProgram) {
-			isPumpAmmTx = true
-			break
-		}
-	}
-
-	if !isPumpAmmTx {
-		return nil
-	}
-	instructions := txn.Transaction.Transaction.Message.Instructions
+	messages := txn.Transaction.Transaction.Message
+	cacheBlockhash := base58.Encode(messages.GetRecentBlockhash())
+	logger.Debugf("recent blockhash :%s", cacheBlockhash)
+	b.CacheLatestBlockhash(cacheBlockhash)
+	//inners:=txn.Transaction.Meta.InnerInstructions[0].
+	instructions := messages.Instructions
 	_signature := base58.Encode(txn.Transaction.Transaction.Signatures[0])
+	var mintAddress string
 	for _, instruction := range instructions {
 		// 安全检查：确保账户数据不为空
 		if len(instruction.Accounts) == 0 {
 			logger.Debug("跳过空账户指令")
 			continue
 		}
-
-		// 安全地编码账户密钥
-		accountKeyStr := base58.Encode(instruction.Accounts)
-		logger.Debug("账户: ", accountKeyStr)
 
 		// 安全检查：确保数据长度足够
 		data := instruction.GetData()
@@ -172,60 +161,22 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 		// 比较判别器
 		switch discriminator {
 		case pumpamm.BuyDiscriminator:
+
 			accountList := b.GetAccountList(out)
 			user := accountList[instruction.Accounts[1]]
-			mint := accountList[instruction.Accounts[3]]
+			mintAddress = accountList[instruction.Accounts[3]]
 			pool := accountList[instruction.Accounts[0]]
-			logger.Info("匹配-------买入------------判别器")
 
-			logger.Infof("user :%s ,mint :%s  pool %s", user, mint, pool)
-			logger.Info("_signature: ", _signature)
+			logger.Debug("匹配-------买入------------判别器")
+
+			logger.Debugf("user :%s ,mint :%s  pool %s", user, mintAddress, pool)
+			logger.Debug("_signature: ", _signature)
 		case pumpamm.SellDiscriminator:
-			logger.Info("匹配--------卖出-------------判别器")
+			logger.Debug("匹配--------卖出-------------判别器")
 		case pumpamm.CreateDiscriminator:
-			logger.Info("匹配创建判别器")
+			logger.Debug("匹配 Mint 判别器")
 		default:
-			logger.Info("未匹配判别器")
-		}
-	}
-
-	// 我们不需要直接解析指令，而是使用日志消息来解析交易
-	// 这样可以避免复杂的消息格式转换问题
-
-	// 检查是否是买入或卖出交易
-	isBuyOrSellTx := false
-	for _, log := range logMessages {
-		if strings.Contains(log, "BuyEvent") || strings.Contains(log, "SellEvent") {
-			isBuyOrSellTx = true
-			break
-		}
-	}
-
-	if !isBuyOrSellTx {
-		return nil
-	}
-
-	// 分析交易信息
-	var mintAddress string
-	for _, log := range logMessages {
-		if strings.Contains(log, "Instruction: Swap") {
-			// 尝试从日志中提取Mint地址
-			// 这里可能需要更复杂的解析逻辑，根据实际日志格式调整
-			// 这里仅作示例
-			accountKeys := txn.Transaction.Transaction.Message.AccountKeys
-			for _, accountKey := range accountKeys {
-				// 检查是否是SPL Token Mint账户
-				// 这里可能需要更复杂的检查逻辑
-				accountKeyStr := base58.Encode(accountKey)
-				if accountKeyStr != "11111111111111111111111111111111" && // 系统程序
-					accountKeyStr != "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" && // Token程序
-					accountKeyStr != PumpAmmProgram { // PumpAMM程序
-					// 可能是Mint地址
-					mintAddress = accountKeyStr
-					break
-				}
-			}
-			break
+			logger.Debug("未匹配判别器")
 		}
 	}
 
@@ -235,7 +186,7 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 
 	// 处理AMM交易信息
 	tradeInfo := b.parseAmmTransaction(logMessages, mintAddress)
-	if tradeInfo != nil {
+	/* 	if tradeInfo != nil {
 		global.SetAmmTradeInfo(mintAddress, tradeInfo)
 		logger.Infof("AMM交易信息: 用户=%s, SOL=%d, 代币=%d, 是否买入=%v, 价格=%.8f",
 			tradeInfo.UserAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.IsBuy, tradeInfo.CurrentPrice)
@@ -272,7 +223,7 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 		default:
 			logger.Debugf("通道已满，无法发送代币信息")
 		}
-	}
+	} */
 	return tradeInfo
 }
 
@@ -283,7 +234,7 @@ func (b *Bot) PumpAmmSell(tokenInfo types.TokenInfo) {
 
 	// 确保卖出策略已初始化
 	if b.sellStrategy == nil {
-		b.sellStrategy = NewMultiLevelSellStrategy(b.config.MultiSellLevels)
+		b.sellStrategy = NewMultiLevelSellStrategy(b.Config.MultiSellLevels)
 		logger.Infof("初始化多级卖出策略: %s", b.sellStrategy.Name())
 	}
 

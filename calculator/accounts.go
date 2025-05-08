@@ -27,9 +27,18 @@ func NewAccountsCalculator(endpoint string) *AccountsCalculator {
 }
 
 // CalculatePumpAccounts 计算Pump所需的所有账户
-func (c *AccountsCalculator) CalculatePumpAccounts(ctx context.Context, mint, user, bondingCurve solana.PublicKey) (*PumpAccounts, error) {
+func (c *AccountsCalculator) CalculatePumpAccounts(ctx context.Context, mint, user solana.PublicKey) (*PumpAccounts, error) {
 	// 计算bonding curve地址
-
+	bondingCurve, _, err := solana.FindProgramAddress(
+		[][]byte{
+			[]byte("bonding-curve"),
+			mint.Bytes(),
+		},
+		PUMP_PROGRAM_ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("计算bonding curve失败: %w", err)
+	}
 	// 计算associated bonding curve地址
 	associatedBondingCurve, _, err := solana.FindAssociatedTokenAddress(
 		bondingCurve,
@@ -62,8 +71,21 @@ type PumpAccounts struct {
 	AssociatedTokenAccount solana.PublicKey
 }
 
+// AmmAccounts 存储AMM相关的账户地址
+type AmmAccounts struct {
+	Pool                  solana.PublicKey // AMM池地址
+	Mint                  solana.PublicKey // 基础代币地址
+	BaseMint              solana.PublicKey // 基础代币地址
+	QuoteMint             solana.PublicKey // 报价代币地址
+	PoolBaseTokenAccount  solana.PublicKey // 池中基础代币账户
+	PoolQuoteTokenAccount solana.PublicKey // 池中报价代币账户
+	UserBaseTokenAccount  solana.PublicKey // 用户的基础代币账户
+	UserQuoteTokenAccount solana.PublicKey // 用户的报价代币账户
+	WsolTokenAccount      solana.PublicKey // WSOL账户
+}
+
 // CalculateAmmAccounts 计算AMM所需的所有账户
-func (c *AccountsCalculator) CalculateAmmAccounts(ctx context.Context, mint, user solana.PublicKey) (*AmmAccounts, error) {
+func (c *AccountsCalculator) CalculateAmmAccounts(ctx context.Context, pool, baseMint, user solana.PublicKey) (*AmmAccounts, error) {
 	// 为WSOL账户生成种子
 	log.Println("Generating seed for WSOL account...")
 	randomBytes := make([]byte, 24)
@@ -84,25 +106,69 @@ func (c *AccountsCalculator) CalculateAmmAccounts(ctx context.Context, mint, use
 		return nil, fmt.Errorf("failed to create WSOL account with seed: %v", err)
 	}
 
-	// 计算用户的associated token account
-	associatedTokenAccount, _, err := solana.FindAssociatedTokenAddress(
-		user,
-		mint,
+	// 假设我们使用SOL作为报价代币
+	quoteMint := solana.SolMint
+
+	// 计算pool_base_token_account (池中基础代币账户)
+	// 根据IDL，seeds是 [pool, base_token_program, base_mint]
+	poolBaseTokenAccount, _, err := solana.FindProgramAddress(
+		[][]byte{
+			pool.Bytes(),
+			solana.TokenProgramID.Bytes(), // 假设使用标准Token程序
+			baseMint.Bytes(),
+		},
+		solana.SPLAssociatedTokenAccountProgramID, // 使用Associated Token Account程序
 	)
 	if err != nil {
-		return nil, fmt.Errorf("计算associated token account失败: %w", err)
+		return nil, fmt.Errorf("failed to find pool base token account: %w", err)
 	}
 
-	return &AmmAccounts{
-		Mint:                   mint,
-		WsolTokenAccount:       wsolTokenAccount,
-		AssociatedTokenAccount: associatedTokenAccount,
-	}, nil
-}
+	// 计算pool_quote_token_account (池中报价代币账户)
+	// 根据IDL，seeds是 [pool, quote_token_program, quote_mint]
+	poolQuoteTokenAccount, _, err := solana.FindProgramAddress(
+		[][]byte{
+			pool.Bytes(),
+			solana.TokenProgramID.Bytes(), // 假设使用标准Token程序
+			quoteMint.Bytes(),
+		},
+		solana.SPLAssociatedTokenAccountProgramID, // 使用Associated Token Account程序
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find pool quote token account: %w", err)
+	}
 
-// AmmAccounts 存储所有需要的账户地址
-type AmmAccounts struct {
-	Mint                   solana.PublicKey
-	WsolTokenAccount       solana.PublicKey
-	AssociatedTokenAccount solana.PublicKey
+	// 计算用户的基础代币associated token account
+	userBaseTokenAccount, _, err := solana.FindAssociatedTokenAddress(
+		user,
+		baseMint,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find user base token account: %w", err)
+	}
+
+	// 计算用户的报价代币associated token account
+	// 如果是SOL，则使用WSOL账户
+	userQuoteTokenAccount := wsolTokenAccount
+	if quoteMint != solana.SolMint {
+		userQuoteTokenAccount, _, err = solana.FindAssociatedTokenAddress(
+			user,
+			quoteMint,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to find user quote token account: %w", err)
+		}
+	}
+
+	// 返回所有计算出的账户地址
+	return &AmmAccounts{
+		Pool:                  pool,
+		Mint:                  baseMint,
+		BaseMint:              baseMint,
+		QuoteMint:             quoteMint,
+		PoolBaseTokenAccount:  poolBaseTokenAccount,
+		PoolQuoteTokenAccount: poolQuoteTokenAccount,
+		UserBaseTokenAccount:  userBaseTokenAccount,
+		UserQuoteTokenAccount: userQuoteTokenAccount,
+		WsolTokenAccount:      wsolTokenAccount,
+	}, nil
 }
