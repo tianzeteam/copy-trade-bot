@@ -7,16 +7,15 @@ import (
 
 	"copytrade/global"
 	"copytrade/logger"
+	"copytrade/queue"
 	"copytrade/types"
 	"copytrade/utils"
-
-	"github.com/gagliardetto/solana-go"
 )
 
 // SellStrategy 定义代币卖出策略的接口
 type SellStrategy interface {
 	// CalculateSellBatches 计算如何将代币拆分为多个卖出批次
-	CalculateSellBatches(tokenInfo types.TokenInfo) []SellBatch
+	CalculateSellBatches(tokenInfo queue.TokenInfo) []SellBatch
 	// Name 返回策略名称
 	Name() string
 }
@@ -99,7 +98,7 @@ func GetConfig() *utils.Config {
 }
 
 // CalculateSellBatches 实现 SellStrategy 接口
-func (s *BatchSellStrategy) CalculateSellBatches(tokenInfo types.TokenInfo) []SellBatch {
+func (s *BatchSellStrategy) CalculateSellBatches(tokenInfo queue.TokenInfo) []SellBatch {
 	var batches []SellBatch
 
 	// 计算每批数量
@@ -139,7 +138,7 @@ func (s *MultiLevelSellStrategy) Name() string {
 }
 
 // CalculateSellBatches 实现 SellStrategy 接口
-func (s *MultiLevelSellStrategy) CalculateSellBatches(tokenInfo types.TokenInfo) []SellBatch {
+func (s *MultiLevelSellStrategy) CalculateSellBatches(tokenInfo queue.TokenInfo) []SellBatch {
 	// 计算价格涨幅百分比
 	entryPrice := tokenInfo.EntryPrice
 	currentPrice := tokenInfo.CurrentPrice
@@ -217,7 +216,7 @@ func (s *MultiLevelSellStrategy) CalculateSellBatches(tokenInfo types.TokenInfo)
 }
 
 // ExecuteSellStrategy 执行卖出策略
-func (b *Bot) ExecuteSellStrategy(tokenInfo types.TokenInfo, bondingCurve solana.PublicKey, vTokenReserves, vSolReserves uint64) {
+func (b *Bot) ExecuteSellStrategy(tokenInfo queue.TokenInfo, vTokenReserves, vSolReserves uint64) {
 	// 使用策略计算卖出批次
 	batches := b.sellStrategy.CalculateSellBatches(tokenInfo)
 
@@ -235,12 +234,12 @@ func (b *Bot) ExecuteSellStrategy(tokenInfo types.TokenInfo, bondingCurve solana
 		// 执行此批次的卖出订单
 		sellTokenInfo := tokenInfo
 		sellTokenInfo.Amount = batch.Amount
-		b.executeSellOrder(sellTokenInfo, bondingCurve, vTokenReserves, vSolReserves)
+		b.executeSellOrder(sellTokenInfo, vTokenReserves, vSolReserves)
 	}
 }
 
 // executeSellOrder 处理实际的卖出逻辑
-func (b *Bot) executeSellOrder(tokenInfo types.TokenInfo, bondingCurve solana.PublicKey, vTokenReserves, vSolReserves uint64) {
+func (b *Bot) executeSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolReserves uint64) {
 	// 实际的卖出逻辑
 	logger.Infof("执行卖出订单: 代币=%s, 数量=%d", tokenInfo.Mint.String(), tokenInfo.Amount)
 
@@ -254,7 +253,7 @@ func (b *Bot) executeSellOrder(tokenInfo types.TokenInfo, bondingCurve solana.Pu
 	// 计算卖出金额
 	amounts, err := b.Trader.AmountsCalc.CalculateSellAmounts(
 		context.Background(),
-		bondingCurve,
+		pumpAccounts.BondingCurve,
 		float64(tokenInfo.Amount),
 		vTokenReserves,
 		vSolReserves,
@@ -269,7 +268,7 @@ func (b *Bot) executeSellOrder(tokenInfo types.TokenInfo, bondingCurve solana.Pu
 		Accounts: types.TradeAccounts{
 			User:                   tokenInfo.Owner,
 			Mint:                   tokenInfo.Mint,
-			BondingCurve:           bondingCurve,
+			BondingCurve:           pumpAccounts.BondingCurve,
 			AssociatedBondingCurve: pumpAccounts.AssociatedBondingCurve,
 			AssociatedTokenAccount: pumpAccounts.AssociatedTokenAccount,
 		},
@@ -315,7 +314,7 @@ func (b *Bot) executeSellOrder(tokenInfo types.TokenInfo, bondingCurve solana.Pu
 }
 
 // ExecuteSellStrategy 执行卖出策略
-func (b *Bot) ExecuteAmmSellStrategy(tokenInfo types.TokenInfo) {
+func (b *Bot) ExecuteAmmSellStrategy(tokenInfo queue.TokenInfo) {
 	// 使用策略计算卖出批次
 	batches := b.sellStrategy.CalculateSellBatches(tokenInfo)
 
@@ -338,7 +337,7 @@ func (b *Bot) ExecuteAmmSellStrategy(tokenInfo types.TokenInfo) {
 }
 
 // executeSellOrder 处理实际的卖出逻辑
-func (b *Bot) executeAmmSellOrder(tokenInfo types.TokenInfo) {
+func (b *Bot) executeAmmSellOrder(tokenInfo queue.TokenInfo) {
 	// 实际的卖出逻辑
 	var baseAmountIn uint64 = tokenInfo.Amount
 	logger.Infof("开始处理 PumpAMM 平台的代币卖出操作: %s, 数量=%d", tokenInfo.Mint.String(), baseAmountIn)

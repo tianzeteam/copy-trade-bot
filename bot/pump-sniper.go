@@ -8,15 +8,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gagliardetto/solana-go"
-
 	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/pump"
-	"copytrade/types"
+	"copytrade/queue"
 	goyser "copytrade/yellowstone_geyser"
 	yellowstone_geyser_pb "copytrade/yellowstone_geyser/pb"
 
+	"github.com/gagliardetto/solana-go"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/mr-tron/base58"
 )
@@ -308,110 +307,64 @@ func (b *Bot) parseMintTransaction(logMessages []string) *global.CreateEventInfo
 
 }
 
-// PumpSellMint 处理代币卖出逻辑
-func (b *Bot) PumpSellMint(tokenInfo types.TokenInfo, bondingCurve solana.PublicKey, virtualTokenReserves, virtualSolReserves uint64) {
-	ctx := context.Background()
-	if b.Config.SellMode == "delay_sell" {
-		logger.Infof("延迟卖出代币: %s", tokenInfo.Mint.String())
-		time.Sleep(time.Duration(b.delaySecond) * time.Second)
-		// 先计算卖出金额
-		pumpAccounts, err := b.Trader.AccountsCalc.CalculatePumpAccounts(ctx, tokenInfo.Mint, tokenInfo.Owner)
-		if err != nil {
-			logger.Errorf("计算卖出账户失败: %v", err)
-			return
-		}
-		amounts, err := b.Trader.AmountsCalc.CalculateSellAmounts(
-			context.Background(),
-			pumpAccounts.BondingCurve,
-			float64(tokenInfo.Amount),
-			virtualTokenReserves,
-			virtualSolReserves,
-			b.Config.SellSlippage,
-		)
-		if err != nil {
-			logger.Errorf("计算卖出金额失败: %v", err)
-			return
-		}
-		//构建交易基础参数
-		tradeParams := types.TradeParams{
-			Accounts: types.TradeAccounts{
-				User:                   tokenInfo.User,
-				Mint:                   tokenInfo.Mint,
-				BondingCurve:           bondingCurve,
-				AssociatedBondingCurve: pumpAccounts.AssociatedBondingCurve,
-				AssociatedTokenAccount: pumpAccounts.AssociatedTokenAccount,
-			},
-			Amount:    amounts.TokenAmount,
-			Cost:      amounts.MinOut, // 卖出时 Cost 表示最小获得数量
-			Blockhash: *b.Blockhash,
-			FeeConfig: types.FeeConfig{
-				Slippage:    b.Config.SellSlippage,
-				PriorityFee: uint64(b.Config.SellPriorityFee * 1e9),
-			},
-		}
-
-		// 构建完整的交易参数
-		orderParams := types.OrderParams{
-			TradeParams: tradeParams,
-			BloXrouteParams: &types.BloXrouteParams{
-				Enable:    b.Config.BloXroute.Enable,
-				RpcUrl:    b.Config.BloXroute.RpcUrl,
-				ApiKeys:   b.Config.BloXroute.ApiKeys,
-				TipAmount: uint64(b.Config.BloXroute.SellTip * 1e9),
-			},
-			NextBlockParams: &types.NextBlockParams{
-				Enable:    b.Config.NextBlock.Enable,
-				BundleUrl: b.Config.NextBlock.RpcUrl,
-				ApiKey:    b.Config.NextBlock.ApiKeys[0],
-				TipAmount: uint64(b.Config.NextBlock.SellTip * 1e9),
-			},
-			JitoParams: &types.JitoParams{
-				Enable:    b.Config.Jito.Enable,
-				BundleUrl: b.Config.Jito.RpcUrl,
-				TipAmount: uint64(b.Config.Jito.SellTip * 1e9),
-			},
-			TemporalParams: &types.TemporalParams{
-				Enable:    b.Config.Temporal.Enable,
-				BundleUrl: b.Config.Temporal.RpcUrl,
-				ApiKey:    b.Config.Temporal.ApiKeys[0],
-				TipAmount: uint64(b.Config.Temporal.SellTip * 1e9),
-			},
-		}
-
-		// 执行卖出交易
-		txid, err := b.Trader.Sell(ctx, orderParams)
-		if err != nil {
-			logger.Errorf("卖出失败: %v", err)
-			return
-		}
-
-		logger.Infof("卖出发送成功! 交易ID: %s", txid)
-		logger.Infof("卖出数量（token x 1e6 ）: %d token", amounts.TokenAmount)
-
-	} else if b.Config.SellMode == "multi_sell" {
-		// 使用策略模式进行卖出
-		logger.Infof("使用策略模式卖出代币: %s", tokenInfo.Mint.String())
-
-		// 确保卖出策略已初始化
-		if b.sellStrategy == nil {
-			b.sellStrategy = NewMultiLevelSellStrategy(b.Config.MultiSellLevels)
-			logger.Errorf("初始化多级卖出策略: %s", b.sellStrategy.Name())
-		}
-
-		// 执行卖出策略
-		b.ExecuteSellStrategy(tokenInfo, bondingCurve, virtualTokenReserves, virtualSolReserves)
-		return
-	} else {
-		// 如果卖出模式既不是延迟卖出也不是分批卖出，则输出错误日志
-		logger.Errorf("不支持的卖出模式: %s", b.Config.SellMode)
+// processTokenForSelling 处理代币并发送到卖出队列
+func (b *Bot) appendTokenForSelling(mintAddress string, botWallet solana.PublicKey, assetInfo *global.MyBuyMap, currentPrice float64) bool {
+	// 从交易信息中获取代币信息
+	mintPubkey, err := solana.PublicKeyFromBase58(mintAddress)
+	if err != nil {
+		logger.Errorf("无法解析Mint地址 %s: %v", mintAddress, err)
+		return false
 	}
+
+	// 创建代币信息对象
+	tokenInfo := queue.TokenInfo{
+		Mint:         mintPubkey,
+		Owner:        botWallet,
+		Amount:       assetInfo.Amount,
+		User:         botWallet,
+		UpdateTime:   time.Now(),
+		EntryPrice:   assetInfo.EntryPrice,
+		CurrentPrice: currentPrice,
+		Platform:     "pumpfun",
+	}
+
+	// 非阻塞方式发送代币信息到全局通道
+	logger.Infof("准备发送代币信息到卖出通道: Mint=%s, 入场价=%.8f, 当前价=%.8f, 数量=%d",
+		tokenInfo.Mint, tokenInfo.EntryPrice, tokenInfo.CurrentPrice, tokenInfo.Amount)
+
+	select {
+	case queue.WaitingSellChan <- tokenInfo:
+		logger.Infof("已将代币 %s 发送到卖出队列", mintAddress)
+		return true
+	default:
+		logger.Warnf("卖出队列已满，无法处理代币 %s", mintAddress)
+		return false
+	}
+}
+
+// PumpSellMint 处理代币卖出逻辑
+func (b *Bot) PumpSell(tokenInfo queue.TokenInfo, virtualTokenReserves, virtualSolReserves uint64) {
+
+	// 使用策略模式进行卖出
+	logger.Infof("使用策略模式卖出代币: %s", tokenInfo.Mint.String())
+
+	// 确保卖出策略已初始化
+	if b.sellStrategy == nil {
+		b.sellStrategy = NewMultiLevelSellStrategy(b.Config.MultiSellLevels)
+		logger.Errorf("初始化多级卖出策略: %s", b.sellStrategy.Name())
+	}
+
+	// 执行卖出策略
+	b.ExecuteSellStrategy(tokenInfo, virtualTokenReserves, virtualSolReserves)
 
 }
 
+// PumpParse 使用pipeline模式处理交易事件
 func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *goyser.Client, ctx context.Context) *global.TradeEventInfo {
 	if out.GetTransaction() == nil {
 		return nil
 	}
+
 	logMessages := out.GetTransaction().Transaction.Meta.LogMessages
 	// 检查是否为代币创建事件
 	events, err := pump.DecodeEventsInLogs(logMessages)
@@ -421,53 +374,68 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *goys
 	}
 
 	for _, event := range events {
-		// 检查是否是买入或卖出事件
-		switch event.Name {
-		case "TradeEvent":
-			walletAddress := b.privateKey.PublicKey()
+		// 检查是否是交易事件
+		if event.Name == "TradeEvent" {
+			// 管道步骤1: 解析交易事件数据
 			tradeEvent, ok := event.Data.(*pump.TradeEventEventData)
 			if !ok {
-				logger.Errorf("无法将事件数据转换为TradeEventEventData类型")
+				logger.Errorf("无法解析TradeEvent事件")
 				continue
 			}
-			if tradeEvent != nil {
-				_currentPrice := (float64(tradeEvent.VirtualSolReserves) / 1e9) / (float64(tradeEvent.VirtualTokenReserves) / 1e6)
-				mintAddress := tradeEvent.Mint.String()
-				if tradeEvent.User.String() == walletAddress.String() && tradeEvent.IsBuy {
-					global.SetPendingHoldAsset(mintAddress, &global.MyBuyMap{
-						UserAddress: tradeEvent.User.String(),
-						MintAddress: mintAddress,
-						EntryPrice:  _currentPrice,
-						Amount:      tradeEvent.TokenAmount,
-						SoldLevels:  make(map[int]bool, 100), // PumpSellMint 使用策略模式处理代币卖出
-						TimeStamp:   time.Now().Unix(),
-					})
-				}
-				// Create a TradeEventInfo object from the event data
-				tradeInfo := &global.TradeEventInfo{
-					MintAddress:          tradeEvent.Mint.String(),
-					UserAddress:          tradeEvent.User.String(),
-					IsBuy:                tradeEvent.IsBuy,
-					SolAmount:            tradeEvent.SolAmount,
-					TokenAmount:          tradeEvent.TokenAmount,
-					VirtualSolReserves:   tradeEvent.VirtualSolReserves,
-					VirtualTokenReserves: tradeEvent.VirtualTokenReserves,
-					RealSolReserves:      tradeEvent.RealSolReserves,
-					RealTokenReserves:    tradeEvent.RealTokenReserves,
-					TimeStamp:            tradeEvent.Timestamp,
-				}
-				global.SetTradeInfo(mintAddress, tradeInfo)
 
-				return tradeInfo
+			// 获取基本信息
+			botWallet := b.privateKey.PublicKey()
+			mintAddress := tradeEvent.Mint.String()
+			currentPrice := float64(tradeEvent.VirtualSolReserves/1e9) / float64(tradeEvent.VirtualTokenReserves/1e6)
 
+			// 管道步骤2: 创建交易信息对象
+			tradeInfo := &global.TradeEventInfo{
+				MintAddress:          mintAddress,
+				UserAddress:          tradeEvent.User.String(),
+				SolAmount:            tradeEvent.SolAmount,
+				TokenAmount:          tradeEvent.TokenAmount,
+				IsBuy:                tradeEvent.IsBuy,
+				VirtualSolReserves:   tradeEvent.VirtualSolReserves,
+				VirtualTokenReserves: tradeEvent.VirtualTokenReserves,
+				RealSolReserves:      tradeEvent.RealSolReserves,
+				RealTokenReserves:    tradeEvent.RealTokenReserves,
+				TimeStamp:            time.Now().Unix(),
+				TradeTime:            time.Now().Format("2006-01-02 15:04:05.000"),
+				Milliseconds:         time.Now().UnixMilli(),
+				ReceivedAt:           time.Now(),
+				CurrentPrice:         currentPrice,
 			}
-		case "CreateEvent":
-			continue
 
+			// 存储到全局映射表中
+			global.SetTradeInfo(mintAddress, tradeInfo)
+
+			// 管道步骤3: 处理买入事件
+			if tradeEvent.IsBuy {
+				// 检查是否是自己的交易
+				if tradeEvent.User.String() == botWallet.String() {
+					entryPrice := float64(tradeEvent.SolAmount/1e9) / float64(tradeEvent.TokenAmount/1e6)
+
+					// 设置入场价格
+					global.SetTradeAssetOnce(
+						mintAddress,
+						botWallet.String(),
+						entryPrice,
+						tradeEvent.TokenAmount,
+					)
+				}
+			}
+			/* 			// 管道步骤4: 处理其他人的卖出交易
+			   			// 如果是其他人的卖出交易，检查是否持有该代币
+			   			if assetInfo := global.GetPendingHoldAsset(mintAddress); assetInfo != nil && queue.WaitingSellChan != nil {
+			   				// 处理代币并发送到卖出队列
+			   				b.appendTokenForSelling(mintAddress, botWallet, assetInfo, currentPrice)
+			   			} */
+
+			return tradeInfo
 		}
 	}
-	return nil
 
+	return nil
 }
 
 func (b *Bot) PumpStartPricePing(priceStreamClient *goyser.StreamClient) {

@@ -226,3 +226,61 @@ func UpdateTokenSellTime(mintAddress string) {
 	}
 	logger.Infof("更新代币 %s 卖出时间限制，下次可卖出时间: %v", mintAddress, time.Now().Add(SellIntervalLimit).Format("15:04:05.000"))
 }
+
+// CreateTokenAssetFromAccount 从代币账户数据创建资产条目
+func CreateTokenAssetFromAccount(mint solana.PublicKey, owner solana.PublicKey, amount uint64) *MyBuyMap {
+	return &MyBuyMap{
+		UserAddress: owner.String(),
+		MintAddress: mint.String(),
+		EntryPrice:  0,
+		Amount:      amount,
+		SoldLevels:  make(map[int]bool),
+		TimeStamp:   time.Now().Unix(),
+	}
+}
+
+// AddOrUpdatePendingAsset 添加或更新待处理资产
+// 如果代币余额大于阈值，则添加到待处理资产列表，否则从列表中删除
+func AddOrUpdatePendingAsset(mint solana.PublicKey, owner solana.PublicKey, amount uint64, threshold uint64) {
+	PendingHoldAssetLock.Lock()
+	defer PendingHoldAssetLock.Unlock()
+
+	mintStr := mint.String()
+	if amount > threshold {
+		// 添加或更新资产
+		PendingHoldAsset[mintStr] = CreateTokenAssetFromAccount(mint, owner, amount)
+		logger.Infof("添加代币到待处理资产: Mint=%s, 所有者=%s, 余额=%d", mint, owner, amount)
+	} else {
+		// 删除资产
+		delete(PendingHoldAsset, mintStr)
+		logger.Infof("从待处理资产中删除代币: Mint=%s, 余额=%d", mint, amount)
+	}
+}
+
+// SetTradeAssetOnce 仅在生命周期内第一次设置交易资产信息
+// 如果资产已存在，则不进行更新，确保在生命周期内只写入一次
+func SetTradeAssetOnce(mintAddress string, userAddress string, entryPrice float64, amount uint64) bool {
+	PendingHoldAssetLock.Lock()
+	defer PendingHoldAssetLock.Unlock()
+
+	// 检查资产是否已存在
+	_, exists := PendingHoldAsset[mintAddress]
+	if exists {
+
+		logger.Infof("代币 %s 的交易资产已存在，不进行更新", mintAddress)
+		return false
+
+	}
+
+	// 创建新的交易资产
+	PendingHoldAsset[mintAddress] = &MyBuyMap{
+		UserAddress: userAddress,
+		MintAddress: mintAddress,
+		EntryPrice:  entryPrice,
+		Amount:      amount,
+		SoldLevels:  make(map[int]bool),
+		TimeStamp:   time.Now().Unix(),
+	}
+	logger.Infof("创建代币 %s 的交易资产: 价格=%.8f, 数量=%d", mintAddress, entryPrice, amount)
+	return true
+}

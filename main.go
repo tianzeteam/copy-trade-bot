@@ -13,7 +13,7 @@ import (
 	"copytrade/core"
 	"copytrade/global"
 	"copytrade/logger"
-	"copytrade/types"
+	"copytrade/queue"
 	"copytrade/utils"
 	"copytrade/wallet"
 	"copytrade/web"
@@ -38,7 +38,7 @@ var (
 func processWaitingSellTokens(tradeBot *bot.Bot) {
 	logger.Infof("开始监听等待卖出的代币...")
 
-	for tokenInfo := range types.WaitingSellChan {
+	for tokenInfo := range queue.WaitingSellChan {
 		logger.Infof("收到卖出请求: Mint=%s, 余额=%d, 用户=%s", tokenInfo.Mint, tokenInfo.Amount, tokenInfo.Owner)
 
 		// 检查代币信息是否有效
@@ -52,7 +52,7 @@ func processWaitingSellTokens(tradeBot *bot.Bot) {
 		platform := tokenInfo.Platform
 		if platform == "pumpamm" {
 			//@TODO 使用多级卖出策略
-			tradeBot.PumpAmmSell(tokenInfo)
+			go tradeBot.PumpAmmSell(tokenInfo)
 			continue
 		}
 		// 查找代币的交易信息
@@ -62,16 +62,11 @@ func processWaitingSellTokens(tradeBot *bot.Bot) {
 			logger.Warnf("未找到代币%s的交易信息，无法执行卖出操作", tokenInfo.Mint)
 			continue
 		}
-		createInfo := global.GetCreateInfo(mintAddress)
-		if createInfo == nil {
-			logger.Warnf("未找到代币%s的创建信息，无法执行卖出操作", tokenInfo.Mint)
-			continue
-		}
-		bondingCurve := solana.MustPublicKeyFromBase58(createInfo.BondingCurve)
+
 		vTokenReserves := tradeInfo.VirtualTokenReserves
 		vSolReserves := tradeInfo.VirtualSolReserves
 
-		go tradeBot.PumpSellMint(tokenInfo, bondingCurve, vTokenReserves, vSolReserves)
+		go tradeBot.PumpSell(tokenInfo, vTokenReserves, vSolReserves)
 	}
 }
 
@@ -221,6 +216,7 @@ func main() {
 					transactionMonitor.ProcessTransaction(tradeInfo)
 
 				}
+				walletMonitor.CheckExitConditions(tradeInfo.MintAddress, tradeInfo.CurrentPrice)
 			}
 
 			if slices.Contains(accountsAddress, core.AMM_PROGRAM_ID.String()) {
@@ -231,6 +227,7 @@ func main() {
 				if ammTradeInfo != nil && transactionMonitor != nil {
 					transactionMonitor.ProcessAmmTransaction(ammTradeInfo)
 				}
+				walletMonitor.CheckExitConditions(ammTradeInfo.MintAddress.String(), ammTradeInfo.CurrentPrice)
 			}
 
 		}
@@ -252,11 +249,11 @@ func main() {
 
 	// 创建两个订阅请求，一个监控主账户，一个监控代币账户
 	// 1. 监控钱包主账户
-	if err = accountsStreamClient.SubscribeAccounts("main_account_stream", &yellowstone_geyser_pb.SubscribeRequestFilterAccounts{
-		Account: []string{botPrivateKey.PublicKey().String()},
-	}); err != nil {
-		logger.Fatalf("订阅账户失败: %v", err)
-	}
+	/* 	if err = accountsStreamClient.SubscribeAccounts("main_account_stream", &yellowstone_geyser_pb.SubscribeRequestFilterAccounts{
+	   		Account: []string{botPrivateKey.PublicKey().String()},
+	   	}); err != nil {
+	   		logger.Fatalf("订阅账户失败: %v", err)
+	   	} */
 
 	// 2. 监控与钱包关联的代币账户
 	// 创建数据大小过滤器 - SPL代币账户的标准大小为165字节
@@ -314,35 +311,17 @@ func main() {
 			solBalance := float64(lamports) / 1e9
 			logger.Infof("owner:%s ,账号地址:%s,账户余额: %f SOL (%d lamports)", owner, userPubkey, solBalance, lamports)
 
-			// 处理账户数据 - 这里可以根据需要解析特定的账户数据结构
 			// 如果有特定的数据结构需要解析，可以在这里添加解析逻辑
 			if owner == tokenProgramID && len(accountData) >= 165 {
 				// SPL代币账户数据结构
 				_mint := solana.PublicKeyFromBytes(accountData[0:32])
 				_owner := solana.PublicKeyFromBytes(accountData[32:64])
 				_amount := binary.LittleEndian.Uint64(accountData[64:72])
-				logger.Infof("代币账户信息 - Mint: %s, 所有者: %s, 余额: %d", _mint, _owner, _amount)
-				if _amount > 100*1e6 {
-					// 创建代币信息对象
-					tokenInfo := types.TokenInfo{
-						Mint:         _mint,
-						Owner:        _owner,
-						Amount:       _amount,
-						User:         solana.PublicKeyFromBytes([]byte(userPubkey)), // token account ||main account
-						UpdateTime:   time.Now(),
-						EntryPrice:   0,
-						CurrentPrice: 0,
-						Platform:     "pumpfun",
-					}
+				logger.Infof("代币账户信息 - Mint: %s, 所有者: %s, token数量: %d", _mint, _owner, _amount)
 
-					// 发送代币信息到全局通道
-					logger.Infof("发送代币信息到通道: Mint=%s, 余额=%d", tokenInfo.Mint, tokenInfo.Amount)
-
-				} else {
-					//删除代币信息
-					logger.Infof("删除代币信息: Mint=%s", _mint.String())
-					global.DelPendingHoldAsset(_mint.String())
-				}
+				// 使用抽象方法管理待处理资产
+				// 如果余额超过10*1e6，则添加到待处理资产列表，否则从列表中删除
+				global.AddOrUpdatePendingAsset(_mint, _owner, _amount, 10*1e6)
 
 			}
 		}

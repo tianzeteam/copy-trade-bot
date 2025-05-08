@@ -7,7 +7,7 @@ import (
 
 	"copytrade/global"
 	"copytrade/logger"
-	"copytrade/types"
+	"copytrade/queue"
 
 	"github.com/gagliardetto/solana-go"
 )
@@ -192,7 +192,7 @@ func (m *WalletMonitor) RecordBotTrade(mintAddress string, botAddress solana.Pub
 		walletSettings.TakeProfitPct, walletSettings.StopLossPct, walletSettings.ExitTimeSec)
 }
 
-// CheckExitConditions 检查是否满足退出条件
+// TODO CheckExitConditions 检查是否满足退出条件
 func (m *WalletMonitor) CheckExitConditions(mintAddress string, currentPrice float64) (bool, string, *TradeRecord) {
 	m.Mux.RLock()
 	defer m.Mux.RUnlock()
@@ -330,7 +330,7 @@ func (m *WalletMonitor) checkAllTrades() {
 			}
 
 			// 创建代币信息对象
-			tokenInfo := types.TokenInfo{
+			tokenInfo := queue.TokenInfo{
 				Mint:         mintPubkey,
 				Owner:        ownerPubkey,
 				Amount:       record.Amount,
@@ -347,7 +347,7 @@ func (m *WalletMonitor) checkAllTrades() {
 
 			// 尝试发送到通道，使用select避免阻塞
 			select {
-			case types.WaitingSellChan <- tokenInfo:
+			case queue.WaitingSellChan <- tokenInfo:
 				logger.Debugf("代币信息已成功发送到卖出通道")
 				// 移除交易记录
 				m.RemoveTrade(record.MintAddress)

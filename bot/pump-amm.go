@@ -8,7 +8,7 @@ import (
 
 	"copytrade/global"
 	"copytrade/logger"
-	"copytrade/types"
+	"copytrade/queue"
 	goyser "copytrade/yellowstone_geyser"
 	yellowstone_geyser_pb "copytrade/yellowstone_geyser/pb"
 
@@ -228,7 +228,7 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 }
 
 // PumpAmmSell 处理 PumpAMM 平台的代币卖出操作
-func (b *Bot) PumpAmmSell(tokenInfo types.TokenInfo) {
+func (b *Bot) PumpAmmSell(tokenInfo queue.TokenInfo) {
 	// 使用策略模式进行卖出
 	logger.Infof("使用策略模式卖出代币: %s", tokenInfo.Mint.String())
 
@@ -326,7 +326,7 @@ func (b *Bot) PumpAmmPriceUpdate(priceStreamClient *goyser.StreamClient, outPric
 		currentPriceFloat, _ := currentPrice.Float64()
 
 		// 如果当前价格高于入场价格且卖出通道可用，则触发卖出
-		if currentPriceFloat > entryPrice && types.WaitingSellChan != nil {
+		if currentPriceFloat > entryPrice && queue.WaitingSellChan != nil {
 			logger.Infof("触发卖出条件: 当前价格 %.6f > 入场价格 %.6f", currentPriceFloat, entryPrice)
 
 			// 解析代币地址
@@ -340,7 +340,7 @@ func (b *Bot) PumpAmmPriceUpdate(priceStreamClient *goyser.StreamClient, outPric
 			ownerPubkey := b.privateKey.PublicKey()
 
 			// 创建代币信息对象
-			tokenInfo := types.TokenInfo{
+			tokenInfo := queue.TokenInfo{
 				Mint:         mintPubkey,
 				Owner:        ownerPubkey,
 				Amount:       amount,
@@ -357,7 +357,7 @@ func (b *Bot) PumpAmmPriceUpdate(priceStreamClient *goyser.StreamClient, outPric
 
 			// 尝试发送到通道，使用select避免阻塞
 			select {
-			case types.WaitingSellChan <- tokenInfo:
+			case queue.WaitingSellChan <- tokenInfo:
 				logger.Debugf("代币信息已成功发送到卖出通道")
 			default:
 				logger.Debugf("卖出通道已满，无法发送代币信息")
