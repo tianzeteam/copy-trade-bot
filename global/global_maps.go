@@ -136,10 +136,11 @@ func SetTradeInfo(mintAddress string, info *TradeEventInfo) {
 }
 
 // GetPendingHoldAsset 获取指定代币的持有资产信息
-func GetPendingHoldAsset(mintAddress string) *MyBuyMap {
+func GetPendingHoldAsset(mintAddress string) (*MyBuyMap, bool) {
 	PendingHoldAssetLock.RLock()
 	defer PendingHoldAssetLock.RUnlock()
-	return PendingHoldAsset[mintAddress]
+	asset, ok := PendingHoldAsset[mintAddress]
+	return asset, ok
 }
 
 // SetPendingHoldAsset 设置指定代币的持有资产信息

@@ -55,7 +55,7 @@ func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo
 		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount)
 
 	// 执行跟单交易
-	m.executeCopyTrade(tradeInfo)
+	m.executeCopyTrade(tradeInfo, copyAddress)
 }
 
 // ProcessAmmTransaction 处理AMM交易事件
@@ -83,7 +83,7 @@ func (m *TransactionMonitor) ProcessAmmTransaction(tradeInfo *global.AmmTradeEve
 }
 
 // TODO executeCopyTrade 执行跟单交易
-func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo) {
+func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, copyAddress solana.PublicKey) {
 	// 检查是否已经交易过该代币
 	m.WalletMonitor.Mux.RLock()
 	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress]; exists {
@@ -95,7 +95,7 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo) 
 	// 发送买入请求
 	logger.Infof("执行跟单买入: 代币=%s, 金额=%f SOL", tradeInfo.MintAddress, m.BuySolAmount)
 
-	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress, m.BotWallet, tradeInfo.CurrentPrice, tradeInfo.TokenAmount) // 假设买入了1000000个代币
+	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress, copyAddress, tradeInfo.CurrentPrice, tradeInfo.TokenAmount) // 假设买入了1000000个代币
 	ctx := context.Background()
 
 	// Convert mint address string to solana.PublicKey

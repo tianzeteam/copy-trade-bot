@@ -207,8 +207,8 @@ func (m *WalletMonitor) CheckExitConditions(platform, mintAddress string, curren
 			return false, "", nil
 		}
 	}
-	assetInfo := global.GetPendingHoldAsset(mintAddress)
-	if assetInfo == nil {
+	assetInfo, exists := global.GetPendingHoldAsset(mintAddress)
+	if !exists {
 		return false, "", nil
 	}
 	// 计算价格变化百分比

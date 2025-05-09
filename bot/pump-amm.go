@@ -135,9 +135,9 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 	cacheBlockhash := base58.Encode(messages.GetRecentBlockhash())
 	logger.Debugf("recent blockhash :%s", cacheBlockhash)
 	b.CacheLatestBlockhash(cacheBlockhash)
-	//inners:=txn.Transaction.Meta.InnerInstructions[0].
 	instructions := messages.Instructions
 	_signature := base58.Encode(txn.Transaction.Transaction.Signatures[0])
+
 	var mintAddress string
 	for _, instruction := range instructions {
 		// 安全检查：确保账户数据不为空
@@ -296,55 +296,52 @@ func (b *Bot) PumpAmmPriceUpdate(priceStreamClient *goyser.StreamClient, outPric
 	log.Printf("Current price for %s: %s", mintAddress, currentPrice.String())
 
 	// 检查是否需要触发卖出操作
-	if _, ok := global.PendingHoldAsset[mintAddress]; ok {
-		// 获取买入信息
-		myBuyMap := global.GetPendingHoldAsset(mintAddress)
-		if myBuyMap == nil {
+	myBuyMap, exists := global.GetPendingHoldAsset(mintAddress)
+	if !exists {
+		return
+	}
+	entryPrice := myBuyMap.EntryPrice
+	amount := myBuyMap.Amount
+
+	// 转换当前价格为浮点数进行比较
+	currentPriceFloat, _ := currentPrice.Float64()
+
+	// 如果当前价格高于入场价格且卖出通道可用，则触发卖出
+	if currentPriceFloat > entryPrice && queue.WaitingSellChan != nil {
+		logger.Infof("触发卖出条件: 当前价格 %.6f > 入场价格 %.6f", currentPriceFloat, entryPrice)
+
+		// 解析代币地址
+		mintPubkey, err := solana.PublicKeyFromBase58(mintAddress)
+		if err != nil {
+			logger.Errorf("无法解析Mint地址: %v", err)
 			return
 		}
-		entryPrice := myBuyMap.EntryPrice
-		amount := myBuyMap.Amount
 
-		// 转换当前价格为浮点数进行比较
-		currentPriceFloat, _ := currentPrice.Float64()
+		// 解析所有者地址
+		ownerPubkey := b.privateKey.PublicKey()
 
-		// 如果当前价格高于入场价格且卖出通道可用，则触发卖出
-		if currentPriceFloat > entryPrice && queue.WaitingSellChan != nil {
-			logger.Infof("触发卖出条件: 当前价格 %.6f > 入场价格 %.6f", currentPriceFloat, entryPrice)
+		// 创建代币信息对象
+		tokenInfo := queue.TokenInfo{
+			Mint:         mintPubkey,
+			Owner:        ownerPubkey,
+			Amount:       amount,
+			User:         ownerPubkey,
+			UpdateTime:   time.Now(),
+			EntryPrice:   entryPrice,
+			CurrentPrice: currentPriceFloat,
+			Platform:     "pumpamm",
+		}
 
-			// 解析代币地址
-			mintPubkey, err := solana.PublicKeyFromBase58(mintAddress)
-			if err != nil {
-				logger.Errorf("无法解析Mint地址: %v", err)
-				return
-			}
+		// 发送代币信息到全局通道
+		logger.Infof("发送代币信息到卖出通道: Mint=%s, 余额=%d, 入场价=%.6f, 当前价=%.8f",
+			tokenInfo.Mint, tokenInfo.Amount, entryPrice, currentPriceFloat)
 
-			// 解析所有者地址
-			ownerPubkey := b.privateKey.PublicKey()
-
-			// 创建代币信息对象
-			tokenInfo := queue.TokenInfo{
-				Mint:         mintPubkey,
-				Owner:        ownerPubkey,
-				Amount:       amount,
-				User:         ownerPubkey,
-				UpdateTime:   time.Now(),
-				EntryPrice:   entryPrice,
-				CurrentPrice: currentPriceFloat,
-				Platform:     "pumpamm",
-			}
-
-			// 发送代币信息到全局通道
-			logger.Infof("发送代币信息到卖出通道: Mint=%s, 余额=%d, 入场价=%.6f, 当前价=%.8f",
-				tokenInfo.Mint, tokenInfo.Amount, entryPrice, currentPriceFloat)
-
-			// 尝试发送到通道，使用select避免阻塞
-			select {
-			case queue.WaitingSellChan <- tokenInfo:
-				logger.Debugf("代币信息已成功发送到卖出通道")
-			default:
-				logger.Debugf("卖出通道已满，无法发送代币信息")
-			}
+		// 尝试发送到通道，使用select避免阻塞
+		select {
+		case queue.WaitingSellChan <- tokenInfo:
+			logger.Debugf("代币信息已成功发送到卖出通道")
+		default:
+			logger.Debugf("卖出通道已满，无法发送代币信息")
 		}
 	}
 }

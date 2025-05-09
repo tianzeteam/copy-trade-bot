@@ -243,19 +243,7 @@ func main() {
 		logger.Fatal("客户端没有名为accounts_stream的流")
 	}
 	logger.Infof("开始监控交易钱包地址: %s", botPrivateKey.PublicKey().String())
-	// 创建账户过滤器 - 监控两种类型的账户：
-	// 1. 钱包主账户（SOL账户）
-	// 2. 与钱包关联的所有SPL代币账户（通过过滤器过滤）
 
-	// 创建两个订阅请求，一个监控主账户，一个监控代币账户
-	// 1. 监控钱包主账户
-	/* 	if err = accountsStreamClient.SubscribeAccounts("main_account_stream", &yellowstone_geyser_pb.SubscribeRequestFilterAccounts{
-	   		Account: []string{botPrivateKey.PublicKey().String()},
-	   	}); err != nil {
-	   		logger.Fatalf("订阅账户失败: %v", err)
-	   	} */
-
-	// 2. 监控与钱包关联的代币账户
 	// 创建数据大小过滤器 - SPL代币账户的标准大小为165字节
 	datasizeFilter := &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilter{
 		Filter: &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilter_Datasize{
@@ -319,9 +307,43 @@ func main() {
 				_amount := binary.LittleEndian.Uint64(accountData[64:72])
 				logger.Infof("代币账户信息 - Mint: %s, 所有者: %s, token数量: %d", _mint, _owner, _amount)
 
-				// 使用抽象方法管理待处理资产
 				// 如果余额超过10*1e6，则添加到待处理资产列表，否则从列表中删除
-				global.AddOrUpdatePendingAsset(_mint, _owner, _amount, 10*1e6)
+				//global.AddOrUpdatePendingAsset(_mint, _owner, _amount, 10*1e6)
+				assetInfo, exist := global.GetPendingHoldAsset(_mint.String())
+				lastestAmmTradeInfo := global.GetAmmTradeInfo(_mint.String())
+				lastestPumpTradeInfo := global.GetTradeInfo(_mint.String())
+				lastestRaydiumV4TradeInfo := global.GetTradeInfo(_mint.String())
+				if exist && (lastestAmmTradeInfo != nil || lastestPumpTradeInfo != nil || lastestRaydiumV4TradeInfo != nil) {
+					platform := "pumpfun"
+					currentPrice := 0.0
+					if lastestPumpTradeInfo != nil {
+						platform = "pumpfun"
+						currentPrice = lastestPumpTradeInfo.CurrentPrice
+
+					}
+					if lastestAmmTradeInfo != nil {
+						platform = "pumpamm"
+						currentPrice = lastestAmmTradeInfo.CurrentPrice
+
+					}
+
+					if lastestRaydiumV4TradeInfo != nil {
+						platform = "raydiumV4"
+						currentPrice = lastestRaydiumV4TradeInfo.CurrentPrice
+
+					}
+					// Check if we have a trade record for this token
+					tradeSetting, hasBotTrade := walletMonitor.TradeRecords[_mint.String()]
+
+					if hasBotTrade {
+
+						// tradeRecord := walletMonitor.BotTrades[_mint.String()]
+						strategyName := tradeSetting.Settings.Name
+						exitTimeSec := tradeSetting.Settings.ExitTimeSec
+						time.Sleep(time.Duration(exitTimeSec) * time.Second)
+						queue.SendTokenToSellChannel(assetInfo, currentPrice, platform, strategyName)
+					}
+				}
 
 			}
 		}
