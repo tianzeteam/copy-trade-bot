@@ -37,7 +37,6 @@ func (b *Bot) parseAmmTransaction(logMessages []string, mintAddress string) *glo
 		switch event.Name {
 		case "BuyEvent":
 			if buyEvent, ok := event.Data.(*pumpamm.BuyEventEventData); ok {
-				// 从买入事件中提取信息
 
 				// 创建交易事件信息对象
 				tradeInfo := &global.AmmTradeEventInfo{
@@ -59,8 +58,8 @@ func (b *Bot) parseAmmTransaction(logMessages []string, mintAddress string) *glo
 				tokenDecimal := 1e6 // Token有6个小数位
 
 				// 转换为浮点数进行价格计算
-				tokenReserveFloat := float64(buyEvent.PoolBaseTokenReserves) / tokenDecimal
 				solReserveFloat := float64(buyEvent.PoolQuoteTokenReserves) / solDecimal
+				tokenReserveFloat := float64(buyEvent.PoolBaseTokenReserves) / tokenDecimal
 
 				// 计算当前价格 (SOL/TOKEN)
 				tradeInfo.CurrentPrice = solReserveFloat / tokenReserveFloat
@@ -186,44 +185,28 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 
 	// 处理AMM交易信息
 	tradeInfo := b.parseAmmTransaction(logMessages, mintAddress)
-	/* 	if tradeInfo != nil {
+	botWallet := b.privateKey.PublicKey()
+	if tradeInfo != nil {
 		global.SetAmmTradeInfo(mintAddress, tradeInfo)
 		logger.Infof("AMM交易信息: 用户=%s, SOL=%d, 代币=%d, 是否买入=%v, 价格=%.8f",
 			tradeInfo.UserAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.IsBuy, tradeInfo.CurrentPrice)
-		// 解析Mint地址
-		mintPubkey, err := solana.PublicKeyFromBase58(tradeInfo.MintAddress)
-		if err != nil {
-			logger.Errorf("无法解析Mint地址: %v", err)
-			return tradeInfo
+
+		userPubkey := tradeInfo.UserAddress
+		if tradeInfo.IsBuy {
+			// 检查是否是自己的交易
+			if userPubkey.String() == botWallet.String() {
+				entryPrice := float64(tradeInfo.SolAmount/1e9) / float64(tradeInfo.TokenAmount/1e6)
+				// 设置入场价格
+				global.SetTradeAssetOnce(
+					mintAddress,
+					botWallet.String(),
+					entryPrice,
+					tradeInfo.TokenAmount,
+				)
+			}
 		}
 
-		// 解析用户地址
-		userPubkey, err := solana.PublicKeyFromBase58(tradeInfo.UserAddress)
-		if err != nil {
-			logger.Errorf("无法解析用户地址: %v", err)
-			return tradeInfo
-		}
-
-		tokenInfo := types.TokenInfo{
-			Mint:         mintPubkey,
-			Amount:       tradeInfo.TokenAmount,
-			User:         userPubkey,
-			Owner:        userPubkey,
-			UpdateTime:   time.Now(),
-			EntryPrice:   tradeInfo.CurrentPrice,
-			CurrentPrice: tradeInfo.CurrentPrice,
-			Platform:     "pumpamm",
-		}
-
-		// 发送代币信息到全局通道
-		logger.Debugf("发送代币信息到通道: Mint=%s, 余额=%d", tokenInfo.Mint, tokenInfo.Amount)
-		select {
-		case types.WaitingSellChan <- tokenInfo:
-			logger.Debugf("代币信息已发送到通道")
-		default:
-			logger.Debugf("通道已满，无法发送代币信息")
-		}
-	} */
+	}
 	return tradeInfo
 }
 

@@ -424,12 +424,6 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *goys
 					)
 				}
 			}
-			/* 			// 管道步骤4: 处理其他人的卖出交易
-			   			// 如果是其他人的卖出交易，检查是否持有该代币
-			   			if assetInfo := global.GetPendingHoldAsset(mintAddress); assetInfo != nil && queue.WaitingSellChan != nil {
-			   				// 处理代币并发送到卖出队列
-			   				b.appendTokenForSelling(mintAddress, botWallet, assetInfo, currentPrice)
-			   			} */
 
 			return tradeInfo
 		}

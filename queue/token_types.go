@@ -3,6 +3,9 @@ package queue
 import (
 	"time"
 
+	"copytrade/global"
+	"copytrade/logger"
+
 	"github.com/gagliardetto/solana-go"
 )
 
@@ -22,6 +25,7 @@ type TokenInfo struct {
 	EntryPrice             float64
 	CurrentPrice           float64
 	Platform               string
+	StrategyName           string // 策略名称
 }
 
 var (
@@ -29,3 +33,30 @@ var (
 	WaitingSellChan = make(chan TokenInfo, 1) // 导出通道供其他包使用
 	TokenSellChan   = make(chan TokenInfo, 1) // 导出通道供其他包使用
 )
+
+// sendTokenToSellChannel 创建 TokenInfo 并将其发送到 WaitingSellChan
+// 它还记录了尝试发送和结果。
+func SendTokenToSellChannel(assetInfo *global.MyBuyMap, currentPrice float64, platform, strategyName string) {
+	tokenInfo := TokenInfo{
+		Mint:         solana.MustPublicKeyFromBase58(assetInfo.MintAddress),
+		Owner:        solana.MustPublicKeyFromBase58(assetInfo.UserAddress),
+		Amount:       assetInfo.Amount,
+		User:         solana.MustPublicKeyFromBase58(assetInfo.UserAddress),
+		UpdateTime:   time.Now(),
+		EntryPrice:   assetInfo.EntryPrice,
+		CurrentPrice: currentPrice,
+		Platform:     platform,
+		StrategyName: strategyName,
+	}
+
+	logger.Infof("[%s] 准备发送代币到卖出通道: Mint=%s, 余额=%d, 入场价=%.6f, 当前价=%.8f, 策略=%s",
+		assetInfo.UserAddress, tokenInfo.Mint, tokenInfo.Amount, assetInfo.EntryPrice, currentPrice, strategyName)
+
+	// 尝试发送到通道，使用select避免阻塞
+	select {
+	case WaitingSellChan <- tokenInfo:
+		logger.Infof("[%s] 代币信息已成功发送到卖出通道: Mint=%s, 策略=%s", assetInfo.UserAddress, tokenInfo.Mint, strategyName)
+	default:
+		logger.Warnf("[%s] 卖出通道已满，无法发送代币信息: Mint=%s, 策略=%s", assetInfo.UserAddress, tokenInfo.Mint, strategyName)
+	}
+}

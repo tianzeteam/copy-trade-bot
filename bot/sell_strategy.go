@@ -234,12 +234,12 @@ func (b *Bot) ExecuteSellStrategy(tokenInfo queue.TokenInfo, vTokenReserves, vSo
 		// 执行此批次的卖出订单
 		sellTokenInfo := tokenInfo
 		sellTokenInfo.Amount = batch.Amount
-		b.executeSellOrder(sellTokenInfo, vTokenReserves, vSolReserves)
+		b.ExecuteSellOrder(sellTokenInfo, vTokenReserves, vSolReserves)
 	}
 }
 
 // executeSellOrder 处理实际的卖出逻辑
-func (b *Bot) executeSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolReserves uint64) {
+func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolReserves uint64) {
 	// 实际的卖出逻辑
 	logger.Infof("执行卖出订单: 代币=%s, 数量=%d", tokenInfo.Mint.String(), tokenInfo.Amount)
 
@@ -332,12 +332,12 @@ func (b *Bot) ExecuteAmmSellStrategy(tokenInfo queue.TokenInfo) {
 		// 执行此批次的卖出订单
 		sellTokenInfo := tokenInfo
 		sellTokenInfo.Amount = batch.Amount
-		b.executeAmmSellOrder(sellTokenInfo)
+		b.ExecuteAmmSellOrder(sellTokenInfo)
 	}
 }
 
 // executeSellOrder 处理实际的卖出逻辑
-func (b *Bot) executeAmmSellOrder(tokenInfo queue.TokenInfo) {
+func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 	// 实际的卖出逻辑
 	var baseAmountIn uint64 = tokenInfo.Amount
 	logger.Infof("开始处理 PumpAMM 平台的代币卖出操作: %s, 数量=%d", tokenInfo.Mint.String(), baseAmountIn)

@@ -40,6 +40,7 @@ type TradeRecord struct {
 	Timestamp     time.Time       // 交易时间
 	ExitDeadline  time.Time       // 退出截止时间
 	Settings      *WalletSettings // 交易设置
+	StrategyName  string          // 策略名称
 }
 
 // WalletMonitor 钱包监控器
@@ -192,8 +193,8 @@ func (m *WalletMonitor) RecordBotTrade(mintAddress string, botAddress solana.Pub
 		walletSettings.TakeProfitPct, walletSettings.StopLossPct, walletSettings.ExitTimeSec)
 }
 
-// TODO CheckExitConditions 检查是否满足退出条件
-func (m *WalletMonitor) CheckExitConditions(mintAddress string, currentPrice float64) (bool, string, *TradeRecord) {
+// TODO CheckExitConditions 检查是否满足止盈止损退出条件
+func (m *WalletMonitor) CheckExitConditions(platform, mintAddress string, currentPrice float64) (bool, string, *TradeRecord) {
 	m.Mux.RLock()
 	defer m.Mux.RUnlock()
 
@@ -206,23 +207,23 @@ func (m *WalletMonitor) CheckExitConditions(mintAddress string, currentPrice flo
 			return false, "", nil
 		}
 	}
-
+	assetInfo := global.GetPendingHoldAsset(mintAddress)
+	if assetInfo == nil {
+		return false, "", nil
+	}
 	// 计算价格变化百分比
-	priceChangePct := (currentPrice - tradeRecord.EntryPrice) / tradeRecord.EntryPrice * 100
+	priceChangePct := (currentPrice - assetInfo.EntryPrice) / assetInfo.EntryPrice * 100
 
 	// 检查止盈条件
 	if priceChangePct >= float64(tradeRecord.Settings.TakeProfitPct) {
+		queue.SendTokenToSellChannel(assetInfo, currentPrice, platform, tradeRecord.Settings.Name)
 		return true, "止盈触发", tradeRecord
 	}
 
 	// 检查止损条件
 	if priceChangePct <= -float64(tradeRecord.Settings.StopLossPct) {
+		queue.SendTokenToSellChannel(assetInfo, currentPrice, platform, tradeRecord.Settings.Name)
 		return true, "止损触发", tradeRecord
-	}
-
-	// 检查时间条件
-	if time.Now().After(tradeRecord.ExitDeadline) {
-		return true, "时间触发", tradeRecord
 	}
 
 	return false, "", nil
@@ -263,9 +264,6 @@ func (m *WalletMonitor) StartMonitoring(ctx context.Context) {
 			case <-ctx.Done():
 				logger.Infof("钱包监控服务停止")
 				return
-			case <-priceTicker.C:
-				// 检查交易的退出条件
-				m.checkAllTrades()
 			case <-walletRefreshTicker.C:
 				// 刷新钱包列表
 				m.refreshWalletList()
@@ -289,71 +287,4 @@ func (m *WalletMonitor) refreshWalletList() {
 	m.Mux.Unlock()
 
 	logger.Infof("从 Redis 刷新钱包列表，共 %d 个钱包", len(wallets))
-}
-
-// checkAllTrades 检查所有交易的退出条件
-func (m *WalletMonitor) checkAllTrades() {
-	m.Mux.RLock()
-	tradeRecords := make([]*TradeRecord, 0, len(m.TradeRecords))
-	for _, record := range m.TradeRecords {
-		tradeRecords = append(tradeRecords, record)
-	}
-	m.Mux.RUnlock()
-
-	for _, record := range tradeRecords {
-		// 获取当前价格
-		tradeInfo := global.GetTradeInfo(record.MintAddress)
-		if tradeInfo == nil {
-			continue
-		}
-
-		currentPrice := tradeInfo.CurrentPrice
-
-		// 检查退出条件
-		shouldExit, reason, tradeRecord := m.CheckExitConditions(record.MintAddress, currentPrice)
-		if shouldExit && tradeRecord != nil {
-			logger.Infof("触发退出条件: %s, 代币=%s, 入场价格=%.6f, 当前价格=%.6f",
-				reason, record.MintAddress, tradeRecord.EntryPrice, currentPrice)
-
-			// 解析Mint地址
-			mintPubkey, err := solana.PublicKeyFromBase58(record.MintAddress)
-			if err != nil {
-				logger.Errorf("无法解析Mint地址: %v", err)
-				continue
-			}
-
-			// 解析所有者地址
-			ownerPubkey, err := solana.PublicKeyFromBase58(record.WalletAddress)
-			if err != nil {
-				logger.Errorf("无法解析钱包地址: %v", err)
-				continue
-			}
-
-			// 创建代币信息对象
-			tokenInfo := queue.TokenInfo{
-				Mint:         mintPubkey,
-				Owner:        ownerPubkey,
-				Amount:       record.Amount,
-				User:         ownerPubkey,
-				UpdateTime:   time.Now(),
-				EntryPrice:   record.EntryPrice,
-				CurrentPrice: currentPrice,
-				Platform:     "pumpfun",
-			}
-
-			// 发送代币信息到全局卖出通道
-			logger.Infof("发送代币信息到卖出通道: Mint=%s, 余额=%d, 入场价=%.6f, 当前价=%.6f",
-				tokenInfo.Mint, tokenInfo.Amount, record.EntryPrice, currentPrice)
-
-			// 尝试发送到通道，使用select避免阻塞
-			select {
-			case queue.WaitingSellChan <- tokenInfo:
-				logger.Debugf("代币信息已成功发送到卖出通道")
-				// 移除交易记录
-				m.RemoveTrade(record.MintAddress)
-			default:
-				logger.Warnf("卖出通道已满，无法发送代币信息")
-			}
-		}
-	}
 }

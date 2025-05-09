@@ -52,7 +52,7 @@ func processWaitingSellTokens(tradeBot *bot.Bot) {
 		platform := tokenInfo.Platform
 		if platform == "pumpamm" {
 			//@TODO 使用多级卖出策略
-			go tradeBot.PumpAmmSell(tokenInfo)
+			go tradeBot.ExecuteAmmSellOrder(tokenInfo)
 			continue
 		}
 		// 查找代币的交易信息
@@ -66,7 +66,7 @@ func processWaitingSellTokens(tradeBot *bot.Bot) {
 		vTokenReserves := tradeInfo.VirtualTokenReserves
 		vSolReserves := tradeInfo.VirtualSolReserves
 
-		go tradeBot.PumpSell(tokenInfo, vTokenReserves, vSolReserves)
+		go tradeBot.ExecuteSellOrder(tokenInfo, vTokenReserves, vSolReserves)
 	}
 }
 
@@ -216,7 +216,7 @@ func main() {
 					transactionMonitor.ProcessTransaction(tradeInfo)
 
 				}
-				walletMonitor.CheckExitConditions(tradeInfo.MintAddress, tradeInfo.CurrentPrice)
+				walletMonitor.CheckExitConditions("pumpfun", tradeInfo.MintAddress, tradeInfo.CurrentPrice)
 			}
 
 			if slices.Contains(accountsAddress, core.AMM_PROGRAM_ID.String()) {
@@ -227,7 +227,7 @@ func main() {
 				if ammTradeInfo != nil && transactionMonitor != nil {
 					transactionMonitor.ProcessAmmTransaction(ammTradeInfo)
 				}
-				walletMonitor.CheckExitConditions(ammTradeInfo.MintAddress.String(), ammTradeInfo.CurrentPrice)
+				walletMonitor.CheckExitConditions("pumpamm", ammTradeInfo.MintAddress.String(), ammTradeInfo.CurrentPrice)
 			}
 
 		}
