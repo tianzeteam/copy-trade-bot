@@ -181,7 +181,7 @@ func main() {
 	if err = mintStreamClient.SubscribeTransaction("transaction_stream", &yellowstone_geyser_pb.SubscribeRequestFilterTransactions{
 		Vote:           &isVote,
 		Failed:         &isFailed,
-		AccountInclude: []string{core.PUMP_PROGRAM_ID.String(), core.AMM_PROGRAM_ID.String()},
+		AccountInclude: []string{core.PUMP_PROGRAM_ID.String(), core.AMM_PROGRAM_ID.String(), core.RAYDIUM_V4_PROGRAM_ID.String()},
 	}); err != nil {
 		logger.Fatalf("订阅交易失败: %v", err)
 		return
@@ -214,9 +214,11 @@ func main() {
 				tradeInfo := tradeBot.PumpParse(out, client, ctx)
 				if tradeInfo != nil && transactionMonitor != nil {
 					transactionMonitor.ProcessTransaction(tradeInfo)
+					walletMonitor.CheckExitConditions("pumpfun", tradeInfo.MintAddress, tradeInfo.CurrentPrice)
+					continue
 
 				}
-				walletMonitor.CheckExitConditions("pumpfun", tradeInfo.MintAddress, tradeInfo.CurrentPrice)
+
 			}
 
 			if slices.Contains(accountsAddress, core.AMM_PROGRAM_ID.String()) {
@@ -226,12 +228,21 @@ func main() {
 				// 处理钱包监控AMM交易
 				if ammTradeInfo != nil && transactionMonitor != nil {
 					transactionMonitor.ProcessAmmTransaction(ammTradeInfo)
+					walletMonitor.CheckExitConditions("pumpamm", ammTradeInfo.MintAddress.String(), ammTradeInfo.CurrentPrice)
+					continue
 				}
-				walletMonitor.CheckExitConditions("pumpamm", ammTradeInfo.MintAddress.String(), ammTradeInfo.CurrentPrice)
+
+			}
+
+			if slices.Contains(accountsAddress, core.RAYDIUM_V4_PROGRAM_ID.String()) {
+				go tradeBot.RaydiumV4Parse(out, client, ctx)
+
 			}
 
 		}
 	}()
+	// -----------------------------------------订阅market data ----------------------------------
+	tradeBot.SubscribeToOpenBookMarkets(ctx, client, solana.WrappedSol)
 
 	//-----------------------------  监听交易钱包账户变化 --------------------------------------------
 	if err = client.AddStreamClient(ctx, "accounts_stream", yellowstone_geyser_pb.CommitmentLevel_CONFIRMED); err != nil {
@@ -242,7 +253,7 @@ func main() {
 	if accountsStreamClient == nil {
 		logger.Fatal("客户端没有名为accounts_stream的流")
 	}
-	logger.Infof("开始监控交易钱包地址: %s", botPrivateKey.PublicKey().String())
+	logger.Infof("开始监控钱包账号资产变更: %s", botPrivateKey.PublicKey().String())
 
 	// 创建数据大小过滤器 - SPL代币账户的标准大小为165字节
 	datasizeFilter := &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilter{
@@ -308,11 +319,17 @@ func main() {
 				logger.Infof("代币账户信息 - Mint: %s, 所有者: %s, token数量: %d", _mint, _owner, _amount)
 
 				// 如果余额超过10*1e6，则添加到待处理资产列表，否则从列表中删除
-				//global.AddOrUpdatePendingAsset(_mint, _owner, _amount, 10*1e6)
 				assetInfo, exist := global.GetPendingHoldAsset(_mint.String())
 				lastestAmmTradeInfo := global.GetAmmTradeInfo(_mint.String())
 				lastestPumpTradeInfo := global.GetTradeInfo(_mint.String())
 				lastestRaydiumV4TradeInfo := global.GetTradeInfo(_mint.String())
+
+				if assetInfo != nil {
+					logger.Infof("Asset info for %s: Amount=%d, EntryPrice=%.8f", _mint.String(), assetInfo.Amount, assetInfo.EntryPrice)
+				} else {
+					logger.Infof("Asset info for %s is nil", _mint.String())
+				}
+
 				if exist && (lastestAmmTradeInfo != nil || lastestPumpTradeInfo != nil || lastestRaydiumV4TradeInfo != nil) {
 					platform := "pumpfun"
 					currentPrice := 0.0
@@ -333,9 +350,11 @@ func main() {
 
 					}
 					// Check if we have a trade record for this token
-					tradeSetting, hasBotTrade := walletMonitor.TradeRecords[_mint.String()]
+					tradeSetting, existCopyTrade := walletMonitor.TradeRecords[_mint.String()]
+					logger.Infof("existCopyTrade", existCopyTrade)
+					logger.Infof("tradeSetting", tradeSetting)
 
-					if hasBotTrade {
+					if existCopyTrade && currentPrice > 0 {
 
 						// tradeRecord := walletMonitor.BotTrades[_mint.String()]
 						strategyName := tradeSetting.Settings.Name

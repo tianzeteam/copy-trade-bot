@@ -64,10 +64,10 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		logger.Infof("模拟模式，不执行买入交易 %s", params.TradeParams.Accounts.Mint)
 		return "mock", fmt.Errorf("模拟模式，不执行买入交易")
 	}
-	logger.Debugf("开始执行买入交易...")
-	logger.Debugf("Mint地址: %s", params.TradeParams.Accounts.Mint)
-	logger.Debugf("购买数量: %d", params.TradeParams.Amount)
-	logger.Debugf("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
+	logger.Infof("开始执行买入交易...")
+	logger.Infof("Mint地址: %s", params.TradeParams.Accounts.Mint)
+	logger.Infof("购买数量: %d", params.TradeParams.Amount)
+	logger.Infof("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
 
 	// 构建交易指令
 	instructions := []solana.Instruction{}
@@ -195,7 +195,9 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 	}
 
 	if t.Config.Normal.Enable {
-		log.Printf("[Normal] 准备发送交易...")
+		logger.Infof("[Normal] 准备发送交易...")
+		logger.Infof("latest blockhash", params.TradeParams.Blockhash.String())
+
 		go func() {
 			// 构建交易
 			tx, err := solana.NewTransaction(
@@ -239,6 +241,7 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		logger.Infof("买入交易已发送! 交易ID: %s", sig)
 		return sig, nil
 	case err := <-errChan:
+		logger.Errorf("pump 买入交易失败 %v", err)
 		return "", err
 	case <-timeout:
 		return "", fmt.Errorf("transaction timeout")
@@ -252,10 +255,10 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		logger.Infof("模拟模式，不执行买入交易 %s", params.TradeParams.Accounts.Mint)
 		return "mock", fmt.Errorf("模拟模式，不执行买入交易")
 	}
-	logger.Debugf("开始执行买入交易...")
-	logger.Debugf("Mint地址: %s", params.TradeParams.Accounts.Mint)
-	logger.Debugf("购买数量: %d", params.TradeParams.Amount)
-	logger.Debugf("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
+	logger.Infof("开始执行买入交易...")
+	logger.Infof("Mint地址: %s", params.TradeParams.Accounts.Mint)
+	logger.Infof("购买数量: %d", params.TradeParams.Amount)
+	logger.Infof("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
 
 	// 构建交易指令
 	instructions := []solana.Instruction{}
@@ -305,7 +308,7 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		SetProtocolFeeRecipientTokenAccountAccount(PROTOCOL_FEE_RECIPIENT_TOKEN_ACCOUNT).
 		SetBaseTokenProgramAccount(solana.TokenProgramID).
 		SetQuoteTokenProgramAccount(solana.TokenProgramID).
-		SetEventAuthorityAccount(EVENT_AUTHORITY_ACCOUNT).
+		SetEventAuthorityAccount(AMM_EVENT_AUTHORITY).
 		SetProgramAccount(pumpamm.ProgramID).
 		SetBaseAmountOut(params.TradeParams.Amount).
 		SetMaxQuoteAmountIn(params.TradeParams.Cost)
@@ -318,7 +321,7 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 	timeout := time.After(30 * time.Second)
 
 	if params.BloXrouteParams != nil && params.BloXrouteParams.Enable {
-		logger.Debugf("[BloXroute] 准备发送交易...")
+		logger.Infof("[BloXroute] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBloXroute(
 				t.Wallet.PrivateKey,
@@ -337,7 +340,7 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 
 	// 检查各个模式是否启用并准备发送
 	if params.NextBlockParams != nil && params.NextBlockParams.Enable {
-		log.Printf("[NextBlock] 准备发送交易...")
+		logger.Infof("[NextBlock] 准备发送交易...")
 		go func() {
 			// 构建交易并发送到 NextBlock
 			sig, err := swqos.SendTransactionNextBlock(
@@ -354,7 +357,7 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		}()
 	}
 	if params.JitoParams != nil && params.JitoParams.Enable {
-		log.Printf("[Jito] 准备发送交易...")
+		logger.Infof("[Jito] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionJito(
 				t.Wallet,
@@ -370,7 +373,7 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		}()
 	}
 	if params.TemporalParams != nil && params.TemporalParams.Enable {
-		log.Printf("[Temporal] 准备发送交易...")
+		logger.Infof("[Temporal] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionTemporal(
 				t.Wallet,
@@ -387,7 +390,7 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 	}
 
 	if t.Config.Normal.Enable {
-		log.Printf("[Normal] 准备发送交易...")
+		logger.Infof("[Normal] 准备发送交易...")
 		go func() {
 			// 构建交易
 			tx, err := solana.NewTransaction(
@@ -431,6 +434,7 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		logger.Infof("买入交易已发送! 交易ID: %s", sig)
 		return sig, nil
 	case err := <-errChan:
+		logger.Errorf("买入交易已发送失败!: %v", err)
 		return "", err
 	case <-timeout:
 		return "", fmt.Errorf("transaction timeout")
@@ -712,7 +716,7 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 	}
 	// 构建Sell指令
 	sellInstruction := pumpamm.NewSellInstructionBuilder().
-		SetGlobalConfigAccount(GLOBAL_CONFIG).
+		SetGlobalConfigAccount(GLOBAL_CONFIG_ACCOUNT).
 		SetProtocolFeeRecipientAccount(PROTOCOL_FEE_RECIPIENT).
 		SetProtocolFeeRecipientTokenAccountAccount(PROTOCOL_FEE_RECIPIENT_TOKEN_ACCOUNT).
 		SetBaseMintAccount(params.TradeParams.Accounts.Mint).
@@ -861,6 +865,7 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 		return sig, nil
 	case err := <-errChan:
 		// 更新代币卖出时间，防止短时间内重复卖出
+		logger.Errorf("AMM卖出交易发送失败!: %v", err)
 		global.UpdateTokenSellTime(mintAddress)
 		return "", err
 	case <-timeout:

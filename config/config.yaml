@@ -32,12 +32,12 @@ multi_sell_levels: # 全局卖出配置
     sell_percent: 50
 
 normal:
-  enable: false # 是否启用普通交易
-  buy_tip: 0.3 # 该配置不能进行改动 普通模式不生效
-  sell_tip: 0.2 # 该配置不能进行改动 普通模式不生效
+  enable: true # 是否启用普通交易
+  buy_tip: 0.0001 # 该配置不能进行改动 普通模式不生效
+  sell_tip: 0.0001 # 该配置不能进行改动 普通模式不生效
 
 bloXroute:
-  enable: true ## 是否启用 bloXroute 交易
+  enable: false ## 是否启用 bloXroute 交易
   rpc_url: "https://mainnet.helius-rpc.com/?api-key=fc8353eb-13cb-423e-8d36-49e2b26d3a78" ## bloXroute  url
   buy_tip: 0.0001 ## 买入手续费
   sell_tip: 0.0001 ## 卖出手续费

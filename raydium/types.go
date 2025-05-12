@@ -2,6 +2,7 @@ package raydium
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 
 	"copytrade/raydium/layouts"
@@ -10,6 +11,24 @@ import (
 	bin "github.com/gagliardetto/binary"
 	"github.com/gagliardetto/solana-go"
 )
+
+// Raydium的指令判别器定义
+// 注意: Raydium V4 使用自定义的判别器格式，而不是标准的Anchor格式
+// 下面的值是基于实际观察到的数据得出的
+
+// SwapBaseIn指令的判别器 (类型9)
+var SwapDiscriminator = uint8(9)
+
+// SwapBaseOut指令的判别器 (类型11)
+var SwapDiscriminator_V2 = uint8(11)
+
+// 使用与Anchor类似的方式计算判别器 (仅供参考)
+func CalculateAnchorStyleDiscriminator(instructionName string) [8]byte {
+	hash := sha256.Sum256([]byte(instructionName))
+	var discriminator [8]byte
+	copy(discriminator[:], hash[:8])
+	return discriminator
+}
 
 type SwapV4Instruction struct {
 	Instruction      uint8

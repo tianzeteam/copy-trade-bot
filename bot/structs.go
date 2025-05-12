@@ -41,6 +41,10 @@ type Bot struct {
 
 	// 卖出策略
 	sellStrategy SellStrategy
+
+	// OpenBook market states map, with baseMint as key
+	marketStates     map[string]*MarketState
+	marketStatesLock sync.RWMutex
 }
 
 func (b *Bot) status(msg interface{}) {
@@ -141,8 +145,12 @@ func NewBot(config *utils.Config) (*Bot, error) {
 
 		// 初始化卖出策略
 		sellStrategy: NewMultiLevelSellStrategy(config.MultiSellLevels),
-	}
 
+		// 初始化OpenBook市场状态映射
+		marketStates:     make(map[string]*MarketState),
+		marketStatesLock: sync.RWMutex{},
+	}
+	b.fetchBlockhashLoop()
 	return b, nil
 }
 

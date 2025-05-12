@@ -124,15 +124,13 @@ func SetTradeInfo(mintAddress string, info *TradeEventInfo) {
 	TradeInfoMap[mintAddress] = info
 
 	// 打印当前设置的交易信息
-	logger.Debugf("设置交易信息: Mint=%s, 价格=%.8f, 用户=%s",
-		mintAddress, info.CurrentPrice, info.UserAddress)
+	//logger.Debugf("设置交易信息: Mint=%s, 价格=%.8f, 用户=%s",mintAddress, info.CurrentPrice, info.UserAddress)
 
 	// 打印TradeInfoMap中的所有元素
-	logger.Debugf("当前TradeInfoMap包含 %d 个元素", len(TradeInfoMap))
-	for mint, tradeInfo := range TradeInfoMap {
-		logger.Debugf("TradeInfoMap[%s]: 价格=%.8f, 用户=%s, 时间=%s",
-			mint, tradeInfo.CurrentPrice, tradeInfo.UserAddress, tradeInfo.TradeTime)
-	}
+	//logger.Debugf("当前TradeInfoMap包含 %d 个元素", len(TradeInfoMap))
+	/* for mint, tradeInfo := range TradeInfoMap {
+		logger.Debugf("TradeInfoMap[%s]: 价格=%.8f, 用户=%s, 时间=%s", mint, tradeInfo.CurrentPrice, tradeInfo.UserAddress, tradeInfo.TradeTime)
+	} */
 }
 
 // GetPendingHoldAsset 获取指定代币的持有资产信息
@@ -268,7 +266,7 @@ func SetTradeAssetOnce(mintAddress string, userAddress string, entryPrice float6
 	_, exists := PendingHoldAsset[mintAddress]
 	if exists {
 
-		logger.Infof("代币 %s 的交易资产已存在，不进行更新", mintAddress)
+		logger.Warnf("代币 %s 的交易资产已存在，不进行更新", mintAddress)
 		return false
 
 	}

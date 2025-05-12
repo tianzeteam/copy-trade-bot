@@ -132,9 +132,12 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 	}
 
 	messages := txn.Transaction.Transaction.Message
-	cacheBlockhash := base58.Encode(messages.GetRecentBlockhash())
-	logger.Debugf("recent blockhash :%s", cacheBlockhash)
-	b.CacheLatestBlockhash(cacheBlockhash)
+	/*cacheBlockhash := base58.Encode(messages.GetRecentBlockhash())
+	logger.Infof("recent blockhash :%s", cacheBlockhash)
+	err := b.CacheLatestBlockhash(cacheBlockhash)
+	if err != nil {
+		logger.Errorf("cache recent blockhash :%v", err)
+	} */
 	instructions := messages.Instructions
 	_signature := base58.Encode(txn.Transaction.Transaction.Signatures[0])
 
@@ -188,7 +191,7 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 	botWallet := b.privateKey.PublicKey()
 	if tradeInfo != nil {
 		global.SetAmmTradeInfo(mintAddress, tradeInfo)
-		logger.Infof("AMM交易信息: 用户=%s, SOL=%d, 代币=%d, 是否买入=%v, 价格=%.8f",
+		logger.Debugf("AMM交易信息: 用户=%s, SOL=%d, 代币=%d, 是否买入=%v, 价格=%.8f",
 			tradeInfo.UserAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.IsBuy, tradeInfo.CurrentPrice)
 
 		userPubkey := tradeInfo.UserAddress

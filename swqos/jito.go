@@ -3,10 +3,10 @@ package swqos
 import (
 	"crypto/rand"
 	"fmt"
-	"log"
 	"math/big"
 	"time"
 
+	"copytrade/logger"
 	"copytrade/types"
 
 	"github.com/gagliardetto/solana-go"
@@ -29,11 +29,11 @@ var jitoTipAccounts = []string{
 
 // SendTransactionJito 发送交易到 Jito
 func SendTransactionJito(wallet *solana.Wallet, instructions []solana.Instruction, params *types.JitoParams, blockhash solana.Hash) (string, error) {
-	log.Printf("[Jito] 开始发送交易: %s", time.Now().Format("2006-01-02 15:04:05.000"))
+	logger.Infof("[Jito] 开始发送交易: %s", time.Now().Format("2006-01-02 15:04:05.000"))
 
 	// 初始化 Jito 客户端
 	jitoClient := jitorpc.NewJitoJsonRpcClient(params.BundleUrl, "")
-	debug := false
+	debug := true
 	jitoClient.Debug = &debug
 
 	// 获取随机 tip 账户
@@ -88,7 +88,7 @@ func SendTransactionJito(wallet *solana.Wallet, instructions []solana.Instructio
 		return "", fmt.Errorf("transaction result is nil")
 	}
 
-	log.Printf("[Jito] 交易发送完成: %s", time.Now().Format("2006-01-02 15:04:05.000"))
+	logger.Infof("[Jito] 交易发送完成: %s", time.Now().Format("2006-01-02 15:04:05.000"))
 	return tx.Signatures[0].String(), nil
 }
 

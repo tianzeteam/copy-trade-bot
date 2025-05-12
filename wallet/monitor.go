@@ -140,36 +140,28 @@ func (m *WalletMonitor) RecordTrade(mintAddress string, copyAddress solana.Publi
 	m.TradeRecords[mintAddress] = tradeRecord
 	m.TradedTokens[mintAddress] = true
 
-	logger.Infof("记录原始交易: 代币=%s, 脑明钱包=%s, 入场价格=%.6f, 数量=%d, 止盈=%d%%, 止损=%d%%, 持仓时间=%d秒",
+	logger.Infof("记录原始交易: 代币=%s, 聪明钱包地址=%s, 入场价格=%.6f, 数量=%d, 止盈=%d%%, 止损=%d%%, 持仓时间=%d秒",
 		mintAddress, copyAddress.String(), entryPrice, originAmount,
 		walletSettings.TakeProfitPct, walletSettings.StopLossPct, walletSettings.ExitTimeSec)
 }
 
 // RecordBotTrade 记录机器人的跟单交易
-func (m *WalletMonitor) RecordBotTrade(mintAddress string, botAddress solana.PublicKey, entryPrice float64) {
+func (m *WalletMonitor) RecordBotTrade(mintAddress string, copyAddress, botAddress solana.PublicKey, entryPrice float64) {
 	m.Mux.Lock()
 	defer m.Mux.Unlock()
 
 	// 获取钱包设置
 	var walletSettings *WalletSettings
 	for _, wallet := range m.Wallets {
-		if wallet.Address.Equals(botAddress) {
+		if wallet.Address.Equals(copyAddress) {
 			walletSettings = wallet
 			break
 		}
 	}
 
 	if walletSettings == nil {
-		// 如果机器人钱包没有特定设置，使用默认设置
-		walletSettings = &WalletSettings{
-			Address:       botAddress,
-			Name:          "Bot Wallet",
-			Type:          HighFrequency,
-			TakeProfitPct: 20,   // 默认止盈 20%
-			StopLossPct:   10,   // 默认止损 10%
-			ExitTimeSec:   3600, // 默认持仓 1 小时
-			Enabled:       true,
-		}
+		// 如果机器人钱包没有特定设置，退出执行
+		return
 	}
 
 	// 计算退出截止时间
@@ -204,24 +196,35 @@ func (m *WalletMonitor) CheckExitConditions(platform, mintAddress string, curren
 		// 如果在原始交易记录中没有找到，尝试从机器人交易中查找
 		tradeRecord, exists = m.BotTrades[mintAddress]
 		if !exists {
+			logger.Debugf("未买入该资产信息 ：%s", mintAddress)
 			return false, "", nil
 		}
 	}
 	assetInfo, exists := global.GetPendingHoldAsset(mintAddress)
 	if !exists {
-		return false, "", nil
+		logger.Errorf("读取买入资产信息发生异常 ：%s", mintAddress)
+		return false, "读取买入资产信息发生异常", nil
 	}
 	// 计算价格变化百分比
-	priceChangePct := (currentPrice - assetInfo.EntryPrice) / assetInfo.EntryPrice * 100
+	var priceChangePct float64
+	if assetInfo.EntryPrice == 0 {
+
+		logger.Errorf("代币 %s 的入场价格为零，无法计算价格变化百分比", mintAddress)
+		return false, "入场价信息异常", nil
+	} else {
+		priceChangePct = (currentPrice - assetInfo.EntryPrice) / assetInfo.EntryPrice * 100
+	}
 
 	// 检查止盈条件
 	if priceChangePct >= float64(tradeRecord.Settings.TakeProfitPct) {
+		logger.Infof("止盈条件被触发 :%s ,价格波动：%.8f%% ,止盈设置：%d%%", mintAddress, priceChangePct, tradeRecord.Settings.TakeProfitPct)
 		queue.SendTokenToSellChannel(assetInfo, currentPrice, platform, tradeRecord.Settings.Name)
 		return true, "止盈触发", tradeRecord
 	}
 
 	// 检查止损条件
 	if priceChangePct <= -float64(tradeRecord.Settings.StopLossPct) {
+		logger.Infof("止损条件被触发 :%s ,价格波动：%.8f%% ,止损设置：%d%%", mintAddress, priceChangePct, tradeRecord.Settings.StopLossPct)
 		queue.SendTokenToSellChannel(assetInfo, currentPrice, platform, tradeRecord.Settings.Name)
 		return true, "止损触发", tradeRecord
 	}

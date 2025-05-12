@@ -5,7 +5,6 @@ go 1.24
 toolchain go1.24.2
 
 require (
-	github.com/0xjeffro/tx-parser v0.4.2
 	github.com/bloXroute-Labs/solana-trader-client-go v1.9.7
 	github.com/bloXroute-Labs/solana-trader-proto v1.9.3-0.20250116185214-3fc218b89806
 	github.com/gagliardetto/gofuzz v1.2.2
@@ -18,6 +17,8 @@ require (
 	google.golang.org/protobuf v1.36.6
 
 )
+
+require github.com/near/borsh-go v0.3.2-0.20220516180422-1ff87d108454 // indirect
 
 require (
 	github.com/blocto/solana-go-sdk v1.30.0
@@ -40,7 +41,6 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mhmtszr/concurrent-swiss-map v1.0.8 // indirect
-	github.com/near/borsh-go v0.3.2-0.20220516180422-1ff87d108454 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/sourcegraph/jsonrpc2 v0.2.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect

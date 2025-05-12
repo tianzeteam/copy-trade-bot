@@ -15,7 +15,6 @@ import (
 	goyser "copytrade/yellowstone_geyser"
 	yellowstone_geyser_pb "copytrade/yellowstone_geyser/pb"
 
-	"github.com/gagliardetto/solana-go"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/mr-tron/base58"
 )
@@ -184,164 +183,6 @@ func (b *Bot) parseTransaction(logMessages []string) *global.TradeEventInfo {
 	return nil
 }
 
-// parseMintTransaction 解析代币创建事件
-func (b *Bot) parseMintTransaction(logMessages []string) *global.CreateEventInfo {
-	for _, logEntry := range logMessages {
-		// 检查是否为代币创建事件
-		if !isPumpMintLog(logEntry) {
-			continue
-		}
-		logger.Debugf("Found PumpFun mint instruction\n")
-		for _, msg := range logMessages {
-			if strings.Contains(msg, "Program data:") {
-				data := strings.Split(msg, "Program data: ")[1]
-				decoded, err := base64.StdEncoding.DecodeString(data)
-				if err != nil {
-					logger.Infof("解码失败: %v", err)
-					continue
-				}
-
-				// 跳过魔数和版本（8字节）
-				offset := 8
-
-				// 根据CreateEvent结构解析数据
-				// 1. 解析name (string)
-				nameLen := int(binary.LittleEndian.Uint32(decoded[offset : offset+4]))
-				offset += 4
-				if offset+nameLen > len(decoded) {
-					logger.Infof("数据长度不足，无法解析name字段")
-					continue
-				}
-				name := string(decoded[offset : offset+nameLen])
-				offset += nameLen
-
-				// 2. 解析symbol (string)
-				symbolLen := int(binary.LittleEndian.Uint32(decoded[offset : offset+4]))
-				offset += 4
-				if offset+symbolLen > len(decoded) {
-					logger.Infof("数据长度不足，无法解析symbol字段")
-					continue
-				}
-				symbol := string(decoded[offset : offset+symbolLen])
-				offset += symbolLen
-
-				// 3. 解析uri (string)
-				uriLen := int(binary.LittleEndian.Uint32(decoded[offset : offset+4]))
-				offset += 4
-				if offset+uriLen > len(decoded) {
-					logger.Infof("数据长度不足，无法解析uri字段")
-					continue
-				}
-				uri := string(decoded[offset : offset+uriLen])
-				offset += uriLen
-
-				// 4. 解析mint (pubkey - 32字节)
-				if offset+32 > len(decoded) {
-					logger.Errorf("数据长度不足，无法解析mint地址")
-					continue
-				}
-				var mintBytes [32]byte
-				copy(mintBytes[:], decoded[offset:offset+32])
-				mintAddress := base58.Encode(mintBytes[:])
-				offset += 32
-
-				// 5. 解析bondingCurve (pubkey - 32字节)
-				if offset+32 > len(decoded) {
-					logger.Errorf("数据长度不足，无法解析bondingCurve地址")
-					continue
-				}
-				var bondingCurveBytes [32]byte
-				copy(bondingCurveBytes[:], decoded[offset:offset+32])
-				bondingCurve := base58.Encode(bondingCurveBytes[:])
-				offset += 32
-
-				// 6. 解析user (pubkey - 32字节)
-				if offset+32 > len(decoded) {
-					logger.Errorf("数据长度不足，无法解析user地址")
-					continue
-				}
-				var userBytes [32]byte
-				copy(userBytes[:], decoded[offset:offset+32])
-				userAddress := base58.Encode(userBytes[:])
-
-				// 创建代币信息对象
-				createInfo := &global.CreateEventInfo{
-					Name:         name,
-					Symbol:       symbol,
-					Uri:          uri,
-					MintAddress:  mintAddress,
-					BondingCurve: bondingCurve,
-					Creator:      userAddress,
-					CreatedAt:    time.Now(),
-				}
-
-				// 存储到全局映射表中
-				global.SetCreateInfo(mintAddress, createInfo)
-
-				// 输出代币创建信息
-				logger.Debugf("\n===================== 代币创建事件 =====================\n"+
-					"代币名称: %s\n"+
-					"代币符号: %s\n"+
-					"元数据URI: %s\n"+
-					"Mint地址: %s\n"+
-					"绑定曲线: %s\n"+
-					"创建者: %s\n"+
-					"创建时间: %s\n"+
-					"================================================\n",
-					name,
-					symbol,
-					uri,
-					mintAddress,
-					bondingCurve,
-					userAddress,
-					time.Now().Format("2006-01-02 15:04:05.000"),
-				)
-
-				// 异步获取代币元数据信息
-				//go b.fetchTokenMetadata(mintAddress, uri)
-				return createInfo
-			}
-		}
-	}
-	return nil
-
-}
-
-// processTokenForSelling 处理代币并发送到卖出队列
-func (b *Bot) appendTokenForSelling(mintAddress string, botWallet solana.PublicKey, assetInfo *global.MyBuyMap, currentPrice float64) bool {
-	// 从交易信息中获取代币信息
-	mintPubkey, err := solana.PublicKeyFromBase58(mintAddress)
-	if err != nil {
-		logger.Errorf("无法解析Mint地址 %s: %v", mintAddress, err)
-		return false
-	}
-
-	// 创建代币信息对象
-	tokenInfo := queue.TokenInfo{
-		Mint:         mintPubkey,
-		Owner:        botWallet,
-		Amount:       assetInfo.Amount,
-		User:         botWallet,
-		UpdateTime:   time.Now(),
-		EntryPrice:   assetInfo.EntryPrice,
-		CurrentPrice: currentPrice,
-		Platform:     "pumpfun",
-	}
-
-	// 非阻塞方式发送代币信息到全局通道
-	logger.Infof("准备发送代币信息到卖出通道: Mint=%s, 入场价=%.8f, 当前价=%.8f, 数量=%d",
-		tokenInfo.Mint, tokenInfo.EntryPrice, tokenInfo.CurrentPrice, tokenInfo.Amount)
-
-	select {
-	case queue.WaitingSellChan <- tokenInfo:
-		logger.Infof("已将代币 %s 发送到卖出队列", mintAddress)
-		return true
-	default:
-		logger.Warnf("卖出队列已满，无法处理代币 %s", mintAddress)
-		return false
-	}
-}
-
 // PumpSellMint 处理代币卖出逻辑
 func (b *Bot) PumpSell(tokenInfo queue.TokenInfo, virtualTokenReserves, virtualSolReserves uint64) {
 
@@ -422,6 +263,7 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *goys
 						entryPrice,
 						tradeEvent.TokenAmount,
 					)
+
 				}
 			}
 
@@ -437,15 +279,10 @@ func (b *Bot) PumpStartPricePing(priceStreamClient *goyser.StreamClient) {
 	defer ticker.Stop()
 	for range ticker.C {
 		lastPingTime := time.Now()
-		if err := priceStreamClient.SendCustomRequest(&yellowstone_geyser_pb.SubscribeRequest{Ping: &yellowstone_geyser_pb.SubscribeRequestPing{}}); err != nil {
+		if err := priceStreamClient.SendCustomRequest(&yellowstone_geyser_pb.SubscribeRequest{Ping: &yellowstone_geyser_pb.SubscribeRequestPing{Id: 1}}); err != nil {
 			logger.Errorf(" price ping : %v \n", err)
 			return
 		}
 		logger.Infof(" price ping - :%v \n", lastPingTime.Format("15:04:05.000"))
 	}
-}
-
-func isPumpMintLog(logEntry string) bool {
-	const mintPrefix = "Program log: Instruction: InitializeMint2"
-	return strings.Contains(logEntry, mintPrefix)
 }

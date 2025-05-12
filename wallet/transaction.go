@@ -195,7 +195,7 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 
 	go m.TradeBot.Trader.Buy(ctx, orderParams)
 	// 然后记录机器人的跟单交易
-	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress, m.BotWallet, tradeInfo.CurrentPrice)
+	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress, copyAddress, m.BotWallet, tradeInfo.CurrentPrice)
 }
 
 // executeAmmCopyTrade 执行AMM跟单交易
@@ -285,5 +285,5 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 	// 调用通用的卖出方法
 	go m.TradeBot.Trader.PumpAmmBuy(context.Background(), orderParams)
 	// 然后记录机器人的跟单交易
-	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress.String(), m.BotWallet, tradeInfo.CurrentPrice)
+	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress.String(), originalWallet, m.BotWallet, tradeInfo.CurrentPrice)
 }
