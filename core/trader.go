@@ -112,7 +112,7 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		SetUserAccount(params.TradeParams.Accounts.User).
 		SetSystemProgramAccount(solana.SystemProgramID).
 		SetTokenProgramAccount(solana.TokenProgramID).
-		SetRentAccount(solana.SysVarRentPubkey).
+		SetCreatorVaultAccount(solana.SysVarRentPubkey).
 		SetEventAuthorityAccount(EVENT_AUTHORITY).
 		SetProgramAccount(PUMP_PROGRAM_ID).
 		SetAmount(params.TradeParams.Amount).
@@ -473,7 +473,7 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 		SetAssociatedUserAccount(params.TradeParams.Accounts.AssociatedTokenAccount).
 		SetUserAccount(params.TradeParams.Accounts.User).
 		SetSystemProgramAccount(solana.SystemProgramID).
-		SetAssociatedTokenProgramAccount(associatedtokenaccount.ProgramID).
+		SetCreatorVaultAccount(params.Accounts.CreatorVault).
 		SetTokenProgramAccount(solana.TokenProgramID).
 		SetEventAuthorityAccount(EVENT_AUTHORITY).
 		SetProgramAccount(PUMP_PROGRAM_ID).

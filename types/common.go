@@ -32,18 +32,20 @@ func (m TradeMode) String() string {
 
 // TradeAccounts 定义交易所需的账户
 type TradeAccounts struct {
-	User                   solana.PublicKey
-	Mint                   solana.PublicKey
-	BaseMint               solana.PublicKey
-	QuoteMint              solana.PublicKey
-	Pool                   solana.PublicKey
-	UserBaseTokenAccount   solana.PublicKey
-	UserQuoteTokenAccount  solana.PublicKey
-	PoolBaseTokenAccount   solana.PublicKey
-	PoolQuoteTokenAccount  solana.PublicKey
-	BondingCurve           solana.PublicKey
-	AssociatedBondingCurve solana.PublicKey
-	AssociatedTokenAccount solana.PublicKey
+	User                      solana.PublicKey
+	Mint                      solana.PublicKey
+	BaseMint                  solana.PublicKey
+	QuoteMint                 solana.PublicKey
+	Pool                      solana.PublicKey
+	UserBaseTokenAccount      solana.PublicKey
+	UserQuoteTokenAccount     solana.PublicKey
+	PoolBaseTokenAccount      solana.PublicKey
+	PoolQuoteTokenAccount     solana.PublicKey
+	BondingCurve              solana.PublicKey
+	AssociatedBondingCurve    solana.PublicKey
+	AssociatedTokenAccount    solana.PublicKey
+	CreatorVault              solana.PublicKey
+	CoinCreatorVaultAuthority solana.PublicKey
 }
 
 // FeeConfig 定义费用相关配置

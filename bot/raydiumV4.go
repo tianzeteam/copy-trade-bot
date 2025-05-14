@@ -116,6 +116,10 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 
 			// Check for token balance changes
 			tokenChange := CheckTokenBalances(preTokenBalances, postTokenBalances)
+			preBalances := txn.Transaction.Meta.PreBalances
+			postBalances := txn.Transaction.Meta.PostBalances
+
+			solChange := GetSwapBalances(poolPcTokenAccount, preBalances, postBalances)
 
 			if tokenChange != nil {
 				// Format the token amount with proper decimals

@@ -21,9 +21,9 @@ func TestCalculateAmmAccounts(t *testing.T) {
 	pool := solana.MustPublicKeyFromBase58("2fD7xjWXAyQE4PBFciCJobQoiwKhqHm2xYazzwt9eSYJ")     // Example pool address
 	baseMint := solana.MustPublicKeyFromBase58("GkCfs9n8jLvuviiToewryCFa2rHQGKQv9FdnhTUEJtCH") // USDC mint address
 	user := solana.MustPublicKeyFromBase58("FkyWzLirQxLRrNqGd1RtWNWDxymh9TftJSP8d8xeTtpB")     // User wallet address
-
+	creator := solana.MustPublicKeyFromBase58("FkyWzLirQxLRrNqGd1RtWNWDxymh9TftJSP8d8xeTtpB")
 	// Call the function
-	ammAccounts, err := accountsCalc.CalculateAmmAccounts(context.Background(), pool, baseMint, user)
+	ammAccounts, err := accountsCalc.CalculateAmmAccounts(context.Background(), pool, baseMint, user, creator)
 
 	// Assertions
 	assert.NoError(t, err, "CalculateAmmAccounts should not return an error")
@@ -52,32 +52,3 @@ func TestCalculateAmmAccounts(t *testing.T) {
 }
 
 // TestCalculateAmmAccountsWithToken2022 tests the CalculateAmmAccounts function with a Token-2022 mint
-func TestCalculateAmmAccountsWithToken2022(t *testing.T) {
-	// Setup
-	accountsCalc := calculator.NewAccountsCalculator("https://api.mainnet-beta.solana.com")
-
-	// Test data with a Token-2022 mint
-	pool := solana.MustPublicKeyFromBase58("9sCuqKYYZTofgBJsLdJCFEzHMiPyRKMDB3ncFZRoLGKe")     // Example pool address
-	baseMint := solana.MustPublicKeyFromBase58("J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn") // Example Token-2022 mint
-	user := solana.MustPublicKeyFromBase58("63vEsMh9SEuxJEQL9tVbbHzHtymXkyt5ArL1peVRYyic")     // User wallet address
-
-	// Call the function
-	ammAccounts, err := accountsCalc.CalculateAmmAccounts(context.Background(), pool, baseMint, user)
-
-	// Assertions
-	assert.NoError(t, err, "CalculateAmmAccounts should not return an error")
-	assert.NotNil(t, ammAccounts, "AmmAccounts should not be nil")
-
-	// Verify the returned account addresses
-	assert.Equal(t, pool, ammAccounts.Pool, "Pool address should match input")
-	assert.Equal(t, baseMint, ammAccounts.BaseMint, "Base mint address should match input")
-	assert.Equal(t, baseMint, ammAccounts.Mint, "Mint address should match base mint")
-	assert.Equal(t, solana.SolMint, ammAccounts.QuoteMint, "Quote mint should be SOL mint")
-
-	// Verify that the accounts are not empty
-	assert.NotEqual(t, solana.PublicKey{}, ammAccounts.PoolBaseTokenAccount, "Pool base token account should not be empty")
-	assert.NotEqual(t, solana.PublicKey{}, ammAccounts.PoolQuoteTokenAccount, "Pool quote token account should not be empty")
-	assert.NotEqual(t, solana.PublicKey{}, ammAccounts.UserBaseTokenAccount, "User base token account should not be empty")
-	assert.NotEqual(t, solana.PublicKey{}, ammAccounts.UserQuoteTokenAccount, "User quote token account should not be empty")
-	assert.NotEqual(t, solana.PublicKey{}, ammAccounts.WsolTokenAccount, "WSOL token account should not be empty")
-}

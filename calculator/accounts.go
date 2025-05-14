@@ -2,8 +2,6 @@ package calculator
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"log"
 
@@ -12,6 +10,9 @@ import (
 )
 
 var (
+	// PumpAMMProgramID 是PumpAMM程序的ID
+	PumpAMMProgramID = solana.MustPublicKeyFromBase58("pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA")
+
 	PUMP_PROGRAM_ID = solana.MustPublicKeyFromBase58("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P")
 )
 
@@ -57,10 +58,24 @@ func (c *AccountsCalculator) CalculatePumpAccounts(ctx context.Context, mint, us
 		return nil, fmt.Errorf("计算associated token account失败: %w", err)
 	}
 
+	// 计算creator vault PDA地址
+	// 根据Pump程序的设计，creator vault PDA的seeds是 ["creator-vault", mint]
+	creatorVaultPda, _, err := solana.FindProgramAddress(
+		[][]byte{
+			[]byte("creator-vault"),
+			mint.Bytes(),
+		},
+		PUMP_PROGRAM_ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("计算creator vault PDA失败: %w", err)
+	}
+
 	return &PumpAccounts{
 		BondingCurve:           bondingCurve,
 		AssociatedBondingCurve: associatedBondingCurve,
 		AssociatedTokenAccount: associatedTokenAccount,
+		CreatorVaultPda:        creatorVaultPda,
 	}, nil
 }
 
@@ -69,37 +84,32 @@ type PumpAccounts struct {
 	BondingCurve           solana.PublicKey
 	AssociatedBondingCurve solana.PublicKey
 	AssociatedTokenAccount solana.PublicKey
+	CreatorVaultPda        solana.PublicKey // 代币创建者金库PDA地址
 }
 
 // AmmAccounts 存储AMM相关的账户地址
 type AmmAccounts struct {
-	Pool                  solana.PublicKey // AMM池地址
-	Mint                  solana.PublicKey // 基础代币地址
-	BaseMint              solana.PublicKey // 基础代币地址
-	QuoteMint             solana.PublicKey // 报价代币地址
-	PoolBaseTokenAccount  solana.PublicKey // 池中基础代币账户
-	PoolQuoteTokenAccount solana.PublicKey // 池中报价代币账户
-	UserBaseTokenAccount  solana.PublicKey // 用户的基础代币账户
-	UserQuoteTokenAccount solana.PublicKey // 用户的报价代币账户
-	WsolTokenAccount      solana.PublicKey // WSOL账户
+	Pool                      solana.PublicKey // AMM池地址
+	Mint                      solana.PublicKey // 基础代币地址
+	BaseMint                  solana.PublicKey // 基础代币地址
+	QuoteMint                 solana.PublicKey // 报价代币地址
+	PoolBaseTokenAccount      solana.PublicKey // 池中基础代币账户
+	PoolQuoteTokenAccount     solana.PublicKey // 池中报价代币账户
+	UserBaseTokenAccount      solana.PublicKey // 用户的基础代币账户
+	UserQuoteTokenAccount     solana.PublicKey // 用户的报价代币账户
+	WsolTokenAccount          solana.PublicKey // WSOL账户
+	CoinCreator               solana.PublicKey // 代币创建者地址
+	CoinCreatorVaultAuthority solana.PublicKey // 代币创建者金库授权地址
+	CoinCreatorVaultAta       solana.PublicKey // 代币创建者金库ATA地址
 }
 
 // CalculateAmmAccounts 计算AMM所需的所有账户
-func (c *AccountsCalculator) CalculateAmmAccounts(ctx context.Context, pool, baseMint, user solana.PublicKey) (*AmmAccounts, error) {
-	// 为WSOL账户生成种子
-	log.Println("Generating seed for WSOL account...")
-	randomBytes := make([]byte, 24)
-	_, err := rand.Read(randomBytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate random bytes: %v", err)
-	}
-	seed := base64.URLEncoding.EncodeToString(randomBytes)
+func (c *AccountsCalculator) CalculateAmmAccounts(ctx context.Context, pool, baseMint, user solana.PublicKey, coinCreator solana.PublicKey) (*AmmAccounts, error) {
 
 	// 创建WSOL账户
-	wsolTokenAccount, err := solana.CreateWithSeed(
+	wsolTokenAccount, _, err := solana.FindAssociatedTokenAddress(
 		user,
-		seed,
-		solana.TokenProgramID,
+		solana.SolMint,
 	)
 	if err != nil {
 		log.Printf("failed to create WSOL account with seed: %v", err)
@@ -159,16 +169,46 @@ func (c *AccountsCalculator) CalculateAmmAccounts(ctx context.Context, pool, bas
 		}
 	}
 
+	// 计算coin_creator_vault_authority (代币创建者金库授权地址)
+	// 根据IDL，seeds是 ["creator_vault", coin_creator]
+	coinCreatorVaultAuthority, _, err := solana.FindProgramAddress(
+		[][]byte{
+			[]byte("creator_vault"),
+			coinCreator.Bytes(),
+		},
+		PumpAMMProgramID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find coin creator vault authority: %w", err)
+	}
+
+	// 计算coin_creator_vault_ata (代币创建者金库ATA地址)
+	// 根据IDL，seeds是 [coin_creator_vault_authority, quote_token_program, quote_mint]
+	coinCreatorVaultAta, _, err := solana.FindProgramAddress(
+		[][]byte{
+			coinCreatorVaultAuthority.Bytes(),
+			solana.TokenProgramID.Bytes(),
+			quoteMint.Bytes(),
+		},
+		solana.SPLAssociatedTokenAccountProgramID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find coin creator vault ata: %w", err)
+	}
+
 	// 返回所有计算出的账户地址
 	return &AmmAccounts{
-		Pool:                  pool,
-		Mint:                  baseMint,
-		BaseMint:              baseMint,
-		QuoteMint:             quoteMint,
-		PoolBaseTokenAccount:  poolBaseTokenAccount,
-		PoolQuoteTokenAccount: poolQuoteTokenAccount,
-		UserBaseTokenAccount:  userBaseTokenAccount,
-		UserQuoteTokenAccount: userQuoteTokenAccount,
-		WsolTokenAccount:      wsolTokenAccount,
+		Pool:                      pool,
+		Mint:                      baseMint,
+		BaseMint:                  baseMint,
+		QuoteMint:                 quoteMint,
+		PoolBaseTokenAccount:      poolBaseTokenAccount,
+		PoolQuoteTokenAccount:     poolQuoteTokenAccount,
+		UserBaseTokenAccount:      userBaseTokenAccount,
+		UserQuoteTokenAccount:     userQuoteTokenAccount,
+		WsolTokenAccount:          wsolTokenAccount,
+		CoinCreator:               coinCreator,
+		CoinCreatorVaultAuthority: coinCreatorVaultAuthority,
+		CoinCreatorVaultAta:       coinCreatorVaultAta,
 	}, nil
 }

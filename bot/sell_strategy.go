@@ -271,6 +271,7 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 			BondingCurve:           pumpAccounts.BondingCurve,
 			AssociatedBondingCurve: pumpAccounts.AssociatedBondingCurve,
 			AssociatedTokenAccount: pumpAccounts.AssociatedTokenAccount,
+			CreatorVault:           pumpAccounts.CreatorVaultPda,
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MinOut, // 卖出时 Cost 表示最小获得数量
@@ -372,6 +373,7 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 		poolInfo.AmmPool,
 		poolInfo.BaseMint,
 		b.privateKey.PublicKey(),
+		createInfo.Creator,
 	)
 	if err != nil {
 		logger.Errorf("Failed to calculate accounts: %v", err)

@@ -13,148 +13,17 @@ import (
 	"strings"
 )
 
-type CreateEventEventData struct {
-	Name         string
-	Symbol       string
-	Uri          string
-	Mint         ag_solanago.PublicKey
-	BondingCurve ag_solanago.PublicKey
-	User         ag_solanago.PublicKey
+type CollectCreatorFeeEventEventData struct {
+	Timestamp  int64
+	Creator    ag_solanago.PublicKey
+	CreatorFee uint64
 }
 
-var CreateEventEventDataDiscriminator = [8]byte{27, 114, 169, 77, 222, 235, 99, 118}
+var CollectCreatorFeeEventEventDataDiscriminator = [8]byte{122, 2, 127, 1, 14, 191, 12, 175}
 
-func (obj CreateEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
+func (obj CollectCreatorFeeEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
 	// Write account discriminator:
-	err = encoder.WriteBytes(CreateEventEventDataDiscriminator[:], false)
-	if err != nil {
-		return err
-	}
-	// Serialize `Name` param:
-	err = encoder.Encode(obj.Name)
-	if err != nil {
-		return err
-	}
-	// Serialize `Symbol` param:
-	err = encoder.Encode(obj.Symbol)
-	if err != nil {
-		return err
-	}
-	// Serialize `Uri` param:
-	err = encoder.Encode(obj.Uri)
-	if err != nil {
-		return err
-	}
-	// Serialize `Mint` param:
-	err = encoder.Encode(obj.Mint)
-	if err != nil {
-		return err
-	}
-	// Serialize `BondingCurve` param:
-	err = encoder.Encode(obj.BondingCurve)
-	if err != nil {
-		return err
-	}
-	// Serialize `User` param:
-	err = encoder.Encode(obj.User)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (obj *CreateEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
-	// Read and check account discriminator:
-	{
-		discriminator, err := decoder.ReadTypeID()
-		if err != nil {
-			return err
-		}
-		if !discriminator.Equal(CreateEventEventDataDiscriminator[:]) {
-			return fmt.Errorf(
-				"wrong discriminator: wanted %s, got %s",
-				"[27 114 169 77 222 235 99 118]",
-				fmt.Sprint(discriminator[:]))
-		}
-	}
-	// Deserialize `Name`:
-	err = decoder.Decode(&obj.Name)
-	if err != nil {
-		return err
-	}
-	// Deserialize `Symbol`:
-	err = decoder.Decode(&obj.Symbol)
-	if err != nil {
-		return err
-	}
-	// Deserialize `Uri`:
-	err = decoder.Decode(&obj.Uri)
-	if err != nil {
-		return err
-	}
-	// Deserialize `Mint`:
-	err = decoder.Decode(&obj.Mint)
-	if err != nil {
-		return err
-	}
-	// Deserialize `BondingCurve`:
-	err = decoder.Decode(&obj.BondingCurve)
-	if err != nil {
-		return err
-	}
-	// Deserialize `User`:
-	err = decoder.Decode(&obj.User)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (*CreateEventEventData) isEventData() {}
-
-type TradeEventEventData struct {
-	Mint                 ag_solanago.PublicKey
-	SolAmount            uint64
-	TokenAmount          uint64
-	IsBuy                bool
-	User                 ag_solanago.PublicKey
-	Timestamp            int64
-	VirtualSolReserves   uint64
-	VirtualTokenReserves uint64
-	RealSolReserves      uint64
-	RealTokenReserves    uint64
-}
-
-var TradeEventEventDataDiscriminator = [8]byte{189, 219, 127, 211, 78, 230, 97, 238}
-
-func (obj TradeEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
-	// Write account discriminator:
-	err = encoder.WriteBytes(TradeEventEventDataDiscriminator[:], false)
-	if err != nil {
-		return err
-	}
-	// Serialize `Mint` param:
-	err = encoder.Encode(obj.Mint)
-	if err != nil {
-		return err
-	}
-	// Serialize `SolAmount` param:
-	err = encoder.Encode(obj.SolAmount)
-	if err != nil {
-		return err
-	}
-	// Serialize `TokenAmount` param:
-	err = encoder.Encode(obj.TokenAmount)
-	if err != nil {
-		return err
-	}
-	// Serialize `IsBuy` param:
-	err = encoder.Encode(obj.IsBuy)
-	if err != nil {
-		return err
-	}
-	// Serialize `User` param:
-	err = encoder.Encode(obj.User)
+	err = encoder.WriteBytes(CollectCreatorFeeEventEventDataDiscriminator[:], false)
 	if err != nil {
 		return err
 	}
@@ -163,97 +32,52 @@ func (obj TradeEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (e
 	if err != nil {
 		return err
 	}
-	// Serialize `VirtualSolReserves` param:
-	err = encoder.Encode(obj.VirtualSolReserves)
+	// Serialize `Creator` param:
+	err = encoder.Encode(obj.Creator)
 	if err != nil {
 		return err
 	}
-	// Serialize `VirtualTokenReserves` param:
-	err = encoder.Encode(obj.VirtualTokenReserves)
-	if err != nil {
-		return err
-	}
-	// Serialize `RealSolReserves` param:
-	err = encoder.Encode(obj.RealSolReserves)
-	if err != nil {
-		return err
-	}
-	// Serialize `RealTokenReserves` param:
-	err = encoder.Encode(obj.RealTokenReserves)
+	// Serialize `CreatorFee` param:
+	err = encoder.Encode(obj.CreatorFee)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (obj *TradeEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
+func (obj *CollectCreatorFeeEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
 	// Read and check account discriminator:
 	{
 		discriminator, err := decoder.ReadTypeID()
 		if err != nil {
 			return err
 		}
-		if !discriminator.Equal(TradeEventEventDataDiscriminator[:]) {
+		if !discriminator.Equal(CollectCreatorFeeEventEventDataDiscriminator[:]) {
 			return fmt.Errorf(
 				"wrong discriminator: wanted %s, got %s",
-				"[189 219 127 211 78 230 97 238]",
+				"[122 2 127 1 14 191 12 175]",
 				fmt.Sprint(discriminator[:]))
 		}
-	}
-	// Deserialize `Mint`:
-	err = decoder.Decode(&obj.Mint)
-	if err != nil {
-		return err
-	}
-	// Deserialize `SolAmount`:
-	err = decoder.Decode(&obj.SolAmount)
-	if err != nil {
-		return err
-	}
-	// Deserialize `TokenAmount`:
-	err = decoder.Decode(&obj.TokenAmount)
-	if err != nil {
-		return err
-	}
-	// Deserialize `IsBuy`:
-	err = decoder.Decode(&obj.IsBuy)
-	if err != nil {
-		return err
-	}
-	// Deserialize `User`:
-	err = decoder.Decode(&obj.User)
-	if err != nil {
-		return err
 	}
 	// Deserialize `Timestamp`:
 	err = decoder.Decode(&obj.Timestamp)
 	if err != nil {
 		return err
 	}
-	// Deserialize `VirtualSolReserves`:
-	err = decoder.Decode(&obj.VirtualSolReserves)
+	// Deserialize `Creator`:
+	err = decoder.Decode(&obj.Creator)
 	if err != nil {
 		return err
 	}
-	// Deserialize `VirtualTokenReserves`:
-	err = decoder.Decode(&obj.VirtualTokenReserves)
-	if err != nil {
-		return err
-	}
-	// Deserialize `RealSolReserves`:
-	err = decoder.Decode(&obj.RealSolReserves)
-	if err != nil {
-		return err
-	}
-	// Deserialize `RealTokenReserves`:
-	err = decoder.Decode(&obj.RealTokenReserves)
+	// Deserialize `CreatorFee`:
+	err = decoder.Decode(&obj.CreatorFee)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (*TradeEventEventData) isEventData() {}
+func (*CollectCreatorFeeEventEventData) isEventData() {}
 
 type CompleteEventEventData struct {
 	User         ag_solanago.PublicKey
@@ -332,13 +156,559 @@ func (obj *CompleteEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decod
 
 func (*CompleteEventEventData) isEventData() {}
 
+type CompletePumpAmmMigrationEventEventData struct {
+	User             ag_solanago.PublicKey
+	Mint             ag_solanago.PublicKey
+	MintAmount       uint64
+	SolAmount        uint64
+	PoolMigrationFee uint64
+	BondingCurve     ag_solanago.PublicKey
+	Timestamp        int64
+	Pool             ag_solanago.PublicKey
+}
+
+var CompletePumpAmmMigrationEventEventDataDiscriminator = [8]byte{189, 233, 93, 185, 92, 148, 234, 148}
+
+func (obj CompletePumpAmmMigrationEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
+	// Write account discriminator:
+	err = encoder.WriteBytes(CompletePumpAmmMigrationEventEventDataDiscriminator[:], false)
+	if err != nil {
+		return err
+	}
+	// Serialize `User` param:
+	err = encoder.Encode(obj.User)
+	if err != nil {
+		return err
+	}
+	// Serialize `Mint` param:
+	err = encoder.Encode(obj.Mint)
+	if err != nil {
+		return err
+	}
+	// Serialize `MintAmount` param:
+	err = encoder.Encode(obj.MintAmount)
+	if err != nil {
+		return err
+	}
+	// Serialize `SolAmount` param:
+	err = encoder.Encode(obj.SolAmount)
+	if err != nil {
+		return err
+	}
+	// Serialize `PoolMigrationFee` param:
+	err = encoder.Encode(obj.PoolMigrationFee)
+	if err != nil {
+		return err
+	}
+	// Serialize `BondingCurve` param:
+	err = encoder.Encode(obj.BondingCurve)
+	if err != nil {
+		return err
+	}
+	// Serialize `Timestamp` param:
+	err = encoder.Encode(obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Serialize `Pool` param:
+	err = encoder.Encode(obj.Pool)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (obj *CompletePumpAmmMigrationEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
+	// Read and check account discriminator:
+	{
+		discriminator, err := decoder.ReadTypeID()
+		if err != nil {
+			return err
+		}
+		if !discriminator.Equal(CompletePumpAmmMigrationEventEventDataDiscriminator[:]) {
+			return fmt.Errorf(
+				"wrong discriminator: wanted %s, got %s",
+				"[189 233 93 185 92 148 234 148]",
+				fmt.Sprint(discriminator[:]))
+		}
+	}
+	// Deserialize `User`:
+	err = decoder.Decode(&obj.User)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Mint`:
+	err = decoder.Decode(&obj.Mint)
+	if err != nil {
+		return err
+	}
+	// Deserialize `MintAmount`:
+	err = decoder.Decode(&obj.MintAmount)
+	if err != nil {
+		return err
+	}
+	// Deserialize `SolAmount`:
+	err = decoder.Decode(&obj.SolAmount)
+	if err != nil {
+		return err
+	}
+	// Deserialize `PoolMigrationFee`:
+	err = decoder.Decode(&obj.PoolMigrationFee)
+	if err != nil {
+		return err
+	}
+	// Deserialize `BondingCurve`:
+	err = decoder.Decode(&obj.BondingCurve)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Timestamp`:
+	err = decoder.Decode(&obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Pool`:
+	err = decoder.Decode(&obj.Pool)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*CompletePumpAmmMigrationEventEventData) isEventData() {}
+
+type CreateEventEventData struct {
+	Name                 string
+	Symbol               string
+	Uri                  string
+	Mint                 ag_solanago.PublicKey
+	BondingCurve         ag_solanago.PublicKey
+	User                 ag_solanago.PublicKey
+	Creator              ag_solanago.PublicKey
+	Timestamp            int64
+	VirtualTokenReserves uint64
+	VirtualSolReserves   uint64
+	RealTokenReserves    uint64
+	TokenTotalSupply     uint64
+}
+
+var CreateEventEventDataDiscriminator = [8]byte{27, 114, 169, 77, 222, 235, 99, 118}
+
+func (obj CreateEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
+	// Write account discriminator:
+	err = encoder.WriteBytes(CreateEventEventDataDiscriminator[:], false)
+	if err != nil {
+		return err
+	}
+	// Serialize `Name` param:
+	err = encoder.Encode(obj.Name)
+	if err != nil {
+		return err
+	}
+	// Serialize `Symbol` param:
+	err = encoder.Encode(obj.Symbol)
+	if err != nil {
+		return err
+	}
+	// Serialize `Uri` param:
+	err = encoder.Encode(obj.Uri)
+	if err != nil {
+		return err
+	}
+	// Serialize `Mint` param:
+	err = encoder.Encode(obj.Mint)
+	if err != nil {
+		return err
+	}
+	// Serialize `BondingCurve` param:
+	err = encoder.Encode(obj.BondingCurve)
+	if err != nil {
+		return err
+	}
+	// Serialize `User` param:
+	err = encoder.Encode(obj.User)
+	if err != nil {
+		return err
+	}
+	// Serialize `Creator` param:
+	err = encoder.Encode(obj.Creator)
+	if err != nil {
+		return err
+	}
+	// Serialize `Timestamp` param:
+	err = encoder.Encode(obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Serialize `VirtualTokenReserves` param:
+	err = encoder.Encode(obj.VirtualTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `VirtualSolReserves` param:
+	err = encoder.Encode(obj.VirtualSolReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `RealTokenReserves` param:
+	err = encoder.Encode(obj.RealTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `TokenTotalSupply` param:
+	err = encoder.Encode(obj.TokenTotalSupply)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (obj *CreateEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
+	// Read and check account discriminator:
+	{
+		discriminator, err := decoder.ReadTypeID()
+		if err != nil {
+			return err
+		}
+		if !discriminator.Equal(CreateEventEventDataDiscriminator[:]) {
+			return fmt.Errorf(
+				"wrong discriminator: wanted %s, got %s",
+				"[27 114 169 77 222 235 99 118]",
+				fmt.Sprint(discriminator[:]))
+		}
+	}
+	// Deserialize `Name`:
+	err = decoder.Decode(&obj.Name)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Symbol`:
+	err = decoder.Decode(&obj.Symbol)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Uri`:
+	err = decoder.Decode(&obj.Uri)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Mint`:
+	err = decoder.Decode(&obj.Mint)
+	if err != nil {
+		return err
+	}
+	// Deserialize `BondingCurve`:
+	err = decoder.Decode(&obj.BondingCurve)
+	if err != nil {
+		return err
+	}
+	// Deserialize `User`:
+	err = decoder.Decode(&obj.User)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Creator`:
+	err = decoder.Decode(&obj.Creator)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Timestamp`:
+	err = decoder.Decode(&obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Deserialize `VirtualTokenReserves`:
+	err = decoder.Decode(&obj.VirtualTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `VirtualSolReserves`:
+	err = decoder.Decode(&obj.VirtualSolReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `RealTokenReserves`:
+	err = decoder.Decode(&obj.RealTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `TokenTotalSupply`:
+	err = decoder.Decode(&obj.TokenTotalSupply)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*CreateEventEventData) isEventData() {}
+
+type ExtendAccountEventEventData struct {
+	Account     ag_solanago.PublicKey
+	User        ag_solanago.PublicKey
+	CurrentSize uint64
+	NewSize     uint64
+	Timestamp   int64
+}
+
+var ExtendAccountEventEventDataDiscriminator = [8]byte{97, 97, 215, 144, 93, 146, 22, 124}
+
+func (obj ExtendAccountEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
+	// Write account discriminator:
+	err = encoder.WriteBytes(ExtendAccountEventEventDataDiscriminator[:], false)
+	if err != nil {
+		return err
+	}
+	// Serialize `Account` param:
+	err = encoder.Encode(obj.Account)
+	if err != nil {
+		return err
+	}
+	// Serialize `User` param:
+	err = encoder.Encode(obj.User)
+	if err != nil {
+		return err
+	}
+	// Serialize `CurrentSize` param:
+	err = encoder.Encode(obj.CurrentSize)
+	if err != nil {
+		return err
+	}
+	// Serialize `NewSize` param:
+	err = encoder.Encode(obj.NewSize)
+	if err != nil {
+		return err
+	}
+	// Serialize `Timestamp` param:
+	err = encoder.Encode(obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (obj *ExtendAccountEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
+	// Read and check account discriminator:
+	{
+		discriminator, err := decoder.ReadTypeID()
+		if err != nil {
+			return err
+		}
+		if !discriminator.Equal(ExtendAccountEventEventDataDiscriminator[:]) {
+			return fmt.Errorf(
+				"wrong discriminator: wanted %s, got %s",
+				"[97 97 215 144 93 146 22 124]",
+				fmt.Sprint(discriminator[:]))
+		}
+	}
+	// Deserialize `Account`:
+	err = decoder.Decode(&obj.Account)
+	if err != nil {
+		return err
+	}
+	// Deserialize `User`:
+	err = decoder.Decode(&obj.User)
+	if err != nil {
+		return err
+	}
+	// Deserialize `CurrentSize`:
+	err = decoder.Decode(&obj.CurrentSize)
+	if err != nil {
+		return err
+	}
+	// Deserialize `NewSize`:
+	err = decoder.Decode(&obj.NewSize)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Timestamp`:
+	err = decoder.Decode(&obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*ExtendAccountEventEventData) isEventData() {}
+
+type SetCreatorEventEventData struct {
+	Timestamp    int64
+	Mint         ag_solanago.PublicKey
+	BondingCurve ag_solanago.PublicKey
+	Creator      ag_solanago.PublicKey
+}
+
+var SetCreatorEventEventDataDiscriminator = [8]byte{237, 52, 123, 37, 245, 251, 72, 210}
+
+func (obj SetCreatorEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
+	// Write account discriminator:
+	err = encoder.WriteBytes(SetCreatorEventEventDataDiscriminator[:], false)
+	if err != nil {
+		return err
+	}
+	// Serialize `Timestamp` param:
+	err = encoder.Encode(obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Serialize `Mint` param:
+	err = encoder.Encode(obj.Mint)
+	if err != nil {
+		return err
+	}
+	// Serialize `BondingCurve` param:
+	err = encoder.Encode(obj.BondingCurve)
+	if err != nil {
+		return err
+	}
+	// Serialize `Creator` param:
+	err = encoder.Encode(obj.Creator)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (obj *SetCreatorEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
+	// Read and check account discriminator:
+	{
+		discriminator, err := decoder.ReadTypeID()
+		if err != nil {
+			return err
+		}
+		if !discriminator.Equal(SetCreatorEventEventDataDiscriminator[:]) {
+			return fmt.Errorf(
+				"wrong discriminator: wanted %s, got %s",
+				"[237 52 123 37 245 251 72 210]",
+				fmt.Sprint(discriminator[:]))
+		}
+	}
+	// Deserialize `Timestamp`:
+	err = decoder.Decode(&obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Mint`:
+	err = decoder.Decode(&obj.Mint)
+	if err != nil {
+		return err
+	}
+	// Deserialize `BondingCurve`:
+	err = decoder.Decode(&obj.BondingCurve)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Creator`:
+	err = decoder.Decode(&obj.Creator)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*SetCreatorEventEventData) isEventData() {}
+
+type SetMetaplexCreatorEventEventData struct {
+	Timestamp    int64
+	Mint         ag_solanago.PublicKey
+	BondingCurve ag_solanago.PublicKey
+	Metadata     ag_solanago.PublicKey
+	Creator      ag_solanago.PublicKey
+}
+
+var SetMetaplexCreatorEventEventDataDiscriminator = [8]byte{142, 203, 6, 32, 127, 105, 191, 162}
+
+func (obj SetMetaplexCreatorEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
+	// Write account discriminator:
+	err = encoder.WriteBytes(SetMetaplexCreatorEventEventDataDiscriminator[:], false)
+	if err != nil {
+		return err
+	}
+	// Serialize `Timestamp` param:
+	err = encoder.Encode(obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Serialize `Mint` param:
+	err = encoder.Encode(obj.Mint)
+	if err != nil {
+		return err
+	}
+	// Serialize `BondingCurve` param:
+	err = encoder.Encode(obj.BondingCurve)
+	if err != nil {
+		return err
+	}
+	// Serialize `Metadata` param:
+	err = encoder.Encode(obj.Metadata)
+	if err != nil {
+		return err
+	}
+	// Serialize `Creator` param:
+	err = encoder.Encode(obj.Creator)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (obj *SetMetaplexCreatorEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
+	// Read and check account discriminator:
+	{
+		discriminator, err := decoder.ReadTypeID()
+		if err != nil {
+			return err
+		}
+		if !discriminator.Equal(SetMetaplexCreatorEventEventDataDiscriminator[:]) {
+			return fmt.Errorf(
+				"wrong discriminator: wanted %s, got %s",
+				"[142 203 6 32 127 105 191 162]",
+				fmt.Sprint(discriminator[:]))
+		}
+	}
+	// Deserialize `Timestamp`:
+	err = decoder.Decode(&obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Mint`:
+	err = decoder.Decode(&obj.Mint)
+	if err != nil {
+		return err
+	}
+	// Deserialize `BondingCurve`:
+	err = decoder.Decode(&obj.BondingCurve)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Metadata`:
+	err = decoder.Decode(&obj.Metadata)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Creator`:
+	err = decoder.Decode(&obj.Creator)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*SetMetaplexCreatorEventEventData) isEventData() {}
+
 type SetParamsEventEventData struct {
-	FeeRecipient                ag_solanago.PublicKey
 	InitialVirtualTokenReserves uint64
 	InitialVirtualSolReserves   uint64
 	InitialRealTokenReserves    uint64
+	FinalRealSolReserves        uint64
 	TokenTotalSupply            uint64
 	FeeBasisPoints              uint64
+	WithdrawAuthority           ag_solanago.PublicKey
+	EnableMigrate               bool
+	PoolMigrationFee            uint64
+	CreatorFeeBasisPoints       uint64
+	FeeRecipients               [8]ag_solanago.PublicKey
+	Timestamp                   int64
+	SetCreatorAuthority         ag_solanago.PublicKey
 }
 
 var SetParamsEventEventDataDiscriminator = [8]byte{223, 195, 159, 246, 62, 48, 143, 131}
@@ -346,11 +716,6 @@ var SetParamsEventEventDataDiscriminator = [8]byte{223, 195, 159, 246, 62, 48, 1
 func (obj SetParamsEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
 	// Write account discriminator:
 	err = encoder.WriteBytes(SetParamsEventEventDataDiscriminator[:], false)
-	if err != nil {
-		return err
-	}
-	// Serialize `FeeRecipient` param:
-	err = encoder.Encode(obj.FeeRecipient)
 	if err != nil {
 		return err
 	}
@@ -369,6 +734,11 @@ func (obj SetParamsEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder
 	if err != nil {
 		return err
 	}
+	// Serialize `FinalRealSolReserves` param:
+	err = encoder.Encode(obj.FinalRealSolReserves)
+	if err != nil {
+		return err
+	}
 	// Serialize `TokenTotalSupply` param:
 	err = encoder.Encode(obj.TokenTotalSupply)
 	if err != nil {
@@ -376,6 +746,41 @@ func (obj SetParamsEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder
 	}
 	// Serialize `FeeBasisPoints` param:
 	err = encoder.Encode(obj.FeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Serialize `WithdrawAuthority` param:
+	err = encoder.Encode(obj.WithdrawAuthority)
+	if err != nil {
+		return err
+	}
+	// Serialize `EnableMigrate` param:
+	err = encoder.Encode(obj.EnableMigrate)
+	if err != nil {
+		return err
+	}
+	// Serialize `PoolMigrationFee` param:
+	err = encoder.Encode(obj.PoolMigrationFee)
+	if err != nil {
+		return err
+	}
+	// Serialize `CreatorFeeBasisPoints` param:
+	err = encoder.Encode(obj.CreatorFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Serialize `FeeRecipients` param:
+	err = encoder.Encode(obj.FeeRecipients)
+	if err != nil {
+		return err
+	}
+	// Serialize `Timestamp` param:
+	err = encoder.Encode(obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Serialize `SetCreatorAuthority` param:
+	err = encoder.Encode(obj.SetCreatorAuthority)
 	if err != nil {
 		return err
 	}
@@ -396,11 +801,6 @@ func (obj *SetParamsEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Deco
 				fmt.Sprint(discriminator[:]))
 		}
 	}
-	// Deserialize `FeeRecipient`:
-	err = decoder.Decode(&obj.FeeRecipient)
-	if err != nil {
-		return err
-	}
 	// Deserialize `InitialVirtualTokenReserves`:
 	err = decoder.Decode(&obj.InitialVirtualTokenReserves)
 	if err != nil {
@@ -416,6 +816,11 @@ func (obj *SetParamsEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Deco
 	if err != nil {
 		return err
 	}
+	// Deserialize `FinalRealSolReserves`:
+	err = decoder.Decode(&obj.FinalRealSolReserves)
+	if err != nil {
+		return err
+	}
 	// Deserialize `TokenTotalSupply`:
 	err = decoder.Decode(&obj.TokenTotalSupply)
 	if err != nil {
@@ -426,22 +831,355 @@ func (obj *SetParamsEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Deco
 	if err != nil {
 		return err
 	}
+	// Deserialize `WithdrawAuthority`:
+	err = decoder.Decode(&obj.WithdrawAuthority)
+	if err != nil {
+		return err
+	}
+	// Deserialize `EnableMigrate`:
+	err = decoder.Decode(&obj.EnableMigrate)
+	if err != nil {
+		return err
+	}
+	// Deserialize `PoolMigrationFee`:
+	err = decoder.Decode(&obj.PoolMigrationFee)
+	if err != nil {
+		return err
+	}
+	// Deserialize `CreatorFeeBasisPoints`:
+	err = decoder.Decode(&obj.CreatorFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Deserialize `FeeRecipients`:
+	err = decoder.Decode(&obj.FeeRecipients)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Timestamp`:
+	err = decoder.Decode(&obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Deserialize `SetCreatorAuthority`:
+	err = decoder.Decode(&obj.SetCreatorAuthority)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 func (*SetParamsEventEventData) isEventData() {}
 
+type TradeEventEventData struct {
+	Mint                  ag_solanago.PublicKey
+	SolAmount             uint64
+	TokenAmount           uint64
+	IsBuy                 bool
+	User                  ag_solanago.PublicKey
+	Timestamp             int64
+	VirtualSolReserves    uint64
+	VirtualTokenReserves  uint64
+	RealSolReserves       uint64
+	RealTokenReserves     uint64
+	FeeRecipient          ag_solanago.PublicKey
+	FeeBasisPoints        uint64
+	Fee                   uint64
+	Creator               ag_solanago.PublicKey
+	CreatorFeeBasisPoints uint64
+	CreatorFee            uint64
+}
+
+var TradeEventEventDataDiscriminator = [8]byte{189, 219, 127, 211, 78, 230, 97, 238}
+
+func (obj TradeEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
+	// Write account discriminator:
+	err = encoder.WriteBytes(TradeEventEventDataDiscriminator[:], false)
+	if err != nil {
+		return err
+	}
+	// Serialize `Mint` param:
+	err = encoder.Encode(obj.Mint)
+	if err != nil {
+		return err
+	}
+	// Serialize `SolAmount` param:
+	err = encoder.Encode(obj.SolAmount)
+	if err != nil {
+		return err
+	}
+	// Serialize `TokenAmount` param:
+	err = encoder.Encode(obj.TokenAmount)
+	if err != nil {
+		return err
+	}
+	// Serialize `IsBuy` param:
+	err = encoder.Encode(obj.IsBuy)
+	if err != nil {
+		return err
+	}
+	// Serialize `User` param:
+	err = encoder.Encode(obj.User)
+	if err != nil {
+		return err
+	}
+	// Serialize `Timestamp` param:
+	err = encoder.Encode(obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Serialize `VirtualSolReserves` param:
+	err = encoder.Encode(obj.VirtualSolReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `VirtualTokenReserves` param:
+	err = encoder.Encode(obj.VirtualTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `RealSolReserves` param:
+	err = encoder.Encode(obj.RealSolReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `RealTokenReserves` param:
+	err = encoder.Encode(obj.RealTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Serialize `FeeRecipient` param:
+	err = encoder.Encode(obj.FeeRecipient)
+	if err != nil {
+		return err
+	}
+	// Serialize `FeeBasisPoints` param:
+	err = encoder.Encode(obj.FeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Serialize `Fee` param:
+	err = encoder.Encode(obj.Fee)
+	if err != nil {
+		return err
+	}
+	// Serialize `Creator` param:
+	err = encoder.Encode(obj.Creator)
+	if err != nil {
+		return err
+	}
+	// Serialize `CreatorFeeBasisPoints` param:
+	err = encoder.Encode(obj.CreatorFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Serialize `CreatorFee` param:
+	err = encoder.Encode(obj.CreatorFee)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (obj *TradeEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
+	// Read and check account discriminator:
+	{
+		discriminator, err := decoder.ReadTypeID()
+		if err != nil {
+			return err
+		}
+		if !discriminator.Equal(TradeEventEventDataDiscriminator[:]) {
+			return fmt.Errorf(
+				"wrong discriminator: wanted %s, got %s",
+				"[189 219 127 211 78 230 97 238]",
+				fmt.Sprint(discriminator[:]))
+		}
+	}
+	// Deserialize `Mint`:
+	err = decoder.Decode(&obj.Mint)
+	if err != nil {
+		return err
+	}
+	// Deserialize `SolAmount`:
+	err = decoder.Decode(&obj.SolAmount)
+	if err != nil {
+		return err
+	}
+	// Deserialize `TokenAmount`:
+	err = decoder.Decode(&obj.TokenAmount)
+	if err != nil {
+		return err
+	}
+	// Deserialize `IsBuy`:
+	err = decoder.Decode(&obj.IsBuy)
+	if err != nil {
+		return err
+	}
+	// Deserialize `User`:
+	err = decoder.Decode(&obj.User)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Timestamp`:
+	err = decoder.Decode(&obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	// Deserialize `VirtualSolReserves`:
+	err = decoder.Decode(&obj.VirtualSolReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `VirtualTokenReserves`:
+	err = decoder.Decode(&obj.VirtualTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `RealSolReserves`:
+	err = decoder.Decode(&obj.RealSolReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `RealTokenReserves`:
+	err = decoder.Decode(&obj.RealTokenReserves)
+	if err != nil {
+		return err
+	}
+	// Deserialize `FeeRecipient`:
+	err = decoder.Decode(&obj.FeeRecipient)
+	if err != nil {
+		return err
+	}
+	// Deserialize `FeeBasisPoints`:
+	err = decoder.Decode(&obj.FeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Fee`:
+	err = decoder.Decode(&obj.Fee)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Creator`:
+	err = decoder.Decode(&obj.Creator)
+	if err != nil {
+		return err
+	}
+	// Deserialize `CreatorFeeBasisPoints`:
+	err = decoder.Decode(&obj.CreatorFeeBasisPoints)
+	if err != nil {
+		return err
+	}
+	// Deserialize `CreatorFee`:
+	err = decoder.Decode(&obj.CreatorFee)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*TradeEventEventData) isEventData() {}
+
+type UpdateGlobalAuthorityEventEventData struct {
+	Global       ag_solanago.PublicKey
+	Authority    ag_solanago.PublicKey
+	NewAuthority ag_solanago.PublicKey
+	Timestamp    int64
+}
+
+var UpdateGlobalAuthorityEventEventDataDiscriminator = [8]byte{182, 195, 137, 42, 35, 206, 207, 247}
+
+func (obj UpdateGlobalAuthorityEventEventData) MarshalWithEncoder(encoder *ag_binary.Encoder) (err error) {
+	// Write account discriminator:
+	err = encoder.WriteBytes(UpdateGlobalAuthorityEventEventDataDiscriminator[:], false)
+	if err != nil {
+		return err
+	}
+	// Serialize `Global` param:
+	err = encoder.Encode(obj.Global)
+	if err != nil {
+		return err
+	}
+	// Serialize `Authority` param:
+	err = encoder.Encode(obj.Authority)
+	if err != nil {
+		return err
+	}
+	// Serialize `NewAuthority` param:
+	err = encoder.Encode(obj.NewAuthority)
+	if err != nil {
+		return err
+	}
+	// Serialize `Timestamp` param:
+	err = encoder.Encode(obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (obj *UpdateGlobalAuthorityEventEventData) UnmarshalWithDecoder(decoder *ag_binary.Decoder) (err error) {
+	// Read and check account discriminator:
+	{
+		discriminator, err := decoder.ReadTypeID()
+		if err != nil {
+			return err
+		}
+		if !discriminator.Equal(UpdateGlobalAuthorityEventEventDataDiscriminator[:]) {
+			return fmt.Errorf(
+				"wrong discriminator: wanted %s, got %s",
+				"[182 195 137 42 35 206 207 247]",
+				fmt.Sprint(discriminator[:]))
+		}
+	}
+	// Deserialize `Global`:
+	err = decoder.Decode(&obj.Global)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Authority`:
+	err = decoder.Decode(&obj.Authority)
+	if err != nil {
+		return err
+	}
+	// Deserialize `NewAuthority`:
+	err = decoder.Decode(&obj.NewAuthority)
+	if err != nil {
+		return err
+	}
+	// Deserialize `Timestamp`:
+	err = decoder.Decode(&obj.Timestamp)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*UpdateGlobalAuthorityEventEventData) isEventData() {}
+
 var eventTypes = map[[8]byte]reflect.Type{
-	CompleteEventEventDataDiscriminator:  reflect.TypeOf(CompleteEventEventData{}),
-	CreateEventEventDataDiscriminator:    reflect.TypeOf(CreateEventEventData{}),
-	SetParamsEventEventDataDiscriminator: reflect.TypeOf(SetParamsEventEventData{}),
-	TradeEventEventDataDiscriminator:     reflect.TypeOf(TradeEventEventData{}),
+	CollectCreatorFeeEventEventDataDiscriminator:        reflect.TypeOf(CollectCreatorFeeEventEventData{}),
+	CompleteEventEventDataDiscriminator:                 reflect.TypeOf(CompleteEventEventData{}),
+	CompletePumpAmmMigrationEventEventDataDiscriminator: reflect.TypeOf(CompletePumpAmmMigrationEventEventData{}),
+	CreateEventEventDataDiscriminator:                   reflect.TypeOf(CreateEventEventData{}),
+	ExtendAccountEventEventDataDiscriminator:            reflect.TypeOf(ExtendAccountEventEventData{}),
+	SetCreatorEventEventDataDiscriminator:               reflect.TypeOf(SetCreatorEventEventData{}),
+	SetMetaplexCreatorEventEventDataDiscriminator:       reflect.TypeOf(SetMetaplexCreatorEventEventData{}),
+	SetParamsEventEventDataDiscriminator:                reflect.TypeOf(SetParamsEventEventData{}),
+	TradeEventEventDataDiscriminator:                    reflect.TypeOf(TradeEventEventData{}),
+	UpdateGlobalAuthorityEventEventDataDiscriminator:    reflect.TypeOf(UpdateGlobalAuthorityEventEventData{}),
 }
 var eventNames = map[[8]byte]string{
-	CompleteEventEventDataDiscriminator:  "CompleteEvent",
-	CreateEventEventDataDiscriminator:    "CreateEvent",
-	SetParamsEventEventDataDiscriminator: "SetParamsEvent",
-	TradeEventEventDataDiscriminator:     "TradeEvent",
+	CollectCreatorFeeEventEventDataDiscriminator:        "CollectCreatorFeeEvent",
+	CompleteEventEventDataDiscriminator:                 "CompleteEvent",
+	CompletePumpAmmMigrationEventEventDataDiscriminator: "CompletePumpAmmMigrationEvent",
+	CreateEventEventDataDiscriminator:                   "CreateEvent",
+	ExtendAccountEventEventDataDiscriminator:            "ExtendAccountEvent",
+	SetCreatorEventEventDataDiscriminator:               "SetCreatorEvent",
+	SetMetaplexCreatorEventEventDataDiscriminator:       "SetMetaplexCreatorEvent",
+	SetParamsEventEventDataDiscriminator:                "SetParamsEvent",
+	TradeEventEventDataDiscriminator:                    "TradeEvent",
+	UpdateGlobalAuthorityEventEventDataDiscriminator:    "UpdateGlobalAuthorityEvent",
 }
 var (
 	_ *strings.Builder = nil

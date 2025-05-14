@@ -13,6 +13,7 @@ type TradeAccounts struct {
 	BondingCurve           solana.PublicKey
 	AssociatedBondingCurve solana.PublicKey
 	AssociatedTokenAccount solana.PublicKey
+	CreatorVault           solana.PublicKey
 }
 
 // BuyParams 定义购买交易所需的参数

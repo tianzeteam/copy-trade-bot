@@ -2,8 +2,6 @@ package bot
 
 import (
 	"context"
-	"log"
-	"math/big"
 	"time"
 
 	"copytrade/global"
@@ -50,6 +48,7 @@ func (b *Bot) parseAmmTransaction(logMessages []string, mintAddress string) *glo
 					BaseReserve:  buyEvent.PoolBaseTokenReserves,
 					QuoteReserve: buyEvent.PoolQuoteTokenReserves,
 					ReceivedAt:   time.Now(),
+					CoinCreator:  buyEvent.CoinCreator,
 				}
 
 				// 计算当前价格 (SOL/TOKEN)
@@ -162,7 +161,7 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 
 		// 比较判别器
 		switch discriminator {
-		case pumpamm.BuyDiscriminator:
+		case pumpamm.Instruction_Buy:
 
 			accountList := b.GetAccountList(out)
 			user := accountList[instruction.Accounts[1]]
@@ -173,7 +172,7 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 
 			logger.Debugf("user :%s ,mint :%s  pool %s", user, mintAddress, pool)
 			logger.Debug("_signature: ", _signature)
-		case pumpamm.SellDiscriminator:
+		case pumpamm.Instruction_Sell:
 			logger.Debug("匹配--------卖出-------------判别器")
 		case pumpamm.CreateDiscriminator:
 			logger.Debug("匹配 Mint 判别器")
@@ -249,102 +248,4 @@ func (b *Bot) GetAccountList(out *yellowstone_geyser_pb.SubscribeUpdate) []strin
 		i++
 	}
 	return AccountList
-}
-
-func (b *Bot) PumpAmmPriceUpdate(priceStreamClient *goyser.StreamClient, outPrice *yellowstone_geyser_pb.SubscribeUpdate, mintAddress string) {
-	// 使用全局 AmmPoolLayout 对象，避免每次创建新对象
-	AmmPoolLayout := pumpamm.PUMP_AMM_POOL_LAYOUT{}
-	data := outPrice.GetAccount().Account.GetData()
-	if err := AmmPoolLayout.Decode(data); err != nil {
-		logger.Errorf("Failed to decode liquidity state layout: %v\n", err)
-		return
-	}
-
-	// 获取池中的代币储备信息
-	swapBaseInAmount := AmmPoolLayout.LpSupply
-	swapQuoteOutAmount := AmmPoolLayout.LpSupply
-	poolBaseReserve := AmmPoolLayout.LpMint
-	poolQuoteReserve := AmmPoolLayout.LpMint
-
-	// 定义代币精度
-	var (
-		baseDecimals  = big.NewInt(1e9) // WSOL decimals (基础代币精度)
-		quoteDecimals = big.NewInt(1e6) // 代币精度 (通常为6位小数)
-	)
-
-	// 转换为大整数以进行精确计算
-	swapBaseInAmount_bigint := new(big.Int).SetUint64(swapBaseInAmount)
-	swapQuoteOutAmount_bigint := new(big.Int).SetUint64(swapQuoteOutAmount)
-
-	// 记录交易数量日志
-	log.Printf("Pool update - Base in: %s, Quote out: %s",
-		swapBaseInAmount_bigint.String(),
-		swapQuoteOutAmount_bigint.String())
-
-	// 获取当前池储备量
-	baseReserve, _ := new(big.Int).SetString(poolBaseReserve.String(), 10)
-	quoteReserve, _ := new(big.Int).SetString(poolQuoteReserve.String(), 10)
-
-	// 转换为浮点数进行价格计算
-	baseReserveFloat := new(big.Float).SetInt(baseReserve)
-	quoteReserveFloat := new(big.Float).SetInt(quoteReserve)
-	baseDecimalsFloat := new(big.Float).SetInt(baseDecimals)
-	quoteDecimalsFloat := new(big.Float).SetInt(quoteDecimals)
-
-	// 计算价格比率和当前价格
-	priceRatio := new(big.Float).Quo(quoteDecimalsFloat, baseDecimalsFloat)
-	quotePrice := new(big.Float).Quo(baseReserveFloat, quoteReserveFloat)
-	currentPrice := quotePrice.Mul(quotePrice, priceRatio)
-
-	log.Printf("Current price for %s: %s", mintAddress, currentPrice.String())
-
-	// 检查是否需要触发卖出操作
-	myBuyMap, exists := global.GetPendingHoldAsset(mintAddress)
-	if !exists {
-		return
-	}
-	entryPrice := myBuyMap.EntryPrice
-	amount := myBuyMap.Amount
-
-	// 转换当前价格为浮点数进行比较
-	currentPriceFloat, _ := currentPrice.Float64()
-
-	// 如果当前价格高于入场价格且卖出通道可用，则触发卖出
-	if currentPriceFloat > entryPrice && queue.WaitingSellChan != nil {
-		logger.Infof("触发卖出条件: 当前价格 %.6f > 入场价格 %.6f", currentPriceFloat, entryPrice)
-
-		// 解析代币地址
-		mintPubkey, err := solana.PublicKeyFromBase58(mintAddress)
-		if err != nil {
-			logger.Errorf("无法解析Mint地址: %v", err)
-			return
-		}
-
-		// 解析所有者地址
-		ownerPubkey := b.privateKey.PublicKey()
-
-		// 创建代币信息对象
-		tokenInfo := queue.TokenInfo{
-			Mint:         mintPubkey,
-			Owner:        ownerPubkey,
-			Amount:       amount,
-			User:         ownerPubkey,
-			UpdateTime:   time.Now(),
-			EntryPrice:   entryPrice,
-			CurrentPrice: currentPriceFloat,
-			Platform:     "pumpamm",
-		}
-
-		// 发送代币信息到全局通道
-		logger.Infof("发送代币信息到卖出通道: Mint=%s, 余额=%d, 入场价=%.6f, 当前价=%.8f",
-			tokenInfo.Mint, tokenInfo.Amount, entryPrice, currentPriceFloat)
-
-		// 尝试发送到通道，使用select避免阻塞
-		select {
-		case queue.WaitingSellChan <- tokenInfo:
-			logger.Debugf("代币信息已成功发送到卖出通道")
-		default:
-			logger.Debugf("卖出通道已满，无法发送代币信息")
-		}
-	}
 }

@@ -122,6 +122,7 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 		BondingCurve:           pumpAccounts.BondingCurve,
 		AssociatedBondingCurve: pumpAccounts.AssociatedBondingCurve,
 		AssociatedTokenAccount: pumpAccounts.AssociatedTokenAccount,
+		CreatorVault:           pumpAccounts.CreatorVaultPda,
 	}
 
 	// Get trade information using the thread-safe getter function
@@ -159,6 +160,7 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 			BondingCurve:           accounts.BondingCurve,
 			AssociatedBondingCurve: accounts.AssociatedBondingCurve,
 			AssociatedTokenAccount: accounts.AssociatedTokenAccount,
+			CreatorVault:           accounts.CreatorVault,
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MaxCost,
@@ -220,6 +222,7 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 		tradeInfo.AmmPool,
 		tradeInfo.MintAddress,
 		m.BotWallet,
+		creator,
 	)
 	if err != nil {
 		logger.Errorf("Failed to calculate accounts: %v", err)
@@ -242,13 +245,15 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
-			User:                  m.BotWallet,
-			Mint:                  pumpAccounts.Mint,
-			BaseMint:              pumpAccounts.Mint,
-			QuoteMint:             pumpAccounts.QuoteMint,
-			UserBaseTokenAccount:  pumpAccounts.UserBaseTokenAccount,
-			PoolBaseTokenAccount:  pumpAccounts.PoolBaseTokenAccount,
-			PoolQuoteTokenAccount: pumpAccounts.PoolQuoteTokenAccount,
+			User:                      m.BotWallet,
+			Mint:                      pumpAccounts.Mint,
+			BaseMint:                  pumpAccounts.Mint,
+			QuoteMint:                 pumpAccounts.QuoteMint,
+			UserBaseTokenAccount:      pumpAccounts.UserBaseTokenAccount,
+			PoolBaseTokenAccount:      pumpAccounts.PoolBaseTokenAccount,
+			PoolQuoteTokenAccount:     pumpAccounts.PoolQuoteTokenAccount,
+			CreatorVault:              pumpAccounts.CoinCreatorVaultAta,
+			CoinCreatorVaultAuthority: pumpAccounts.CoinCreatorVaultAuthority,
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MinOut,

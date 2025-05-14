@@ -48,13 +48,17 @@ type Buy struct {
 	// [15] = [] event_authority
 	//
 	// [16] = [] program
+	//
+	// [17] = [WRITE] coin_creator_vault_ata
+	//
+	// [18] = [] coin_creator_vault_authority
 	ag_solanago.AccountMetaSlice `bin:"-"`
 }
 
 // NewBuyInstructionBuilder creates a new `Buy` instruction builder.
 func NewBuyInstructionBuilder() *Buy {
 	nd := &Buy{
-		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 17),
+		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 19),
 	}
 	nd.AccountMetaSlice[13] = ag_solanago.Meta(Addresses["11111111111111111111111111111111"])
 	nd.AccountMetaSlice[14] = ag_solanago.Meta(Addresses["ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"])
@@ -64,7 +68,7 @@ func NewBuyInstructionBuilder() *Buy {
 // NewBuyInstructionBuilderExt creates a new `Buy` instruction builder.
 func NewBuyInstructionBuilderExt(remainingAccounts int) *Buy {
 	nd := &Buy{
-		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 17+remainingAccounts),
+		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 19+remainingAccounts),
 	}
 	nd.AccountMetaSlice[13] = ag_solanago.Meta(Addresses["11111111111111111111111111111111"])
 	nd.AccountMetaSlice[14] = ag_solanago.Meta(Addresses["ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"])
@@ -360,8 +364,122 @@ func (inst *Buy) GetProgramAccount() *ag_solanago.AccountMeta {
 	return inst.AccountMetaSlice.Get(16)
 }
 
+// SetCoinCreatorVaultAtaAccount sets the "coin_creator_vault_ata" account.
+func (inst *Buy) SetCoinCreatorVaultAtaAccount(coinCreatorVaultAta ag_solanago.PublicKey) *Buy {
+	inst.AccountMetaSlice[17] = ag_solanago.Meta(coinCreatorVaultAta).WRITE()
+	return inst
+}
+
+func (inst *Buy) findFindCoinCreatorVaultAtaAddress(coinCreatorVaultAuthority ag_solanago.PublicKey, quoteTokenProgram ag_solanago.PublicKey, quoteMint ag_solanago.PublicKey, knownBumpSeed uint8) (pda ag_solanago.PublicKey, bumpSeed uint8, err error) {
+	var seeds [][]byte
+	// path: coinCreatorVaultAuthority
+	seeds = append(seeds, coinCreatorVaultAuthority.Bytes())
+	// path: quoteTokenProgram
+	seeds = append(seeds, quoteTokenProgram.Bytes())
+	// path: quoteMint
+	seeds = append(seeds, quoteMint.Bytes())
+
+	programID := Addresses["ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"]
+
+	if knownBumpSeed != 0 {
+		seeds = append(seeds, []byte{byte(bumpSeed)})
+		pda, err = ag_solanago.CreateProgramAddress(seeds, programID)
+	} else {
+		pda, bumpSeed, err = ag_solanago.FindProgramAddress(seeds, programID)
+	}
+	return
+}
+
+// FindCoinCreatorVaultAtaAddressWithBumpSeed calculates CoinCreatorVaultAta account address with given seeds and a known bump seed.
+func (inst *Buy) FindCoinCreatorVaultAtaAddressWithBumpSeed(coinCreatorVaultAuthority ag_solanago.PublicKey, quoteTokenProgram ag_solanago.PublicKey, quoteMint ag_solanago.PublicKey, bumpSeed uint8) (pda ag_solanago.PublicKey, err error) {
+	pda, _, err = inst.findFindCoinCreatorVaultAtaAddress(coinCreatorVaultAuthority, quoteTokenProgram, quoteMint, bumpSeed)
+	return
+}
+
+func (inst *Buy) MustFindCoinCreatorVaultAtaAddressWithBumpSeed(coinCreatorVaultAuthority ag_solanago.PublicKey, quoteTokenProgram ag_solanago.PublicKey, quoteMint ag_solanago.PublicKey, bumpSeed uint8) (pda ag_solanago.PublicKey) {
+	pda, _, err := inst.findFindCoinCreatorVaultAtaAddress(coinCreatorVaultAuthority, quoteTokenProgram, quoteMint, bumpSeed)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
+// FindCoinCreatorVaultAtaAddress finds CoinCreatorVaultAta account address with given seeds.
+func (inst *Buy) FindCoinCreatorVaultAtaAddress(coinCreatorVaultAuthority ag_solanago.PublicKey, quoteTokenProgram ag_solanago.PublicKey, quoteMint ag_solanago.PublicKey) (pda ag_solanago.PublicKey, bumpSeed uint8, err error) {
+	pda, bumpSeed, err = inst.findFindCoinCreatorVaultAtaAddress(coinCreatorVaultAuthority, quoteTokenProgram, quoteMint, 0)
+	return
+}
+
+func (inst *Buy) MustFindCoinCreatorVaultAtaAddress(coinCreatorVaultAuthority ag_solanago.PublicKey, quoteTokenProgram ag_solanago.PublicKey, quoteMint ag_solanago.PublicKey) (pda ag_solanago.PublicKey) {
+	pda, _, err := inst.findFindCoinCreatorVaultAtaAddress(coinCreatorVaultAuthority, quoteTokenProgram, quoteMint, 0)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
+// GetCoinCreatorVaultAtaAccount gets the "coin_creator_vault_ata" account.
+func (inst *Buy) GetCoinCreatorVaultAtaAccount() *ag_solanago.AccountMeta {
+	return inst.AccountMetaSlice.Get(17)
+}
+
+// SetCoinCreatorVaultAuthorityAccount sets the "coin_creator_vault_authority" account.
+func (inst *Buy) SetCoinCreatorVaultAuthorityAccount(coinCreatorVaultAuthority ag_solanago.PublicKey) *Buy {
+	inst.AccountMetaSlice[18] = ag_solanago.Meta(coinCreatorVaultAuthority)
+	return inst
+}
+
+func (inst *Buy) findFindCoinCreatorVaultAuthorityAddress(poolCoinCreator ag_solanago.PublicKey, knownBumpSeed uint8) (pda ag_solanago.PublicKey, bumpSeed uint8, err error) {
+	var seeds [][]byte
+	// const: 0x63726561746f725f7661756c74
+	seeds = append(seeds, []byte{byte(0x63), byte(0x72), byte(0x65), byte(0x61), byte(0x74), byte(0x6f), byte(0x72), byte(0x5f), byte(0x76), byte(0x61), byte(0x75), byte(0x6c), byte(0x74)})
+	// path: poolCoinCreator
+	seeds = append(seeds, poolCoinCreator.Bytes())
+
+	if knownBumpSeed != 0 {
+		seeds = append(seeds, []byte{byte(bumpSeed)})
+		pda, err = ag_solanago.CreateProgramAddress(seeds, ProgramID)
+	} else {
+		pda, bumpSeed, err = ag_solanago.FindProgramAddress(seeds, ProgramID)
+	}
+	return
+}
+
+// FindCoinCreatorVaultAuthorityAddressWithBumpSeed calculates CoinCreatorVaultAuthority account address with given seeds and a known bump seed.
+func (inst *Buy) FindCoinCreatorVaultAuthorityAddressWithBumpSeed(poolCoinCreator ag_solanago.PublicKey, bumpSeed uint8) (pda ag_solanago.PublicKey, err error) {
+	pda, _, err = inst.findFindCoinCreatorVaultAuthorityAddress(poolCoinCreator, bumpSeed)
+	return
+}
+
+func (inst *Buy) MustFindCoinCreatorVaultAuthorityAddressWithBumpSeed(poolCoinCreator ag_solanago.PublicKey, bumpSeed uint8) (pda ag_solanago.PublicKey) {
+	pda, _, err := inst.findFindCoinCreatorVaultAuthorityAddress(poolCoinCreator, bumpSeed)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
+// FindCoinCreatorVaultAuthorityAddress finds CoinCreatorVaultAuthority account address with given seeds.
+func (inst *Buy) FindCoinCreatorVaultAuthorityAddress(poolCoinCreator ag_solanago.PublicKey) (pda ag_solanago.PublicKey, bumpSeed uint8, err error) {
+	pda, bumpSeed, err = inst.findFindCoinCreatorVaultAuthorityAddress(poolCoinCreator, 0)
+	return
+}
+
+func (inst *Buy) MustFindCoinCreatorVaultAuthorityAddress(poolCoinCreator ag_solanago.PublicKey) (pda ag_solanago.PublicKey) {
+	pda, _, err := inst.findFindCoinCreatorVaultAuthorityAddress(poolCoinCreator, 0)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
+// GetCoinCreatorVaultAuthorityAccount gets the "coin_creator_vault_authority" account.
+func (inst *Buy) GetCoinCreatorVaultAuthorityAccount() *ag_solanago.AccountMeta {
+	return inst.AccountMetaSlice.Get(18)
+}
+
 func (inst *Buy) AddRemainingAccounts(remainingAccounts []ag_solanago.PublicKey) *Buy {
-	accounts := 17
+	accounts := 19
 	for i, _ := range remainingAccounts {
 		index := accounts + i
 		inst.AccountMetaSlice[index] = ag_solanago.Meta(remainingAccounts[i]).WRITE()
@@ -450,6 +568,12 @@ func (inst *Buy) Validate() error {
 		if inst.AccountMetaSlice[16] == nil {
 			return errors.New("accounts.Program is not set")
 		}
+		if inst.AccountMetaSlice[17] == nil {
+			return errors.New("accounts.CoinCreatorVaultAta is not set")
+		}
+		if inst.AccountMetaSlice[18] == nil {
+			return errors.New("accounts.CoinCreatorVaultAuthority is not set")
+		}
 	}
 	return nil
 }
@@ -469,7 +593,7 @@ func (inst *Buy) EncodeToTree(parent ag_treeout.Branches) {
 					})
 
 					// Accounts of the instruction:
-					instructionBranch.Child("Accounts[len=17]").ParentFunc(func(accountsBranch ag_treeout.Branches) {
+					instructionBranch.Child("Accounts[len=19]").ParentFunc(func(accountsBranch ag_treeout.Branches) {
 						accountsBranch.Child(ag_format.Meta("                         pool", inst.AccountMetaSlice.Get(0)))
 						accountsBranch.Child(ag_format.Meta("                         user", inst.AccountMetaSlice.Get(1)))
 						accountsBranch.Child(ag_format.Meta("                global_config", inst.AccountMetaSlice.Get(2)))
@@ -487,6 +611,8 @@ func (inst *Buy) EncodeToTree(parent ag_treeout.Branches) {
 						accountsBranch.Child(ag_format.Meta("     associated_token_program", inst.AccountMetaSlice.Get(14)))
 						accountsBranch.Child(ag_format.Meta("              event_authority", inst.AccountMetaSlice.Get(15)))
 						accountsBranch.Child(ag_format.Meta("                      program", inst.AccountMetaSlice.Get(16)))
+						accountsBranch.Child(ag_format.Meta("       coin_creator_vault_ata", inst.AccountMetaSlice.Get(17)))
+						accountsBranch.Child(ag_format.Meta(" coin_creator_vault_authority", inst.AccountMetaSlice.Get(18)))
 					})
 				})
 		})
@@ -541,7 +667,9 @@ func NewBuyInstruction(
 	systemProgram ag_solanago.PublicKey,
 	associatedTokenProgram ag_solanago.PublicKey,
 	eventAuthority ag_solanago.PublicKey,
-	program ag_solanago.PublicKey) *Buy {
+	program ag_solanago.PublicKey,
+	coinCreatorVaultAta ag_solanago.PublicKey,
+	coinCreatorVaultAuthority ag_solanago.PublicKey) *Buy {
 	return NewBuyInstructionBuilder().
 		SetBaseAmountOut(base_amount_out).
 		SetMaxQuoteAmountIn(max_quote_amount_in).
@@ -561,5 +689,7 @@ func NewBuyInstruction(
 		SetSystemProgramAccount(systemProgram).
 		SetAssociatedTokenProgramAccount(associatedTokenProgram).
 		SetEventAuthorityAccount(eventAuthority).
-		SetProgramAccount(program)
+		SetProgramAccount(program).
+		SetCoinCreatorVaultAtaAccount(coinCreatorVaultAta).
+		SetCoinCreatorVaultAuthorityAccount(coinCreatorVaultAuthority)
 }

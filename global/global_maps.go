@@ -43,7 +43,7 @@ type CreateEventInfo struct {
 	Uri          string
 	MintAddress  string
 	BondingCurve string
-	Creator      string
+	Creator      solana.PublicKey
 	CreatedAt    time.Time
 }
 
@@ -63,6 +63,7 @@ type AmmTradeEventInfo struct {
 	ReceivedAt   time.Time        // 接收时间
 	TxHash       string           // 交易哈希
 	Slot         uint64           // 区块槽位
+	CoinCreator  solana.PublicKey
 }
 
 // AmmPoolInfo 存储AMM池信息
