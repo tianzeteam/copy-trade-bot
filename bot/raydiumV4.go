@@ -111,31 +111,31 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 			}
 			logger.Debugf("serumMarket: ", serumMarket)
 			mintAddress = marketState.BaseMint.String()
-			preTokenBalances := txn.Transaction.Meta.PreTokenBalances
-			postTokenBalances := txn.Transaction.Meta.PostTokenBalances
+			//preTokenBalances := txn.Transaction.Meta.PreTokenBalances
+			//postTokenBalances := txn.Transaction.Meta.PostTokenBalances
 
 			// Check for token balance changes
-			tokenChange := CheckTokenBalances(preTokenBalances, postTokenBalances)
+			//tokenChange := CheckTokenBalances(preTokenBalances, postTokenBalances)
 
 			solChange := GetSwapBalances(txn, poolCoinTokenAccount, poolPcTokenAccount, accountList)
-			logger.Infof("solChange %.8f, tokenChange %.8f", solChange.SolChangeAmount, solChange.TokenChangeAmount)
-			if tokenChange != nil {
+
+			if solChange != nil {
+				logger.Infof("Raydium V4  solChange %.8f, tokenChange %.8f (decimals=%d)", solChange.SolChangeAmount, solChange.TokenChangeAmount, solChange.Decimals)
 				// Format the token amount with proper decimals
-				tradeType := "BUY"
-				if !tokenChange.IsBuy {
-					tradeType = "SELL"
+				isBuy := true
+				if solChange.SolChangeAmount < 0 {
+					isBuy = false
 				}
-				logger.Debugf("Raydium V4 %s detected: Mint=%s, Amount=%d (decimals=%d)",
-					tradeType, tokenChange.Mint, tokenChange.Amount, tokenChange.Decimals)
 
 				// Create AmmTradeEventInfo for the detected trade
 				return &global.AmmTradeEventInfo{
-					MintAddress:  solana.MustPublicKeyFromBase58(tokenChange.Mint),
+					MintAddress:  solana.MustPublicKeyFromBase58(mintAddress),
 					AmmPool:      solana.MustPublicKeyFromBase58(ammId),
-					UserAddress:  solana.MustPublicKeyFromBase58(tokenChange.Owner),
-					TokenAmount:  tokenChange.Amount,
-					IsBuy:        tokenChange.IsBuy, // Use the IsSell field (inverted since IsBuy is the opposite of IsSell)
-					CurrentPrice: 0,                 // You may need to calculate this based on other data
+					UserAddress:  solana.MustPublicKeyFromBase58(userOwner),
+					SolAmount:    uint64(solChange.SolChangeAmount * 1e9),
+					TokenAmount:  uint64(solChange.TokenChangeAmount),
+					IsBuy:        isBuy, // Use the IsSell field (inverted since IsBuy is the opposite of IsSell)
+					CurrentPrice: 0,     // You may need to calculate this based on other data
 					TimeStamp:    time.Now().Unix(),
 					ReceivedAt:   time.Now(),
 					TxHash:       _signature,

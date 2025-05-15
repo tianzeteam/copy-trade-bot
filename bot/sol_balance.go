@@ -9,6 +9,7 @@ import (
 type SolBalanceChange struct {
 	TokenChangeAmount float64 // Amount of change in lamports
 	SolChangeAmount   float64 // Progress percentage (if applicable)
+	Decimals          uint32
 }
 
 func GetSwapBalances(txn *yellowstone_geyser_pb.SubscribeUpdateTransaction, poolCoinTokenAccount, poolPcTokenAccount string, accountList []string) *SolBalanceChange {
@@ -19,8 +20,7 @@ func GetSwapBalances(txn *yellowstone_geyser_pb.SubscribeUpdateTransaction, pool
 	preTokenBalances := txn.Transaction.Meta.PreTokenBalances
 	postTokenBalances := txn.Transaction.Meta.PostTokenBalances
 
-	
-		// Find the index of poolPcTokenAccount in accountList
+	// Find the index of poolPcTokenAccount in accountList
 	poolPcTokenAccountIndex := -1
 	for i, account := range accountList {
 		if account == poolPcTokenAccount {
@@ -53,6 +53,7 @@ func GetSwapBalances(txn *yellowstone_geyser_pb.SubscribeUpdateTransaction, pool
 	}
 	var swapSolAmount float64
 	var tokenAmount float64
+	var decimals uint32
 
 	// Find SOL balance change in the pool PC token account
 	for _, preTokenBalance := range preTokenBalances {
@@ -79,6 +80,7 @@ func GetSwapBalances(txn *yellowstone_geyser_pb.SubscribeUpdateTransaction, pool
 			for _, postTokenBalance := range postTokenBalances {
 				if postTokenBalance.AccountIndex == preTokenBalance.AccountIndex {
 					postTokenAmount := postTokenBalance.GetUiTokenAmount().UiAmount
+					decimals = postTokenBalance.GetUiTokenAmount().GetDecimals()
 					tokenAmount = postTokenAmount - preTokenAmount
 					logger.Debugf("Token balance change: %.8f", tokenAmount)
 					break
@@ -92,6 +94,7 @@ func GetSwapBalances(txn *yellowstone_geyser_pb.SubscribeUpdateTransaction, pool
 	result := &SolBalanceChange{
 		SolChangeAmount:   swapSolAmount,
 		TokenChangeAmount: tokenAmount,
+		Decimals:          decimals,
 	}
 
 	return result
