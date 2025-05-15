@@ -88,6 +88,7 @@ func (b *Bot) parseAmmTransaction(logMessages []string, mintAddress string) *glo
 					BaseReserve:  sellEvent.PoolBaseTokenReserves,
 					QuoteReserve: sellEvent.PoolQuoteTokenReserves,
 					ReceivedAt:   time.Now(),
+					CoinCreator:  sellEvent.CoinCreator,
 				}
 
 				// 计算当前价格 (SOL/TOKEN)
@@ -167,13 +168,26 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 			user := accountList[instruction.Accounts[1]]
 			mintAddress = accountList[instruction.Accounts[3]]
 			pool := accountList[instruction.Accounts[0]]
+			if mintAddress == solana.SolMint.String() {
+				continue
+			}
+			logger.Info("匹配-------买入------------判别器")
 
-			logger.Debug("匹配-------买入------------判别器")
-
-			logger.Debugf("user :%s ,mint :%s  pool %s", user, mintAddress, pool)
-			logger.Debug("_signature: ", _signature)
+			logger.Infof("user :%s ,mint :%s  pool %s", user, mintAddress, pool)
+			logger.Infof("_signature: ", _signature)
 		case pumpamm.Instruction_Sell:
-			logger.Debug("匹配--------卖出-------------判别器")
+			accountList := b.GetAccountList(out)
+			user := accountList[instruction.Accounts[1]]
+			mintAddress = accountList[instruction.Accounts[3]]
+			pool := accountList[instruction.Accounts[0]]
+			if mintAddress == solana.SolMint.String() {
+				continue
+			}
+			logger.Info("匹配-------卖出------------判别器")
+
+			logger.Infof("user :%s ,mint :%s  pool %s", user, mintAddress, pool)
+			logger.Debug("_signature: ", _signature)
+			logger.Info("匹配--------卖出-------------判别器")
 		case pumpamm.CreateDiscriminator:
 			logger.Debug("匹配 Mint 判别器")
 		default:

@@ -109,25 +109,23 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 			if marketState == nil {
 				return nil
 			}
-			logger.Infof("serumMarket: ", serumMarket)
+			logger.Debugf("serumMarket: ", serumMarket)
 			mintAddress = marketState.BaseMint.String()
 			preTokenBalances := txn.Transaction.Meta.PreTokenBalances
 			postTokenBalances := txn.Transaction.Meta.PostTokenBalances
 
 			// Check for token balance changes
 			tokenChange := CheckTokenBalances(preTokenBalances, postTokenBalances)
-			preBalances := txn.Transaction.Meta.PreBalances
-			postBalances := txn.Transaction.Meta.PostBalances
 
-			solChange := GetSwapBalances(poolPcTokenAccount, preBalances, postBalances)
-
+			solChange := GetSwapBalances(txn, poolCoinTokenAccount, poolPcTokenAccount, accountList)
+			logger.Infof("solChange %.8f, tokenChange %.8f", solChange.SolChangeAmount, solChange.TokenChangeAmount)
 			if tokenChange != nil {
 				// Format the token amount with proper decimals
 				tradeType := "BUY"
 				if !tokenChange.IsBuy {
 					tradeType = "SELL"
 				}
-				logger.Infof("Raydium V4 %s detected: Mint=%s, Amount=%d (decimals=%d)",
+				logger.Debugf("Raydium V4 %s detected: Mint=%s, Amount=%d (decimals=%d)",
 					tradeType, tokenChange.Mint, tokenChange.Amount, tokenChange.Decimals)
 
 				// Create AmmTradeEventInfo for the detected trade

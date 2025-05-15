@@ -222,7 +222,7 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 		tradeInfo.AmmPool,
 		tradeInfo.MintAddress,
 		m.BotWallet,
-		creator,
+		tradeInfo.CoinCreator,
 	)
 	if err != nil {
 		logger.Errorf("Failed to calculate accounts: %v", err)
