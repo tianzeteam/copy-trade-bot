@@ -107,6 +107,11 @@ func (b *Bot) handleOpenBookMarketUpdate(accountUpdate *yellowstone_geyser_pb.Su
 	// Extract market information
 	baseMint := marketLayout.BaseMint.String()
 	quoteMint := marketLayout.QuoteMint.String()
+	baseVault := marketLayout.BaseVault.String()
+	quoteVault := marketLayout.QuoteVault.String()
+
+	//lpMint := marketLayout.LpMint.String()
+	//lpVault := marketLayout.LpVault.String()
 
 	// Create a new MarketState object
 	marketState := NewMarketStateFromLayout(marketID, marketLayout)
@@ -117,8 +122,8 @@ func (b *Bot) handleOpenBookMarketUpdate(accountUpdate *yellowstone_geyser_pb.Su
 	b.marketStatesLock.Unlock()
 
 	//Emit market update event
-	logger.Debugf("OpenBook market update: Market=%s, BaseMint=%s, QuoteMint=%s",
-		pubkey, baseMint, quoteMint)
+	logger.Infof("OpenBook market update: Market=%s, BaseMint=%s, QuoteMint=%s,baseVault=%s,quoteVault=%s",
+		pubkey, baseMint, quoteMint, baseVault, quoteVault)
 
 }
 

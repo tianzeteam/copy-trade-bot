@@ -102,6 +102,71 @@ type AmmAccounts struct {
 	CoinCreatorVaultAuthority solana.PublicKey // 代币创建者金库授权地址
 	CoinCreatorVaultAta       solana.PublicKey // 代币创建者金库ATA地址
 }
+type RaydiumV4Accounts struct {
+	ID                 solana.PublicKey
+	BaseMint           solana.PublicKey
+	QuoteMint          solana.PublicKey
+	LpMint             solana.PublicKey
+	BaseDecimals       uint64
+	QuoteDecimals      uint64
+	LpDecimals         uint64
+	Version            uint64
+	ProgramId          solana.PublicKey
+	Authority          solana.PublicKey
+	OpenOrders         solana.PublicKey
+	TargetOrders       solana.PublicKey
+	BaseVault          solana.PublicKey
+	QuoteVault         solana.PublicKey
+	WithdrawQueue      solana.PublicKey
+	LpVault            solana.PublicKey
+	MarketVersion      uint64
+	MarketProgramId    solana.PublicKey
+	MarketId           solana.PublicKey
+	MarketAuthority    solana.PublicKey
+	MarketBaseVault    solana.PublicKey
+	MarketQuoteVault   solana.PublicKey
+	MarketBids         solana.PublicKey
+	MarketAsks         solana.PublicKey
+	MarketEventQueue   solana.PublicKey
+	LookupTableAccount solana.PublicKey
+}
+
+func (c *AccountsCalculator) CalculateV4Accounts() (*RaydiumV4Accounts, error) {
+	return nil, nil
+	/* authority, _, err := solana.FindProgramAddress([][]byte{{97, 109, 109, 32, 97, 117, 116, 104, 111, 114, 105, 116, 121}}, RAYDIUM_V4_PROGRAM_ID)
+
+	marketAuthority, _, err := utils.GetAssociatedAuthority(marketAccount.Value.Owner, marketLayout.OwnAddress)
+
+	return &RaydiumV4Accounts{
+		ID:                 programAccount.Pubkey,
+		BaseMint:           layout.BaseMint,
+		QuoteMint:          layout.QuoteMint,
+		LpMint:             layout.LpMint,
+		BaseDecimals:       layout.BaseDecimal,
+		QuoteDecimals:      layout.QuoteDecimal,
+		LpDecimals:         layout.BaseDecimal,
+		Version:            4,
+		ProgramId:          RAYDIUM_V4_PROGRAM_ID,
+		OpenOrders:         layout.OpenOrders,
+		TargetOrders:       layout.TargetOrders,
+		BaseVault:          layout.BaseVault,
+		QuoteVault:         layout.QuoteVault,
+		MarketVersion:      3,
+		Authority:          authority,
+		MarketProgramId:    marketAccount.Value.Owner,
+		MarketId:           marketLayout.OwnAddress,
+		MarketAuthority:    marketAuthority,
+		MarketBaseVault:    marketLayout.BaseVault,
+		MarketQuoteVault:   marketLayout.QuoteVault,
+		MarketBids:         marketLayout.Bids,
+		MarketAsks:         marketLayout.Asks,
+		MarketEventQueue:   marketLayout.EventQueue,
+		WithdrawQueue:      layout.WithdrawQueue,
+		LpVault:            layout.LpVault,
+		LookupTableAccount: solana.PublicKey{},
+	}, nil
+	*/
+}
 
 // CalculateAmmAccounts 计算AMM所需的所有账户
 func (c *AccountsCalculator) CalculateAmmAccounts(ctx context.Context, pool, baseMint, user solana.PublicKey, coinCreator solana.PublicKey) (*AmmAccounts, error) {

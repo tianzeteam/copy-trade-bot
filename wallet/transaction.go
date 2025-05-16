@@ -59,6 +59,30 @@ func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo
 }
 
 // ProcessAmmTransaction 处理AMM交易事件
+func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *global.AmmRaydiumV4TradeInfo) {
+	// 只处理买入交易
+	if !tradeInfo.IsBuy {
+		return
+	}
+
+	// 获取聪明钱包地址
+	copyAddress := tradeInfo.UserAddress
+
+	// 检查是否是我们监控的钱包
+	walletSettings := m.WalletMonitor.GetWallet(copyAddress)
+	if walletSettings == nil {
+		// 不是我们监控的钱包，忽略
+		return
+	}
+
+	logger.Infof("检测到监控钱包Raydium V4 交易: 钱包=%s (%s), 代币=%s, 数量=%d",
+		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount)
+
+	// 执行跟单交易
+	m.executeRaydiumV4CopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount)
+}
+
+// ProcessAmmTransaction 处理AMM交易事件
 func (m *TransactionMonitor) ProcessAmmTransaction(tradeInfo *global.AmmTradeEventInfo) {
 	// 只处理买入交易
 	if !tradeInfo.IsBuy {
@@ -235,6 +259,98 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 		m.BuySolAmount,
 		baseReserve,
 		quoteReserve,
+		m.TradeBot.Config.BuySlippage,
+	)
+
+	if err != nil {
+		logger.Errorf("Failed to calculate buy amounts: %v", err)
+		return
+	}
+
+	tradeParams := types.TradeParams{
+		Accounts: types.TradeAccounts{
+			User:                      m.BotWallet,
+			Mint:                      pumpAccounts.Mint,
+			BaseMint:                  pumpAccounts.Mint,
+			QuoteMint:                 pumpAccounts.QuoteMint,
+			UserBaseTokenAccount:      pumpAccounts.UserBaseTokenAccount,
+			PoolBaseTokenAccount:      pumpAccounts.PoolBaseTokenAccount,
+			PoolQuoteTokenAccount:     pumpAccounts.PoolQuoteTokenAccount,
+			CreatorVault:              pumpAccounts.CoinCreatorVaultAta,
+			CoinCreatorVaultAuthority: pumpAccounts.CoinCreatorVaultAuthority,
+		},
+		Amount:    amounts.TokenAmount,
+		Cost:      amounts.MinOut,
+		Blockhash: *m.TradeBot.Blockhash,
+		FeeConfig: types.FeeConfig{
+			Slippage:    m.TradeBot.Config.BuySlippage,
+			PriorityFee: uint64(m.TradeBot.Config.BuyPriorityFee * 1e9),
+		},
+	}
+
+	// 构建完整的订单参数
+	orderParams := types.OrderParams{
+		TradeParams: tradeParams,
+
+		JitoParams: &types.JitoParams{
+			Enable:    m.TradeBot.Config.Jito.Enable,
+			BundleUrl: m.TradeBot.Config.Jito.RpcUrl,
+			TipAmount: uint64(m.TradeBot.Config.Jito.BuyTip * 1e9),
+		},
+		TemporalParams: &types.TemporalParams{
+			Enable:    m.TradeBot.Config.Temporal.Enable,
+			BundleUrl: m.TradeBot.Config.Temporal.RpcUrl,
+			ApiKey:    m.TradeBot.Config.Temporal.ApiKeys[0],
+			TipAmount: uint64(m.TradeBot.Config.Temporal.BuyTip * 1e9),
+		},
+		BloXrouteParams: &types.BloXrouteParams{
+			Enable:    m.TradeBot.Config.BloXroute.Enable,
+			RpcUrl:    m.TradeBot.Config.BloXroute.RpcUrl,
+			ApiKeys:   m.TradeBot.Config.BloXroute.ApiKeys,
+			TipAmount: uint64(m.TradeBot.Config.BloXroute.BuyTip * 1e9),
+		},
+	}
+
+	// 调用通用的卖出方法
+	go m.TradeBot.Trader.PumpAmmBuy(context.Background(), orderParams)
+	// 然后记录机器人的跟单交易
+	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress.String(), originalWallet, m.BotWallet, tradeInfo.CurrentPrice)
+}
+
+// executeRaydiumV4CopyTrade
+func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *global.AmmRaydiumV4TradeInfo, originalWallet solana.PublicKey, originalAmount uint64) {
+	// 检查是否已经交易过该代币
+	m.WalletMonitor.Mux.RLock()
+	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress.String()]; exists {
+		logger.Infof("跳过重复交易: %s", tradeInfo.MintAddress)
+		m.WalletMonitor.Mux.RUnlock()
+		return
+	}
+	m.WalletMonitor.Mux.RUnlock()
+
+	// 发送买入请求
+	logger.Infof("执行AMM跟单买入: 代币=%s, 金额=%f SOL", tradeInfo.MintAddress, m.BuySolAmount)
+
+	// 先记录原始交易者的交易
+	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress.String(), originalWallet, tradeInfo.CurrentPrice, originalAmount)
+	//
+	pumpAccounts, err := m.TradeBot.Trader.AccountsCalc.CalculateAmmAccounts(
+		context.Background(),
+		tradeInfo.AmmPool,
+		tradeInfo.MintAddress,
+		m.BotWallet,
+		solana.SolMint,
+	)
+	if err != nil {
+		logger.Errorf("Failed to calculate accounts: %v", err)
+		return
+	}
+
+	// Calculate buy amounts
+	amounts, err := m.TradeBot.Trader.AmountsCalc.CalculateAmmBuyAmounts(
+		m.BuySolAmount,
+		0,
+		0,
 		m.TradeBot.Config.BuySlippage,
 	)
 

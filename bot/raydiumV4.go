@@ -24,7 +24,7 @@ type SwapData struct {
 }
 
 // RaydiumV4Parse 解析Raydium pool V4交易日志
-func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client *goyser.Client, ctx context.Context) *global.AmmTradeEventInfo {
+func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client *goyser.Client, ctx context.Context) *global.AmmRaydiumV4TradeInfo {
 	if out.GetTransaction() == nil {
 		return nil
 	}
@@ -44,6 +44,7 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 	_signature := base58.Encode(txn.Transaction.Transaction.Signatures[0])
 
 	var mintAddress string
+	var tradeInfo *global.AmmRaydiumV4TradeInfo
 	for _, instruction := range instructions {
 		// 安全检查：确保账户数据不为空
 		if len(instruction.Accounts) == 0 {
@@ -68,7 +69,7 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 			if err != nil {
 				return nil
 			}
-			logger.Infof("SwapBaseIn instruction found, signature: %s", _signature)
+			logger.Debugf("SwapBaseIn instruction found, signature: %s", _signature)
 			accounts := instruction.Accounts
 			if len(accounts) < 18 {
 				logger.Debug("Not enough accounts in the instruction")
@@ -120,7 +121,9 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 			solChange := GetSwapBalances(txn, poolCoinTokenAccount, poolPcTokenAccount, accountList)
 
 			if solChange != nil {
-				logger.Infof("Raydium V4  solChange %.8f, tokenChange %.8f (decimals=%d)", solChange.SolChangeAmount, solChange.TokenChangeAmount, solChange.Decimals)
+
+				_currentPrice := solChange.SolChangeAmount / solChange.TokenChangeAmount
+				logger.Debugf("Raydium V4  solChange %.8f, tokenChange %.8f ,currentPrice %.8f ,(decimals=%d)", solChange.SolChangeAmount, solChange.TokenChangeAmount, _currentPrice, solChange.Decimals)
 				// Format the token amount with proper decimals
 				isBuy := true
 				if solChange.SolChangeAmount < 0 {
@@ -128,14 +131,20 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 				}
 
 				// Create AmmTradeEventInfo for the detected trade
-				return &global.AmmTradeEventInfo{
+				tradeInfo = &global.AmmRaydiumV4TradeInfo{
 					MintAddress:  solana.MustPublicKeyFromBase58(mintAddress),
 					AmmPool:      solana.MustPublicKeyFromBase58(ammId),
+					OpenOrders:   solana.MustPublicKeyFromBase58(openOrders),
+					TargetOrders: solana.MustPublicKeyFromBase58(targetOrders),
+					BaseVault:    solana.MustPublicKeyFromBase58(poolCoinTokenAccount),
+					QuoteVault:   solana.MustPublicKeyFromBase58(poolPcTokenAccount),
+
+					Version:      4,
 					UserAddress:  solana.MustPublicKeyFromBase58(userOwner),
 					SolAmount:    uint64(solChange.SolChangeAmount * 1e9),
 					TokenAmount:  uint64(solChange.TokenChangeAmount),
-					IsBuy:        isBuy, // Use the IsSell field (inverted since IsBuy is the opposite of IsSell)
-					CurrentPrice: 0,     // You may need to calculate this based on other data
+					IsBuy:        isBuy,         // Use the IsSell field (inverted since IsBuy is the opposite of IsSell)
+					CurrentPrice: _currentPrice, // You may need to calculate this based on other data
 					TimeStamp:    time.Now().Unix(),
 					ReceivedAt:   time.Now(),
 					TxHash:       _signature,
@@ -143,44 +152,134 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 			}
 
 		case raydium.SwapDiscriminator_V2:
-			logger.Debugf("SwapBaseOut instruction found, signature: %s", _signature)
+			logger.Infof("SwapBaseOut instruction found, signature: %s", _signature)
 			accounts := instruction.Accounts
 			if len(accounts) < 17 {
 				logger.Warn("Not enough accounts in the instruction")
 				return nil
 			}
+			if len(accounts) == 17 {
+				accountList := b.GetAccountList(out)
 
-			accountList := b.GetAccountList(out)
+				// Map accounts based on the structure you provided
+				_ = accountList[accounts[0]]                     // #1 - Token Program
+				ammId := accountList[accounts[1]]                // #2 - Amm Id (Raydium Market)
+				_ = accountList[accounts[2]]                     // #3 - Amm Authority
+				openOrders := accountList[accounts[3]]           // #4 - Amm Open Orders
+				poolCoinTokenAccount := accountList[accounts[4]] // #5 - Pool Coin Token Account
+				poolPcTokenAccount := accountList[accounts[5]]   // #6 - Pool Pc Token Account
+				_ = accountList[accounts[6]]                     // #7 - Serum Program Id
+				serumMarket := accountList[accounts[7]]          // #8 - Serum Market
+				_ = accountList[accounts[8]]                     // #9 - Serum Bids
+				_ = accountList[accounts[9]]                     // #10 - Serum Asks
+				_ = accountList[accounts[10]]                    // #11 - Serum Event Queue
+				_ = accountList[accounts[11]]                    // #12 - Serum Coin Vault Account
+				_ = accountList[accounts[12]]                    // #13 - Serum Pc Vault Account
+				_ = accountList[accounts[13]]                    // #14 - Serum Vault Signer
 
-			// Map accounts based on the structure you provided
-			_ = accountList[accounts[0]]                   // #1 - Token Program
-			ammId := accountList[accounts[1]]              // #2 - Amm Id (Raydium Market)
-			_ = accountList[accounts[2]]                   // #3 - Amm Authority
-			_ = accountList[accounts[3]]                   // #4 - Amm Open Orders
-			_ = accountList[accounts[4]]                   // #5 - Pool Coin Token Account
-			_ = accountList[accounts[5]]                   // #6 - Pool Pc Token Account
-			_ = accountList[accounts[6]]                   // #7 - Serum Program Id
-			serumMarket := accountList[accounts[7]]        // #8 - Serum Market
-			_ = accountList[accounts[8]]                   // #9 - Serum Bids
-			_ = accountList[accounts[9]]                   // #10 - Serum Asks
-			_ = accountList[accounts[10]]                  // #11 - Serum Event Queue
-			_ = accountList[accounts[11]]                  // #12 - Serum Coin Vault Account
-			_ = accountList[accounts[12]]                  // #13 - Serum Pc Vault Account
-			_ = accountList[accounts[13]]                  // #14 - Serum Vault Signer
-			userSourceAccount := accountList[accounts[14]] // #15 - User Source Token Account
-			userDestAccount := accountList[accounts[15]]   // #16 - User Dest Token Account
-			userOwner := accountList[accounts[16]]         // #17 - User Owner
+				userOwner := accountList[accounts[16]] // #17 - User Owner
+				// Extract mint address for tracking
+				marketState := b.marketStates[serumMarket]
+				if marketState == nil {
+					return nil
+				}
+				logger.Infof("serumMarket: ", serumMarket)
+				mintAddress = marketState.BaseMint.String()
+				// For debugging
+				solChange := GetSwapBalances(txn, poolCoinTokenAccount, poolPcTokenAccount, accountList)
 
-			// For debugging
-			logger.Debugf("Raydium SwapBaseOut: User=%s, Market=%s, AmmPool=%s", userOwner, serumMarket, ammId)
+				if solChange != nil {
 
-			// This is likely a sell operation (SwapBaseOut)
-			isBuy := false
-			logger.Debugf("Raydium V4 SwapBaseOut detected: IsBuy=%v, UserSource=%s, UserDest=%s",
-				isBuy, userSourceAccount, userDestAccount)
+					_currentPrice := solChange.SolChangeAmount / solChange.TokenChangeAmount
+					logger.Infof("Raydium V4  solChange %.8f, tokenChange %.8f ,currentPrice %.8f ,(decimals=%d)", solChange.SolChangeAmount, solChange.TokenChangeAmount, _currentPrice, solChange.Decimals)
+					// Format the token amount with proper decimals
+					isBuy := true
+					if solChange.SolChangeAmount < 0 {
+						isBuy = false
+					}
 
-			// Extract mint address for tracking
-			mintAddress = "" // You'll need to implement a function to get the mint address from the token accounts
+					// Create AmmTradeEventInfo for the detected trade
+					tradeInfo = &global.AmmRaydiumV4TradeInfo{
+						MintAddress: solana.MustPublicKeyFromBase58(mintAddress),
+						AmmPool:     solana.MustPublicKeyFromBase58(ammId),
+						OpenOrders:  solana.MustPublicKeyFromBase58(openOrders),
+
+						BaseVault:  solana.MustPublicKeyFromBase58(poolCoinTokenAccount),
+						QuoteVault: solana.MustPublicKeyFromBase58(poolPcTokenAccount),
+
+						Version:     3,
+						UserAddress: solana.MustPublicKeyFromBase58(userOwner),
+
+						SolAmount:    uint64(solChange.SolChangeAmount * 1e9),
+						TokenAmount:  uint64(solChange.TokenChangeAmount),
+						IsBuy:        isBuy,         // Use the IsSell field (inverted since IsBuy is the opposite of IsSell)
+						CurrentPrice: _currentPrice, // You may need to calculate this based on other data
+						TimeStamp:    time.Now().Unix(),
+						ReceivedAt:   time.Now(),
+						TxHash:       _signature,
+					}
+				}
+			} else {
+				accountList := b.GetAccountList(out)
+
+				// Map accounts based on the structure you provided
+				_ = accountList[accounts[0]]                     // #1 - Token Program
+				ammId := accountList[accounts[1]]                // #2 - Amm Id (Raydium Market)
+				_ = accountList[accounts[2]]                     // #3 - Amm Authority
+				openOrders := accountList[accounts[3]]           // #4 - Amm Open Orders
+				targetOrders := accountList[accounts[4]]         //#5 - Amm Target Orders
+				poolCoinTokenAccount := accountList[accounts[5]] // #5 - Pool Coin Token Account
+				poolPcTokenAccount := accountList[accounts[6]]   // #6 - Pool Pc Token Account
+				_ = accountList[accounts[7]]                     // #7 - Serum Program Id
+				serumMarket := accountList[accounts[8]]          // #8 - Serum Market
+				_ = accountList[accounts[9]]                     // #9 - Serum Bids
+				_ = accountList[accounts[10]]                    // #10 - Serum Asks
+				_ = accountList[accounts[11]]                    // #11 - Serum Event Queue
+				_ = accountList[accounts[12]]                    // #12 - Serum Coin Vault Account
+				_ = accountList[accounts[13]]                    // #13 - Serum Pc Vault Account
+				_ = accountList[accounts[14]]                    // #14 - Serum Vault Signer
+
+				userOwner := accountList[accounts[17]] // #18 - User Owner
+				// Extract mint address for tracking
+				marketState := b.marketStates[serumMarket]
+				if marketState == nil {
+					return nil
+				}
+				logger.Infof("serumMarket: %s", serumMarket)
+				mintAddress = marketState.BaseMint.String()
+				// For debugging
+				solChange := GetSwapBalances(txn, poolCoinTokenAccount, poolPcTokenAccount, accountList)
+
+				if solChange != nil {
+					_currentPrice := solChange.SolChangeAmount / solChange.TokenChangeAmount
+					logger.Infof("Raydium V4  solChange %.8f, tokenChange %.8f ,currentPrice %.8f ,(decimals=%d)", solChange.SolChangeAmount, solChange.TokenChangeAmount, _currentPrice, solChange.Decimals)
+					// Format the token amount with proper decimals
+					isBuy := true
+					if solChange.SolChangeAmount < 0 {
+						isBuy = false
+					}
+
+					// Create AmmTradeEventInfo for the detected trade
+					tradeInfo = &global.AmmRaydiumV4TradeInfo{
+						MintAddress:  solana.MustPublicKeyFromBase58(mintAddress),
+						AmmPool:      solana.MustPublicKeyFromBase58(ammId),
+						OpenOrders:   solana.MustPublicKeyFromBase58(openOrders),
+						TargetOrders: solana.MustPublicKeyFromBase58(targetOrders),
+						BaseVault:    solana.MustPublicKeyFromBase58(poolCoinTokenAccount),
+						QuoteVault:   solana.MustPublicKeyFromBase58(poolPcTokenAccount),
+
+						Version:      4,
+						UserAddress:  solana.MustPublicKeyFromBase58(userOwner),
+						SolAmount:    uint64(solChange.SolChangeAmount * 1e9),
+						TokenAmount:  uint64(solChange.TokenChangeAmount),
+						IsBuy:        isBuy,         // Use the IsSell field (inverted since IsBuy is the opposite of IsSell)
+						CurrentPrice: _currentPrice, // You may need to calculate this based on other data
+						TimeStamp:    time.Now().Unix(),
+						ReceivedAt:   time.Now(),
+						TxHash:       _signature,
+					}
+				}
+			}
 
 		default:
 			logger.Debug("未匹配判别器")
@@ -192,10 +291,9 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 	}
 
 	// 处理AMM交易信息
-	tradeInfo := b.parseAmmTransaction(logMessages, mintAddress)
 	botWallet := b.privateKey.PublicKey()
 	if tradeInfo != nil {
-		global.SetAmmTradeInfo(mintAddress, tradeInfo)
+		global.SetRaydiumV4TradeInfo(mintAddress, tradeInfo)
 		logger.Debugf("AMM交易信息: 用户=%s, SOL=%d, 代币=%d, 是否买入=%v, 价格=%.8f",
 			tradeInfo.UserAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.IsBuy, tradeInfo.CurrentPrice)
 

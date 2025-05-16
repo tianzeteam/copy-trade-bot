@@ -235,7 +235,14 @@ func main() {
 			}
 
 			if slices.Contains(accountsAddress, core.RAYDIUM_V4_PROGRAM_ID.String()) {
-				go tradeBot.RaydiumV4Parse(out, client, ctx)
+				raydiumV4TradeInfo := tradeBot.RaydiumV4Parse(out, client, ctx)
+
+				// 处理钱包监控AMM交易
+				if raydiumV4TradeInfo != nil && transactionMonitor != nil {
+					transactionMonitor.ProcessRaydiumV4Transaction(raydiumV4TradeInfo)
+					walletMonitor.CheckExitConditions("raydiumV4", raydiumV4TradeInfo.MintAddress.String(), raydiumV4TradeInfo.CurrentPrice)
+					continue
+				}
 
 			}
 
@@ -322,7 +329,7 @@ func main() {
 				assetInfo, exist := global.GetPendingHoldAsset(_mint.String())
 				lastestAmmTradeInfo := global.GetAmmTradeInfo(_mint.String())
 				lastestPumpTradeInfo := global.GetTradeInfo(_mint.String())
-				lastestRaydiumV4TradeInfo := global.GetTradeInfo(_mint.String())
+				lastestRaydiumV4TradeInfo := global.GetAmmRaydiuV4TradeInfo(_mint.String())
 
 				if assetInfo != nil {
 					logger.Infof("Asset info for %s: Amount=%d, EntryPrice=%.8f", _mint.String(), assetInfo.Amount, assetInfo.EntryPrice)

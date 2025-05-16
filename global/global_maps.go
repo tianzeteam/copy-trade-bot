@@ -66,6 +66,29 @@ type AmmTradeEventInfo struct {
 	CoinCreator  solana.PublicKey
 }
 
+// Raydium V4 存储AMM交易事件信息
+type AmmRaydiumV4TradeInfo struct {
+	UserAddress  solana.PublicKey // 用户地址
+	SolAmount    uint64           // Sol数量
+	TokenAmount  uint64           // Token数量
+	IsBuy        bool             // 是否买入
+	MintAddress  solana.PublicKey // Mint地址
+	AmmPool      solana.PublicKey // AMM池地址
+	TimeStamp    int64            // 时间戳
+	OpenOrders   solana.PublicKey
+	TargetOrders solana.PublicKey
+	BaseVault    solana.PublicKey
+	QuoteVault   solana.PublicKey
+
+	Version      uint32
+	CurrentPrice float64   // 当前价格
+	TradeTime    string    // 交易时间
+	ReceivedAt   time.Time // 接收时间
+	TxHash       string    // 交易哈希
+	Slot         uint64    // 区块槽位
+
+}
+
 // AmmPoolInfo 存储AMM池信息
 type AmmPoolInfo struct {
 	AmmPool               solana.PublicKey // AMM池地址
@@ -102,6 +125,10 @@ var (
 	// AmmPoolInfoMap 全局AMM池信息映射表，键为Mint地址
 	AmmPoolInfoMap     = make(map[string]*AmmPoolInfo)
 	AmmPoolInfoMapLock = &sync.RWMutex{} // 用于保护映射表的读写锁
+
+	// AmmRaydiumV4 全局AMM交易信息映射表，键为Mint地址
+	AmmRaydiumV4TradeMap     = make(map[string]*AmmRaydiumV4TradeInfo)
+	AmmRaydiumV4TradeMapLock = &sync.RWMutex{} // 用于保护映射表的读写锁
 
 	// TokenSellLimiters 代币卖出限制器映射表，键为Mint地址
 	TokenSellLimiters     = make(map[string]*TokenSellLimiter)
@@ -196,6 +223,20 @@ func SetAmmPoolInfo(mintAddress string, info *AmmPoolInfo) {
 	AmmPoolInfoMapLock.Lock()
 	defer AmmPoolInfoMapLock.Unlock()
 	AmmPoolInfoMap[mintAddress] = info
+}
+
+// SetRaydiumV4TradeInfo 设置指定代币的AMM交易信息
+func SetRaydiumV4TradeInfo(mintAddress string, info *AmmRaydiumV4TradeInfo) {
+	AmmRaydiumV4TradeMapLock.Lock()
+	defer AmmRaydiumV4TradeMapLock.Unlock()
+	AmmRaydiumV4TradeMap[mintAddress] = info
+}
+
+// GetAmmRaydiuV4TradeInfo 获取指定代币的AMM交易信息
+func GetAmmRaydiuV4TradeInfo(mintAddress string) *AmmRaydiumV4TradeInfo {
+	AmmRaydiumV4TradeMapLock.Lock()
+	defer AmmRaydiumV4TradeMapLock.Unlock()
+	return AmmRaydiumV4TradeMap[mintAddress]
 }
 
 // CanSellToken 检查是否可以卖出代币（5秒内同一个币最多卖出一次）
