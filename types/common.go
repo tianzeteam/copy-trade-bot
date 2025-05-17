@@ -1,6 +1,7 @@
 package types
 
 import (
+	"copytrade/calculator"
 	"github.com/gagliardetto/solana-go"
 )
 
@@ -46,6 +47,8 @@ type TradeAccounts struct {
 	AssociatedTokenAccount    solana.PublicKey
 	CreatorVault              solana.PublicKey
 	CoinCreatorVaultAuthority solana.PublicKey
+
+	RaydiumV4Accounts *calculator.RaydiumV4Accounts
 }
 
 // FeeConfig 定义费用相关配置

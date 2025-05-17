@@ -59,7 +59,7 @@ func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo
 }
 
 // ProcessAmmTransaction 处理AMM交易事件
-func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *global.AmmRaydiumV4TradeInfo) {
+func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *global.AmmRaydiumV4TradeInfo, marketLayout *global.MarketState) {
 	// 只处理买入交易
 	if !tradeInfo.IsBuy {
 		return
@@ -79,7 +79,8 @@ func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *global.AmmRa
 		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount)
 
 	// 执行跟单交易
-	m.executeRaydiumV4CopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount)
+
+	m.executeRaydiumV4CopyTrade(tradeInfo, marketLayout, copyAddress, tradeInfo.TokenAmount)
 }
 
 // ProcessAmmTransaction 处理AMM交易事件
@@ -242,7 +243,7 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress.String(), originalWallet, tradeInfo.CurrentPrice, originalAmount)
 	//
 	pumpAccounts, err := m.TradeBot.Trader.AccountsCalc.CalculateAmmAccounts(
-		context.Background(),
+
 		tradeInfo.AmmPool,
 		tradeInfo.MintAddress,
 		m.BotWallet,
@@ -318,7 +319,7 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 }
 
 // executeRaydiumV4CopyTrade
-func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *global.AmmRaydiumV4TradeInfo, originalWallet solana.PublicKey, originalAmount uint64) {
+func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *global.AmmRaydiumV4TradeInfo, marketLayout *global.MarketState, originalWallet solana.PublicKey, originalAmount uint64) {
 	// 检查是否已经交易过该代币
 	m.WalletMonitor.Mux.RLock()
 	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress.String()]; exists {
@@ -329,17 +330,16 @@ func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *global.AmmRayd
 	m.WalletMonitor.Mux.RUnlock()
 
 	// 发送买入请求
-	logger.Infof("执行AMM跟单买入: 代币=%s, 金额=%f SOL", tradeInfo.MintAddress, m.BuySolAmount)
+	logger.Infof("执行RAYDIUM POOL V4 跟单买入: 代币=%s, 金额=%f SOL", tradeInfo.MintAddress, m.BuySolAmount)
 
 	// 先记录原始交易者的交易
 	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress.String(), originalWallet, tradeInfo.CurrentPrice, originalAmount)
 	//
-	pumpAccounts, err := m.TradeBot.Trader.AccountsCalc.CalculateAmmAccounts(
-		context.Background(),
-		tradeInfo.AmmPool,
-		tradeInfo.MintAddress,
+	raydiumV4Accounts, err := m.TradeBot.Trader.AccountsCalc.CalculateV4Accounts(
 		m.BotWallet,
-		solana.SolMint,
+		tradeInfo,
+
+		marketLayout,
 	)
 	if err != nil {
 		logger.Errorf("Failed to calculate accounts: %v", err)
@@ -347,7 +347,7 @@ func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *global.AmmRayd
 	}
 
 	// Calculate buy amounts
-	amounts, err := m.TradeBot.Trader.AmountsCalc.CalculateAmmBuyAmounts(
+	amounts, err := m.TradeBot.Trader.AmountsCalc.CalculateRaydiumV4BuyAmounts(
 		m.BuySolAmount,
 		0,
 		0,
@@ -361,15 +361,11 @@ func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *global.AmmRayd
 
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
-			User:                      m.BotWallet,
-			Mint:                      pumpAccounts.Mint,
-			BaseMint:                  pumpAccounts.Mint,
-			QuoteMint:                 pumpAccounts.QuoteMint,
-			UserBaseTokenAccount:      pumpAccounts.UserBaseTokenAccount,
-			PoolBaseTokenAccount:      pumpAccounts.PoolBaseTokenAccount,
-			PoolQuoteTokenAccount:     pumpAccounts.PoolQuoteTokenAccount,
-			CreatorVault:              pumpAccounts.CoinCreatorVaultAta,
-			CoinCreatorVaultAuthority: pumpAccounts.CoinCreatorVaultAuthority,
+			User:              m.BotWallet,
+			Mint:              raydiumV4Accounts.BaseMint,
+			BaseMint:          raydiumV4Accounts.BaseMint,
+			QuoteMint:         raydiumV4Accounts.QuoteMint,
+			RaydiumV4Accounts: raydiumV4Accounts,
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MinOut,

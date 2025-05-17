@@ -3,6 +3,7 @@ package bot
 import (
 	"context"
 	"copytrade/core"
+	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/raydium/layouts"
 	"copytrade/yellowstone_geyser"
@@ -89,7 +90,7 @@ func (b *Bot) processOpenBookMarketUpdates(marketStreamClient *yellowstone_geyse
 
 // handleOpenBookMarketUpdate processes a single OpenBook market account update
 func (b *Bot) handleOpenBookMarketUpdate(accountUpdate *yellowstone_geyser_pb.SubscribeUpdateAccount) {
-	// Get the account pubkey
+
 	pubkey := base58.Encode(accountUpdate.Account.Pubkey)
 	marketID, err := solana.PublicKeyFromBase58(pubkey)
 	if err != nil {
@@ -97,33 +98,39 @@ func (b *Bot) handleOpenBookMarketUpdate(accountUpdate *yellowstone_geyser_pb.Su
 		return
 	}
 
-	// Decode the market state
 	var marketLayout layouts.MarketStateLayoutV3
 	if err := marketLayout.Decode(accountUpdate.Account.Data); err != nil {
 		logger.Warnf("Failed to decode OpenBook market data for account %s: %v", pubkey, err)
 		return
 	}
 
-	// Extract market information
 	baseMint := marketLayout.BaseMint.String()
 	quoteMint := marketLayout.QuoteMint.String()
 	baseVault := marketLayout.BaseVault.String()
 	quoteVault := marketLayout.QuoteVault.String()
+	ownAddress := marketLayout.OwnAddress.String()
+	baseDepositsTotal := marketLayout.BaseDepositsTotal
+	quoteDepositsTotal := marketLayout.QuoteDepositsTotal
 
-	//lpMint := marketLayout.LpMint.String()
-	//lpVault := marketLayout.LpVault.String()
+	logger.Infof("OpenBook market reserves: baseDepositsTotal=%d, quoteDepositsTotal=%d",
+		baseDepositsTotal, quoteDepositsTotal)
+
+	currentPrice := (float64(quoteDepositsTotal) / 1e9) / (float64(baseDepositsTotal) / 1e6)
+	logger.Infof("Calculated current price: %f", currentPrice)
 
 	// Create a new MarketState object
-	marketState := NewMarketStateFromLayout(marketID, marketLayout)
+	marketState := global.NewMarketStateFromLayout(marketID, marketLayout)
 
-	// Store the market state in memory with baseMint as key
-	b.marketStatesLock.Lock()
-	b.marketStates[marketID.String()] = marketState
-	b.marketStatesLock.Unlock()
+	// 2. Store in global map for access from other components
+	global.SetOpenBookMarketState(marketID.String(), marketState)
+
+	// 3. Also store by baseMint for easier lookup by token
+	global.SetOpenBookMarketState(baseMint, marketState)
 
 	//Emit market update event
-	logger.Infof("OpenBook market update: Market=%s, BaseMint=%s, QuoteMint=%s,baseVault=%s,quoteVault=%s",
-		pubkey, baseMint, quoteMint, baseVault, quoteVault)
+
+	logger.Infof("OpenBook market update: Market=%s, OwnAddress=%s,BaseMint=%s, QuoteMint=%s, baseVault=%s, quoteVault=%s",
+		pubkey, ownAddress, baseMint, quoteMint, baseVault, quoteVault)
 
 }
 

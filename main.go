@@ -239,7 +239,13 @@ func main() {
 
 				// 处理钱包监控AMM交易
 				if raydiumV4TradeInfo != nil && transactionMonitor != nil {
-					transactionMonitor.ProcessRaydiumV4Transaction(raydiumV4TradeInfo)
+					marketId := raydiumV4TradeInfo.MarketId
+					marketLayout := global.GetOpenBookMarketState(marketId.String())
+					if marketLayout == nil {
+						logger.Warnf(" marketLayout dont exist %s", marketId.String())
+						return
+					}
+					transactionMonitor.ProcessRaydiumV4Transaction(raydiumV4TradeInfo, marketLayout)
 					walletMonitor.CheckExitConditions("raydiumV4", raydiumV4TradeInfo.MintAddress.String(), raydiumV4TradeInfo.CurrentPrice)
 					continue
 				}
@@ -249,8 +255,10 @@ func main() {
 		}
 	}()
 	// -----------------------------------------订阅market data ----------------------------------
-	tradeBot.SubscribeToOpenBookMarkets(ctx, client, solana.WrappedSol)
+	tradeBot.SubscribeToOpenBookMarkets(ctx, client, solana.SolMint)
+	// -------------------------------------------订阅pool v4 data--------------------------
 
+	tradeBot.SubscribeToRaydiumPools(ctx, client, solana.SolMint)
 	//-----------------------------  监听交易钱包账户变化 --------------------------------------------
 	if err = client.AddStreamClient(ctx, "accounts_stream", yellowstone_geyser_pb.CommitmentLevel_CONFIRMED); err != nil {
 		logger.Fatalf("添加账户流客户端失败: %v", err)

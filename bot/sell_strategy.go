@@ -369,7 +369,7 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 		poolInfo.PoolBaseTokenAccount.String(), poolInfo.PoolQuoteTokenAccount.String())
 
 	pumpAccounts, err := b.Trader.AccountsCalc.CalculateAmmAccounts(
-		context.Background(),
+
 		poolInfo.AmmPool,
 		poolInfo.BaseMint,
 		b.privateKey.PublicKey(),

@@ -2,6 +2,7 @@ package global
 
 import (
 	"copytrade/logger"
+	"copytrade/raydium/layouts"
 	"sync"
 	"time"
 
@@ -79,6 +80,7 @@ type AmmRaydiumV4TradeInfo struct {
 	TargetOrders solana.PublicKey
 	BaseVault    solana.PublicKey
 	QuoteVault   solana.PublicKey
+	MarketId     solana.PublicKey
 
 	Version      uint32
 	CurrentPrice float64   // 当前价格
@@ -97,6 +99,55 @@ type AmmPoolInfo struct {
 	PoolBaseTokenAccount  solana.PublicKey // 池中基础代币账户
 	PoolQuoteTokenAccount solana.PublicKey // 池中报价代币账户
 	LastUpdated           time.Time        // 最后更新时间
+}
+
+// MarketState represents an OpenBook market state with additional metadata
+type MarketState struct {
+	// Market account public key
+	MarketID solana.PublicKey
+	// Market state data
+	Layout layouts.MarketStateLayoutV3
+	// Base token mint address
+	BaseMint solana.PublicKey
+	// Quote token mint address
+	QuoteMint solana.PublicKey
+	// Base token decimal places
+	BaseDecimal uint8
+	// Quote token decimal places
+	QuoteDecimal uint8
+	// Base vault address
+	BaseVault solana.PublicKey
+	// Quote vault address
+	QuoteVault solana.PublicKey
+	// Bids account address
+	Bids solana.PublicKey
+	// Asks account address
+	Asks solana.PublicKey
+	// Base lot size
+	BaseLotSize uint64
+	// Quote lot size
+	QuoteLotSize uint64
+	// Fee rate in basis points
+	FeeRateBps uint64
+}
+
+// NewMarketStateFromLayout creates a new MarketState from a MarketStateLayoutV3
+func NewMarketStateFromLayout(marketID solana.PublicKey, layout layouts.MarketStateLayoutV3) *MarketState {
+	return &MarketState{
+		MarketID:     marketID,
+		Layout:       layout,
+		BaseMint:     layout.BaseMint,
+		QuoteMint:    layout.QuoteMint,
+		BaseDecimal:   6, // Default to 6 decimals for base token, update if needed
+		QuoteDecimal:  9, // Default to 9 decimals for quote token (SOL), update if needed
+		BaseVault:    layout.BaseVault,
+		QuoteVault:   layout.QuoteVault,
+		Bids:         layout.Bids,
+		Asks:         layout.Asks,
+		BaseLotSize:  layout.BaseLotSize,
+		QuoteLotSize: layout.QuoteLotSize,
+		FeeRateBps:   layout.FeeRateBps,
+	}
 }
 
 // TokenSellLimiter 代币卖出限制器，用于防止短时间内重复卖出同一个代币
@@ -133,6 +184,10 @@ var (
 	// TokenSellLimiters 代币卖出限制器映射表，键为Mint地址
 	TokenSellLimiters     = make(map[string]*TokenSellLimiter)
 	TokenSellLimitersLock = &sync.RWMutex{} // 用于保护映射表的读写锁
+
+	// OpenBookMarketStates 存储OpenBook市场状态信息，键为市场ID
+	OpenBookMarketStates     = make(map[string]*MarketState)
+	OpenBookMarketStatesLock = &sync.RWMutex{} // 用于保护映射表的读写锁
 
 	// 代币卖出时间间隔限制，默认5秒
 	SellIntervalLimit = 5 * time.Second
@@ -266,6 +321,21 @@ func UpdateTokenSellTime(mintAddress string) {
 		LastSellTime: time.Now(),
 	}
 	logger.Infof("更新代币 %s 卖出时间限制，下次可卖出时间: %v", mintAddress, time.Now().Add(SellIntervalLimit).Format("15:04:05.000"))
+}
+
+// GetOpenBookMarketState 获取指定市场ID的OpenBook市场状态
+func GetOpenBookMarketState(marketID string) *MarketState {
+	OpenBookMarketStatesLock.RLock()
+	defer OpenBookMarketStatesLock.RUnlock()
+	return OpenBookMarketStates[marketID]
+}
+
+// SetOpenBookMarketState 设置指定市场ID的OpenBook市场状态
+func SetOpenBookMarketState(marketID string, state *MarketState) {
+	OpenBookMarketStatesLock.Lock()
+	defer OpenBookMarketStatesLock.Unlock()
+	OpenBookMarketStates[marketID] = state
+	logger.Infof("更新OpenBook市场状态: Market=%s", marketID)
 }
 
 // CreateTokenAssetFromAccount 从代币账户数据创建资产条目

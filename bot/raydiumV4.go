@@ -138,6 +138,7 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 					TargetOrders: solana.MustPublicKeyFromBase58(targetOrders),
 					BaseVault:    solana.MustPublicKeyFromBase58(poolCoinTokenAccount),
 					QuoteVault:   solana.MustPublicKeyFromBase58(poolPcTokenAccount),
+					MarketId:     solana.MustPublicKeyFromBase58(serumMarket),
 
 					Version:      4,
 					UserAddress:  solana.MustPublicKeyFromBase58(userOwner),
@@ -204,9 +205,9 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 						AmmPool:     solana.MustPublicKeyFromBase58(ammId),
 						OpenOrders:  solana.MustPublicKeyFromBase58(openOrders),
 
-						BaseVault:  solana.MustPublicKeyFromBase58(poolCoinTokenAccount),
-						QuoteVault: solana.MustPublicKeyFromBase58(poolPcTokenAccount),
-
+						BaseVault:   solana.MustPublicKeyFromBase58(poolCoinTokenAccount),
+						QuoteVault:  solana.MustPublicKeyFromBase58(poolPcTokenAccount),
+						MarketId:    solana.MustPublicKeyFromBase58(serumMarket),
 						Version:     3,
 						UserAddress: solana.MustPublicKeyFromBase58(userOwner),
 
@@ -267,7 +268,7 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 						TargetOrders: solana.MustPublicKeyFromBase58(targetOrders),
 						BaseVault:    solana.MustPublicKeyFromBase58(poolCoinTokenAccount),
 						QuoteVault:   solana.MustPublicKeyFromBase58(poolPcTokenAccount),
-
+						MarketId:     solana.MustPublicKeyFromBase58(serumMarket),
 						Version:      4,
 						UserAddress:  solana.MustPublicKeyFromBase58(userOwner),
 						SolAmount:    uint64(solChange.SolChangeAmount * 1e9),
