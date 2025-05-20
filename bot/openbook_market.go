@@ -109,14 +109,6 @@ func (b *Bot) handleOpenBookMarketUpdate(accountUpdate *yellowstone_geyser_pb.Su
 	baseVault := marketLayout.BaseVault.String()
 	quoteVault := marketLayout.QuoteVault.String()
 	ownAddress := marketLayout.OwnAddress.String()
-	baseDepositsTotal := marketLayout.BaseDepositsTotal
-	quoteDepositsTotal := marketLayout.QuoteDepositsTotal
-
-	logger.Infof("OpenBook market reserves: baseDepositsTotal=%d, quoteDepositsTotal=%d",
-		baseDepositsTotal, quoteDepositsTotal)
-
-	currentPrice := (float64(quoteDepositsTotal) / 1e9) / (float64(baseDepositsTotal) / 1e6)
-	logger.Infof("Calculated current price: %f", currentPrice)
 
 	// Create a new MarketState object
 	marketState := global.NewMarketStateFromLayout(marketID, marketLayout)
@@ -129,7 +121,7 @@ func (b *Bot) handleOpenBookMarketUpdate(accountUpdate *yellowstone_geyser_pb.Su
 
 	//Emit market update event
 
-	logger.Infof("OpenBook market update: Market=%s, OwnAddress=%s,BaseMint=%s, QuoteMint=%s, baseVault=%s, quoteVault=%s",
+	logger.Debugf("OpenBook market update: Market=%s, OwnAddress=%s,BaseMint=%s, QuoteMint=%s, baseVault=%s, quoteVault=%s",
 		pubkey, ownAddress, baseMint, quoteMint, baseVault, quoteVault)
 
 }

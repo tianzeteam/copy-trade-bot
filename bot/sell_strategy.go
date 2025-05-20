@@ -238,7 +238,7 @@ func (b *Bot) ExecuteSellStrategy(tokenInfo queue.TokenInfo, vTokenReserves, vSo
 	}
 }
 
-// executeSellOrder 处理实际的卖出逻辑
+// executeSellOrder 处理实际的pump 内盘卖出逻辑
 func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolReserves uint64) {
 	// 实际的卖出逻辑
 	logger.Infof("执行卖出订单: 代币=%s, 数量=%d", tokenInfo.Mint.String(), tokenInfo.Amount)
@@ -348,12 +348,10 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 	// 尝试获取交易池信息
 	tradeInfo := global.GetAmmTradeInfo(mintAddress)
 
-	createInfo := global.GetCreateInfo(mintAddress)
-
 	// 获取AMM池信息
 	poolInfo := global.GetAmmPoolInfo(mintAddress)
 
-	if tradeInfo == nil || createInfo == nil {
+	if tradeInfo == nil {
 		logger.Errorf("未找到代币 %s 的交易信息或创建信息，无法执行卖出操作", mintAddress)
 		return
 	}
@@ -373,7 +371,7 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 		poolInfo.AmmPool,
 		poolInfo.BaseMint,
 		b.privateKey.PublicKey(),
-		createInfo.Creator,
+		tradeInfo.CoinCreator,
 	)
 	if err != nil {
 		logger.Errorf("Failed to calculate accounts: %v", err)
@@ -452,4 +450,104 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 	// 调用通用的卖出方法
 	b.Trader.AmmSell(context.Background(), orderParams, b.balanceNeeded)
 
+}
+
+// executeSellOrder 处理实际的Raydium v4 内盘卖出逻辑
+func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
+	// 实际的卖出逻辑
+	logger.Infof("执行卖出订单: 代币=%s, 数量=%d", tokenInfo.Mint.String(), tokenInfo.Amount)
+
+	// 从全局缓存中获取Raydium V4交易信息
+	tradeInfo := global.GetAmmRaydiuV4TradeInfo(tokenInfo.Mint.String())
+	if tradeInfo == nil {
+		logger.Errorf("找不到代币 %s 的Raydium V4交易信息", tokenInfo.Mint.String())
+		return
+	}
+
+	// 从全局缓存中获取市场状态
+	marketState := global.GetOpenBookMarketState(tradeInfo.MarketId.String())
+	if marketState == nil {
+		logger.Errorf("找不到市场 %s 的状态信息", tradeInfo.MarketId.String())
+		return
+	}
+
+	// 从全局缓存中获取池状态
+	poolLayout := global.GetRaydiumPoolLayout(tradeInfo.AmmPool.String())
+	if poolLayout == nil {
+		logger.Errorf("找不到池 %s 的状态信息", tradeInfo.AmmPool.String())
+		return
+	}
+
+	// 计算账户信息
+	raydiumV4Accounts, err := b.Trader.AccountsCalc.CalculateV4Accounts(
+		tokenInfo.Owner,
+		tradeInfo,
+		marketState,
+		poolLayout,
+	)
+	if err != nil {
+		logger.Errorf("计算卖出金额失败: %v", err)
+		return
+	}
+
+	// 计算卖出金额
+	amounts, err := b.Trader.AmountsCalc.CalculateRaydiumV4SellAmounts(
+
+		float64(tokenInfo.Amount),
+		tradeInfo.CurrentPrice,
+		poolLayout.BaseDecimal,
+		b.Config.SellSlippage,
+	)
+	if err != nil {
+		logger.Errorf("计算卖出金额失败: %v", err)
+		return
+	}
+	//构建交易基础参数
+	tradeParams := types.TradeParams{
+		Accounts: types.TradeAccounts{
+			User:              b.privateKey.PublicKey(),
+			Mint:              raydiumV4Accounts.BaseMint,
+			BaseMint:          raydiumV4Accounts.BaseMint,
+			QuoteMint:         raydiumV4Accounts.QuoteMint,
+			RaydiumV4Accounts: raydiumV4Accounts,
+		},
+		Amount:    amounts.TokenAmount,
+		Cost:      amounts.MinOut,
+		Blockhash: *b.Blockhash,
+		FeeConfig: types.FeeConfig{
+			Slippage:    b.Config.BuySlippage,
+			PriorityFee: uint64(b.Config.BuyPriorityFee * 1e9),
+		},
+	}
+
+	// 构建完整的订单参数
+	orderParams := types.OrderParams{
+		TradeParams: tradeParams,
+		NextBlockParams: &types.NextBlockParams{
+			Enable:    b.Config.NextBlock.Enable,
+			BundleUrl: b.Config.NextBlock.RpcUrl,
+			ApiKey:    b.Config.NextBlock.ApiKeys[0],
+			TipAmount: uint64(b.Config.NextBlock.SellTip * 1e9),
+		},
+		JitoParams: &types.JitoParams{
+			Enable:    b.Config.Jito.Enable,
+			BundleUrl: b.Config.Jito.RpcUrl,
+			TipAmount: uint64(b.Config.Jito.SellTip * 1e9),
+		},
+		TemporalParams: &types.TemporalParams{
+			Enable:    b.Config.Temporal.Enable,
+			BundleUrl: b.Config.Temporal.RpcUrl,
+			ApiKey:    b.Config.Temporal.ApiKeys[0],
+			TipAmount: uint64(b.Config.Temporal.SellTip * 1e9),
+		},
+		BloXrouteParams: &types.BloXrouteParams{
+			Enable:    b.Config.BloXroute.Enable,
+			RpcUrl:    b.Config.BloXroute.RpcUrl,
+			ApiKeys:   b.Config.BloXroute.ApiKeys,
+			TipAmount: uint64(b.Config.BloXroute.SellTip * 1e9),
+		},
+	}
+
+	// 调用交易接口执行卖出
+	b.Trader.RaydiumV4Sell(context.Background(), orderParams)
 }

@@ -7,6 +7,7 @@ import (
 	"copytrade/logger"
 	"copytrade/pump"
 	"copytrade/pumpamm"
+	"copytrade/raydium"
 	"copytrade/swqos"
 	"copytrade/types"
 	"copytrade/utils"
@@ -314,6 +315,400 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		SetMaxQuoteAmountIn(params.TradeParams.Cost)
 
 	instructions = append(instructions, buyInstruction.Build())
+
+	// 创建通道
+	resultChan := make(chan string, 4)
+	errChan := make(chan error, 4)
+	timeout := time.After(30 * time.Second)
+
+	if params.BloXrouteParams != nil && params.BloXrouteParams.Enable {
+		logger.Infof("[BloXroute] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionBloXroute(
+				t.Wallet.PrivateKey,
+				instructions,
+				*params.BloXrouteParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("BloXroute发送失败: %s", err)
+				errChan <- fmt.Errorf("BloXroute发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	// 检查各个模式是否启用并准备发送
+	if params.NextBlockParams != nil && params.NextBlockParams.Enable {
+		logger.Infof("[NextBlock] 准备发送交易...")
+		go func() {
+			// 构建交易并发送到 NextBlock
+			sig, err := swqos.SendTransactionNextBlock(
+				t.Wallet,
+				instructions,
+				params.NextBlockParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("NextBlock发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.JitoParams != nil && params.JitoParams.Enable {
+		logger.Infof("[Jito] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionJito(
+				t.Wallet,
+				instructions,
+				params.JitoParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("jito发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.TemporalParams != nil && params.TemporalParams.Enable {
+		logger.Infof("[Temporal] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionTemporal(
+				t.Wallet,
+				instructions,
+				params.TemporalParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("temporal发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	if t.Config.Normal.Enable {
+		logger.Infof("[Normal] 准备发送交易...")
+		go func() {
+			// 构建交易
+			tx, err := solana.NewTransaction(
+				instructions,
+				params.TradeParams.Blockhash,
+				solana.TransactionPayer(t.Wallet.PublicKey()),
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("创建交易失败: %w", err)
+				return
+			}
+
+			// 签名交易
+			_, err = tx.Sign(
+				func(key solana.PublicKey) *solana.PrivateKey {
+					if key.Equals(t.Wallet.PublicKey()) {
+						return &t.Wallet.PrivateKey
+					}
+					return nil
+				},
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("签名交易失败: %w", err)
+				return
+			}
+
+			// 发送交易
+			sig, err := t.Client.SendTransaction(ctx, tx)
+			if err != nil {
+				errChan <- fmt.Errorf("发送交易失败: %w", err)
+				return
+			}
+
+			resultChan <- sig.String()
+		}()
+	}
+
+	// 等待结果
+	select {
+	case sig := <-resultChan:
+		logger.Infof("买入交易已发送! 交易ID: %s", sig)
+		return sig, nil
+	case err := <-errChan:
+		logger.Errorf("买入交易已发送失败!: %v", err)
+		return "", err
+	case <-timeout:
+		return "", fmt.Errorf("transaction timeout")
+	}
+}
+
+// raydium pool v4 Buy 执行买入交易
+func (t *TraderImpl) RaydiumV4Buy(ctx context.Context, params types.OrderParams) (string, error) {
+
+	if t.Config.SimulateMode {
+		logger.Infof("模拟模式，不执行买入交易 %s", params.TradeParams.Accounts.Mint)
+		return "mock", fmt.Errorf("模拟模式，不执行买入交易")
+	}
+	logger.Infof("开始执行买入交易...")
+	logger.Infof("Mint地址: %s", params.TradeParams.Accounts.Mint)
+	logger.Infof("购买数量: %d", params.TradeParams.Amount)
+	logger.Infof("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
+
+	// 构建交易指令
+	instructions := []solana.Instruction{}
+
+	// 添加计算单元限制指令（通常设置为 200,000 units）
+	instructions = append(instructions, createSetComputeUnitLimitInstruction(200_000))
+
+	// 添加优先级费用指令
+	instructions = append(instructions, createSetComputeUnitPriceInstruction(params.TradeParams.FeeConfig.PriorityFee))
+
+	if t.Config.SkipATACheck {
+		// 快速模式：直接添加创建ATA指令
+		logger.Infof("快速模式：跳过ATA检查，直接创建ATA账户")
+		createATAIx := associatedtokenaccount.NewCreateInstruction(
+			params.TradeParams.Accounts.User, // payer
+			params.TradeParams.Accounts.User, // owner
+			params.TradeParams.Accounts.Mint, // mint
+		).Build()
+		instructions = append(instructions, createATAIx)
+	} else {
+		// 安全模式：先检查再创建
+		account, err := t.Client.GetAccountInfo(ctx, params.TradeParams.Accounts.AssociatedTokenAccount)
+		if err != nil || account.Value == nil {
+			logger.Infof("ATA账户不存在，创建新账户...")
+			createATAIx := associatedtokenaccount.NewCreateInstruction(
+				params.TradeParams.Accounts.User, // payer
+				params.TradeParams.Accounts.User, // owner
+				params.TradeParams.Accounts.Mint, // mint
+			).Build()
+			instructions = append(instructions, createATAIx)
+		}
+	}
+
+	// 构建Buy指令
+	// 使用pumpamm包的正确API
+	buyInstruction := raydium.NewSwapInstructionBuilder().
+		SetProgramAccount(RAYDIUM_V4_PROGRAM_ID).
+		SetTokenProgramAccount(solana.TokenProgramID).
+		SetPoolAccount(params.TradeParams.Accounts.RaydiumV4Accounts.Pool).
+		SetAuthorityAccount(params.TradeParams.Accounts.RaydiumV4Accounts.Authority).
+		SetOpenOrders(params.TradeParams.Accounts.RaydiumV4Accounts.OpenOrders).
+		SetTargetOrders(params.TradeParams.Accounts.RaydiumV4Accounts.TargetOrders).
+		SetBaseVault(params.TradeParams.Accounts.RaydiumV4Accounts.BaseVault).
+		SetQuoteVault(params.TradeParams.Accounts.RaydiumV4Accounts.QuoteVault).
+		SetMarketProgramId(params.TradeParams.Accounts.RaydiumV4Accounts.MarketProgramId).
+		SetMarketId(params.TradeParams.Accounts.RaydiumV4Accounts.MarketId).
+		SetMarketBids(params.TradeParams.Accounts.RaydiumV4Accounts.MarketAsks).
+		SetMarketAsks(params.TradeParams.Accounts.RaydiumV4Accounts.MarketAsks).
+		SetMarketEventQueue(params.TradeParams.Accounts.RaydiumV4Accounts.MarketEventQueue).
+		SetMarketBaseVault(params.TradeParams.Accounts.RaydiumV4Accounts.MarketBaseVault).
+		SetMarketQuoteVault(params.TradeParams.Accounts.RaydiumV4Accounts.MarketQuoteVault).
+		SetMarketAuthority(params.TradeParams.Accounts.RaydiumV4Accounts.MarketAuthority).
+		SetUserBaseTokenAccountAccount(params.TradeParams.Accounts.UserBaseTokenAccount).
+		SetUserQuoteTokenAccountAccount(params.TradeParams.Accounts.RaydiumV4Accounts.UserQuoteTokenAccount).
+		SetUserAccount(params.TradeParams.Accounts.User).
+		SetBaseAmountIn(params.TradeParams.Amount).
+		SetMinQuoteAmountOut(params.TradeParams.Cost)
+
+	instructions = append(instructions, buyInstruction.Build())
+
+	// 创建通道
+	resultChan := make(chan string, 4)
+	errChan := make(chan error, 4)
+	timeout := time.After(30 * time.Second)
+
+	if params.BloXrouteParams != nil && params.BloXrouteParams.Enable {
+		logger.Infof("[BloXroute] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionBloXroute(
+				t.Wallet.PrivateKey,
+				instructions,
+				*params.BloXrouteParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("BloXroute发送失败: %s", err)
+				errChan <- fmt.Errorf("BloXroute发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	// 检查各个模式是否启用并准备发送
+	if params.NextBlockParams != nil && params.NextBlockParams.Enable {
+		logger.Infof("[NextBlock] 准备发送交易...")
+		go func() {
+			// 构建交易并发送到 NextBlock
+			sig, err := swqos.SendTransactionNextBlock(
+				t.Wallet,
+				instructions,
+				params.NextBlockParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("NextBlock发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.JitoParams != nil && params.JitoParams.Enable {
+		logger.Infof("[Jito] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionJito(
+				t.Wallet,
+				instructions,
+				params.JitoParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("jito发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.TemporalParams != nil && params.TemporalParams.Enable {
+		logger.Infof("[Temporal] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionTemporal(
+				t.Wallet,
+				instructions,
+				params.TemporalParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("temporal发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	if t.Config.Normal.Enable {
+		logger.Infof("[Normal] 准备发送交易...")
+		go func() {
+			// 构建交易
+			tx, err := solana.NewTransaction(
+				instructions,
+				params.TradeParams.Blockhash,
+				solana.TransactionPayer(t.Wallet.PublicKey()),
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("创建交易失败: %w", err)
+				return
+			}
+
+			// 签名交易
+			_, err = tx.Sign(
+				func(key solana.PublicKey) *solana.PrivateKey {
+					if key.Equals(t.Wallet.PublicKey()) {
+						return &t.Wallet.PrivateKey
+					}
+					return nil
+				},
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("签名交易失败: %w", err)
+				return
+			}
+
+			// 发送交易
+			sig, err := t.Client.SendTransaction(ctx, tx)
+			if err != nil {
+				errChan <- fmt.Errorf("发送交易失败: %w", err)
+				return
+			}
+
+			resultChan <- sig.String()
+		}()
+	}
+
+	// 等待结果
+	select {
+	case sig := <-resultChan:
+		logger.Infof("买入交易已发送! 交易ID: %s", sig)
+		return sig, nil
+	case err := <-errChan:
+		logger.Errorf("买入交易已发送失败!: %v", err)
+		return "", err
+	case <-timeout:
+		return "", fmt.Errorf("transaction timeout")
+	}
+}
+
+// raydium pool v4 Sell 执行买入交易
+func (t *TraderImpl) RaydiumV4Sell(ctx context.Context, params types.OrderParams) (string, error) {
+
+	if t.Config.SimulateMode {
+		logger.Infof("模拟模式，不执行卖出交易 %s", params.TradeParams.Accounts.Mint)
+		return "mock", fmt.Errorf("模拟模式，不执行卖出交易")
+	}
+	logger.Infof("开始执行卖出交易...")
+	logger.Infof("Mint地址: %s", params.TradeParams.Accounts.Mint)
+	logger.Infof("卖出数量: %d", params.TradeParams.Amount)
+	logger.Infof("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
+
+	// 构建交易指令
+	instructions := []solana.Instruction{}
+
+	// 添加计算单元限制指令（通常设置为 200,000 units）
+	instructions = append(instructions, createSetComputeUnitLimitInstruction(200_000))
+
+	// 添加优先级费用指令
+	instructions = append(instructions, createSetComputeUnitPriceInstruction(params.TradeParams.FeeConfig.PriorityFee))
+
+	if t.Config.SkipATACheck {
+		// 快速模式：直接添加创建ATA指令
+		logger.Infof("快速模式：跳过ATA检查，直接创建ATA账户")
+		createATAIx := associatedtokenaccount.NewCreateInstruction(
+			params.TradeParams.Accounts.User, // payer
+			params.TradeParams.Accounts.User, // owner
+			params.TradeParams.Accounts.Mint, // mint
+		).Build()
+		instructions = append(instructions, createATAIx)
+	} else {
+		// 安全模式：先检查再创建
+		account, err := t.Client.GetAccountInfo(ctx, params.TradeParams.Accounts.AssociatedTokenAccount)
+		if err != nil || account.Value == nil {
+			logger.Infof("ATA账户不存在，创建新账户...")
+			createATAIx := associatedtokenaccount.NewCreateInstruction(
+				params.TradeParams.Accounts.User, // payer
+				params.TradeParams.Accounts.User, // owner
+				params.TradeParams.Accounts.Mint, // mint
+			).Build()
+			instructions = append(instructions, createATAIx)
+		}
+	}
+
+	// 构建sell指令
+	// 使用pumpamm包的正确API
+	sellInstruction := raydium.NewSwapInstructionBuilder().
+		SetProgramAccount(RAYDIUM_V4_PROGRAM_ID).
+		SetTokenProgramAccount(solana.TokenProgramID).
+		SetPoolAccount(params.TradeParams.Accounts.RaydiumV4Accounts.Pool).
+		SetAuthorityAccount(params.TradeParams.Accounts.RaydiumV4Accounts.Authority).
+		SetOpenOrders(params.TradeParams.Accounts.RaydiumV4Accounts.OpenOrders).
+		SetTargetOrders(params.TradeParams.Accounts.RaydiumV4Accounts.TargetOrders).
+		SetBaseVault(params.TradeParams.Accounts.RaydiumV4Accounts.BaseVault).
+		SetQuoteVault(params.TradeParams.Accounts.RaydiumV4Accounts.QuoteVault).
+		SetMarketProgramId(params.TradeParams.Accounts.RaydiumV4Accounts.MarketProgramId).
+		SetMarketId(params.TradeParams.Accounts.RaydiumV4Accounts.MarketId).
+		SetMarketBids(params.TradeParams.Accounts.RaydiumV4Accounts.MarketAsks).
+		SetMarketAsks(params.TradeParams.Accounts.RaydiumV4Accounts.MarketAsks).
+		SetMarketEventQueue(params.TradeParams.Accounts.RaydiumV4Accounts.MarketEventQueue).
+		SetMarketBaseVault(params.TradeParams.Accounts.RaydiumV4Accounts.MarketBaseVault).
+		SetMarketQuoteVault(params.TradeParams.Accounts.RaydiumV4Accounts.MarketQuoteVault).
+		SetMarketAuthority(params.TradeParams.Accounts.RaydiumV4Accounts.MarketAuthority).
+		SetUserBaseTokenAccountAccount(params.TradeParams.Accounts.RaydiumV4Accounts.UserQuoteTokenAccount).
+		SetUserQuoteTokenAccountAccount(params.TradeParams.Accounts.RaydiumV4Accounts.UserBaseTokenAccount).
+		SetUserAccount(params.TradeParams.Accounts.User).
+		SetBaseAmountIn(params.TradeParams.Amount).
+		SetMinQuoteAmountOut(params.TradeParams.Cost)
+
+	instructions = append(instructions, sellInstruction.Build())
 
 	// 创建通道
 	resultChan := make(chan string, 4)

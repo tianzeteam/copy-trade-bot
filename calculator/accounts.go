@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"copytrade/global"
+	"copytrade/raydium/layouts"
 	"copytrade/raydium/utils"
 
 	"github.com/gagliardetto/solana-go"
@@ -111,66 +112,90 @@ type AmmAccounts struct {
 	CoinCreatorVaultAta       solana.PublicKey // 代币创建者金库ATA地址
 }
 type RaydiumV4Accounts struct {
-	ID            solana.PublicKey
-	BaseMint      solana.PublicKey
-	QuoteMint     solana.PublicKey
-	LpMint        solana.PublicKey
-	BaseDecimals  uint64
-	QuoteDecimals uint64
-	LpDecimals    uint64
-	Version       uint64
-	ProgramId     solana.PublicKey
-	Authority     solana.PublicKey
-	OpenOrders    solana.PublicKey
-	TargetOrders  solana.PublicKey
-	BaseVault     solana.PublicKey
-	QuoteVault    solana.PublicKey
+	Pool                  solana.PublicKey
+	ID                    solana.PublicKey
+	BaseMint              solana.PublicKey
+	QuoteMint             solana.PublicKey
+	UserBaseTokenAccount  solana.PublicKey
+	UserQuoteTokenAccount solana.PublicKey
+	LpMint                solana.PublicKey
+	BaseDecimals          uint64
+	QuoteDecimals         uint64
+	LpDecimals            uint64
+	Version               uint64
+	ProgramId             solana.PublicKey
+	Authority             solana.PublicKey
+	OpenOrders            solana.PublicKey
+	TargetOrders          solana.PublicKey
+	BaseVault             solana.PublicKey
+	QuoteVault            solana.PublicKey
 	//WithdrawQueue      solana.PublicKey
-	//LpVault            solana.PublicKey
-	MarketVersion    uint64
-	MarketProgramId  solana.PublicKey
-	MarketId         solana.PublicKey
-	MarketAuthority  solana.PublicKey
-	MarketBaseVault  solana.PublicKey
-	MarketQuoteVault solana.PublicKey
-	MarketBids       solana.PublicKey
-	MarketAsks       solana.PublicKey
-	//MarketEventQueue   solana.PublicKey
+	LpVault       solana.PublicKey
+	WithdrawQueue solana.PublicKey
+
+	MarketVersion      uint64
+	MarketProgramId    solana.PublicKey
+	MarketId           solana.PublicKey
+	MarketAuthority    solana.PublicKey
+	MarketBaseVault    solana.PublicKey
+	MarketQuoteVault   solana.PublicKey
+	MarketBids         solana.PublicKey
+	MarketAsks         solana.PublicKey
+	MarketEventQueue   solana.PublicKey
 	LookupTableAccount solana.PublicKey
 }
 
-func (c *AccountsCalculator) CalculateV4Accounts(botPrivateKey solana.PublicKey, tradeInfo *global.AmmRaydiumV4TradeInfo, marketLayout *global.MarketState) (*RaydiumV4Accounts, error) {
+func (c *AccountsCalculator) CalculateV4Accounts(user solana.PublicKey, tradeInfo *global.AmmRaydiumV4TradeInfo, marketLayout *global.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4) (*RaydiumV4Accounts, error) {
 
 	authority, _, _ := solana.FindProgramAddress([][]byte{{97, 109, 109, 32, 97, 117, 116, 104, 111, 114, 105, 116, 121}}, RAYDIUM_V4_PROGRAM_ID)
 	//TODO
 	marketAuthority, _, _ := utils.GetAssociatedAuthority(OPENBOOK_MARKET_PROGRAM_ID, marketLayout.MarketID)
+	// 计算用户的基础代币associated token account
+	userBaseTokenAccount, _, err := solana.FindAssociatedTokenAddress(
+		user,
+		tradeInfo.MintAddress,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find user base token account: %w", err)
+	}
+	userQuoteTokenAccount, _, err := solana.FindAssociatedTokenAddress(
+		user,
+		solana.SolMint,
+	)
+	if err != nil {
+		log.Printf("failed to create WSOL account with seed: %v", err)
+		return nil, fmt.Errorf("failed to create WSOL account with seed: %v", err)
+	}
 
 	return &RaydiumV4Accounts{
+		Pool:                  tradeInfo.AmmPool,
+		BaseMint:              tradeInfo.MintAddress,
+		QuoteMint:             marketLayout.QuoteMint,
+		UserBaseTokenAccount:  userBaseTokenAccount,
+		UserQuoteTokenAccount: userQuoteTokenAccount,
 
-		BaseMint:  tradeInfo.MintAddress,
-		QuoteMint: marketLayout.QuoteMint,
+		BaseDecimals:  uint64(poolLayout.BaseDecimal),
+		QuoteDecimals: uint64(poolLayout.QuoteDecimal),
 
-		BaseDecimals:  uint64(marketLayout.BaseDecimal),
-		QuoteDecimals: uint64(marketLayout.QuoteDecimal),
-
-		Version:          4,
-		ProgramId:        RAYDIUM_V4_PROGRAM_ID,
-		OpenOrders:       tradeInfo.OpenOrders,
-		TargetOrders:     tradeInfo.TargetOrders,
-		BaseVault:        tradeInfo.BaseVault,
-		QuoteVault:       tradeInfo.QuoteVault,
-		MarketVersion:    3,
-		Authority:        authority,
-		MarketProgramId:  OPENBOOK_MARKET_PROGRAM_ID,
-		MarketId:         marketLayout.MarketID,
-		MarketAuthority:  marketAuthority,
-		MarketBaseVault:  marketLayout.BaseVault,
-		MarketQuoteVault: marketLayout.QuoteVault,
-		MarketBids:       marketLayout.Bids,
-		MarketAsks:       marketLayout.Asks,
-		//MarketEventQueue:   marketLayout.EventQueue,
-		//WithdrawQueue:      marketLayout.WithdrawQueue,
-		//LpVault:            layout.LpVault,
+		Version:            4,
+		ProgramId:          RAYDIUM_V4_PROGRAM_ID,
+		OpenOrders:         tradeInfo.OpenOrders,
+		TargetOrders:       tradeInfo.TargetOrders,
+		BaseVault:          tradeInfo.BaseVault,
+		QuoteVault:         tradeInfo.QuoteVault,
+		MarketVersion:      3,
+		Authority:          authority,
+		MarketProgramId:    OPENBOOK_MARKET_PROGRAM_ID,
+		MarketId:           marketLayout.MarketID,
+		MarketAuthority:    marketAuthority,
+		MarketBaseVault:    marketLayout.BaseVault,
+		MarketQuoteVault:   marketLayout.QuoteVault,
+		MarketBids:         marketLayout.Bids,
+		MarketAsks:         marketLayout.Asks,
+		MarketEventQueue:   marketLayout.MarketEventQueue,
+		WithdrawQueue:      poolLayout.WithdrawQueue,
+		LpVault:            poolLayout.LpVault,
+		LpMint:             poolLayout.LpMint,
 		LookupTableAccount: solana.PublicKey{},
 	}, nil
 

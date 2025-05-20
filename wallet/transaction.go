@@ -5,6 +5,7 @@ import (
 	"copytrade/core"
 	"copytrade/global"
 	"copytrade/logger"
+	"copytrade/raydium/layouts"
 
 	"copytrade/bot"
 	"copytrade/types"
@@ -59,7 +60,7 @@ func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo
 }
 
 // ProcessAmmTransaction 处理AMM交易事件
-func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *global.AmmRaydiumV4TradeInfo, marketLayout *global.MarketState) {
+func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *global.AmmRaydiumV4TradeInfo, marketLayout *global.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4) {
 	// 只处理买入交易
 	if !tradeInfo.IsBuy {
 		return
@@ -80,7 +81,7 @@ func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *global.AmmRa
 
 	// 执行跟单交易
 
-	m.executeRaydiumV4CopyTrade(tradeInfo, marketLayout, copyAddress, tradeInfo.TokenAmount)
+	m.executeRaydiumV4CopyTrade(tradeInfo, marketLayout, poolLayout, copyAddress, tradeInfo.TokenAmount)
 }
 
 // ProcessAmmTransaction 处理AMM交易事件
@@ -319,7 +320,7 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 }
 
 // executeRaydiumV4CopyTrade
-func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *global.AmmRaydiumV4TradeInfo, marketLayout *global.MarketState, originalWallet solana.PublicKey, originalAmount uint64) {
+func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *global.AmmRaydiumV4TradeInfo, marketLayout *global.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4, originalWallet solana.PublicKey, originalAmount uint64) {
 	// 检查是否已经交易过该代币
 	m.WalletMonitor.Mux.RLock()
 	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress.String()]; exists {
@@ -338,8 +339,8 @@ func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *global.AmmRayd
 	raydiumV4Accounts, err := m.TradeBot.Trader.AccountsCalc.CalculateV4Accounts(
 		m.BotWallet,
 		tradeInfo,
-
 		marketLayout,
+		poolLayout,
 	)
 	if err != nil {
 		logger.Errorf("Failed to calculate accounts: %v", err)
@@ -349,8 +350,8 @@ func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *global.AmmRayd
 	// Calculate buy amounts
 	amounts, err := m.TradeBot.Trader.AmountsCalc.CalculateRaydiumV4BuyAmounts(
 		m.BuySolAmount,
-		0,
-		0,
+		tradeInfo.CurrentPrice,
+		poolLayout.BaseDecimal,
 		m.TradeBot.Config.BuySlippage,
 	)
 
@@ -400,7 +401,7 @@ func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *global.AmmRayd
 	}
 
 	// 调用通用的卖出方法
-	go m.TradeBot.Trader.PumpAmmBuy(context.Background(), orderParams)
+	go m.TradeBot.Trader.RaydiumV4Buy(context.Background(), orderParams)
 	// 然后记录机器人的跟单交易
 	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress.String(), originalWallet, m.BotWallet, tradeInfo.CurrentPrice)
 }

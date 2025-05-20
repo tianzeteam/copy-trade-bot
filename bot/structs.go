@@ -158,11 +158,10 @@ func NewBot(config *utils.Config) (*Bot, error) {
 func NewCoin(privateKey solana.PrivateKey, publicKey solana.PublicKey, mintAddr solana.PublicKey, buySolToLamport float64, slippage uint64) *Coin {
 	return &Coin{
 
-		privateKey: privateKey,
-		publicKey:  publicKey,
-		mintAddr:   mintAddr,
-		slippage:   slippage,
-		// Initialize other fields with default values
+		privateKey:      privateKey,
+		publicKey:       publicKey,
+		mintAddr:        mintAddr,
+		slippage:        slippage,
 		tokensHeld:      big.NewInt(0),
 		buySolToLamport: buySolToLamport,
 	}

@@ -153,7 +153,7 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 			}
 
 		case raydium.SwapDiscriminator_V2:
-			logger.Infof("SwapBaseOut instruction found, signature: %s", _signature)
+			logger.Debugf("SwapBaseOut instruction found, signature: %s", _signature)
 			accounts := instruction.Accounts
 			if len(accounts) < 17 {
 				logger.Warn("Not enough accounts in the instruction")

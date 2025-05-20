@@ -3,12 +3,10 @@ package raydium
 import (
 	"context"
 
-	"copytrade/raydium/layouts"
 	"copytrade/raydium/utils"
 
 	"github.com/gagliardetto/solana-go"
 	associatedtokenaccount "github.com/gagliardetto/solana-go/programs/associated-token-account"
-	computebudget "github.com/gagliardetto/solana-go/programs/compute-budget"
 	"github.com/gagliardetto/solana-go/programs/system"
 	"github.com/gagliardetto/solana-go/programs/token"
 	"github.com/gagliardetto/solana-go/rpc"
@@ -16,75 +14,6 @@ import (
 
 type FeeConfig struct {
 	MicroLamports uint64
-}
-
-func (r *Raydium) MakeSwapTransaction(poolKeys *layouts.ApiPoolInfoV4, amountIn *utils.TokenAmount, minAmountOut *utils.TokenAmount, feeConfig FeeConfig, signerPublicKey solana.PublicKey) ([]solana.Instruction, error) {
-	_, err := r.Connection.GetLatestBlockhash(context.Background(), rpc.CommitmentFinalized)
-
-	if err != nil {
-		return nil, err
-	}
-
-	var instructions []solana.Instruction = []solana.Instruction{
-		computebudget.NewSetComputeUnitPriceInstruction(feeConfig.MicroLamports).Build(),
-		computebudget.NewSetComputeUnitLimitInstruction(600000).Build(),
-	}
-
-	tokenAccountIn, err := r.selectOrCreateAccount(amountIn, &instructions, "in", signerPublicKey)
-
-	if err != nil {
-		return nil, err
-	}
-
-	tokenAccountOut, err := r.selectOrCreateAccount(minAmountOut, &instructions, "out", signerPublicKey)
-
-	if err != nil {
-		return nil, err
-	}
-	instr, err := NewSwapV4Instruction(
-		poolKeys,
-		uint64(amountIn.Amount),
-		uint64(minAmountOut.Amount),
-		tokenAccountIn,
-		tokenAccountOut,
-		signerPublicKey,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	instructions = append(instructions, instr)
-
-	if amountIn.Token.Mint == WSOl.String() {
-		closeAccInst, err := token.NewCloseAccountInstruction(
-			tokenAccountIn,
-			signerPublicKey,
-			signerPublicKey,
-			[]solana.PublicKey{},
-		).ValidateAndBuild()
-
-		if err != nil {
-			return nil, err
-		}
-
-		instructions = append(instructions, closeAccInst)
-	} else if minAmountOut.Token.Mint == WSOl.String() {
-		closeAccInst, err := token.NewCloseAccountInstruction(
-			tokenAccountOut,
-			signerPublicKey,
-			signerPublicKey,
-			[]solana.PublicKey{},
-		).ValidateAndBuild()
-
-		if err != nil {
-			return nil, err
-		}
-
-		instructions = append(instructions, closeAccInst)
-	}
-
-	return instructions, nil
 }
 
 func (r *Raydium) selectOrCreateAccount(amount *utils.TokenAmount, insttr *[]solana.Instruction, side string, signerPublicKey solana.PublicKey) (solana.PublicKey, error) {

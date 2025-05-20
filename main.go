@@ -31,7 +31,6 @@ var (
 	tradeBot           *bot.Bot                   = nil
 	walletMonitor      *wallet.WalletMonitor      = nil
 	transactionMonitor *wallet.TransactionMonitor = nil
-	tokenProgramID                                = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 )
 
 // processWaitingSellTokens 处理等待卖出的代币
@@ -54,19 +53,24 @@ func processWaitingSellTokens(tradeBot *bot.Bot) {
 			//@TODO 使用多级卖出策略
 			go tradeBot.ExecuteAmmSellOrder(tokenInfo)
 			continue
+		} else if platform == "pumpfun" {
+			// 查找代币的交易信息
+			tradeInfo := global.GetTradeInfo(mintAddress)
+
+			if tradeInfo == nil {
+				logger.Warnf("未找到代币%s的交易信息，无法执行卖出操作", tokenInfo.Mint)
+				continue
+			}
+
+			vTokenReserves := tradeInfo.VirtualTokenReserves
+			vSolReserves := tradeInfo.VirtualSolReserves
+
+			go tradeBot.ExecuteSellOrder(tokenInfo, vTokenReserves, vSolReserves)
+
+		} else if platform == "raydiumV4" {
+
 		}
-		// 查找代币的交易信息
-		tradeInfo := global.GetTradeInfo(mintAddress)
 
-		if tradeInfo == nil {
-			logger.Warnf("未找到代币%s的交易信息，无法执行卖出操作", tokenInfo.Mint)
-			continue
-		}
-
-		vTokenReserves := tradeInfo.VirtualTokenReserves
-		vSolReserves := tradeInfo.VirtualSolReserves
-
-		go tradeBot.ExecuteSellOrder(tokenInfo, vTokenReserves, vSolReserves)
 	}
 }
 
@@ -245,7 +249,13 @@ func main() {
 						logger.Warnf(" marketLayout dont exist %s", marketId.String())
 						return
 					}
-					transactionMonitor.ProcessRaydiumV4Transaction(raydiumV4TradeInfo, marketLayout)
+					poolId := raydiumV4TradeInfo.AmmPool
+					poolLayout := global.GetRaydiumPoolLayout(poolId.String())
+					if poolLayout == nil {
+						logger.Warnf(" poolLayout dont exist %s", poolId.String())
+						return
+					}
+					transactionMonitor.ProcessRaydiumV4Transaction(raydiumV4TradeInfo, marketLayout, poolLayout)
 					walletMonitor.CheckExitConditions("raydiumV4", raydiumV4TradeInfo.MintAddress.String(), raydiumV4TradeInfo.CurrentPrice)
 					continue
 				}
@@ -291,7 +301,7 @@ func main() {
 
 	// 订阅代币账户
 	if err = accountsStreamClient.SubscribeAccounts("token_accounts_stream", &yellowstone_geyser_pb.SubscribeRequestFilterAccounts{
-		Owner: []string{tokenProgramID}, // 只监控Token Program拥有的账户
+		Owner: []string{solana.TokenProgramID.String()}, // 只监控Token Program拥有的账户
 		Filters: []*yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilter{
 			datasizeFilter, // 数据大小过滤器
 			memcmpFilter,   // 内存比较过滤器
@@ -326,7 +336,7 @@ func main() {
 			logger.Infof("owner:%s ,账号地址:%s,账户余额: %f SOL (%d lamports)", owner, userPubkey, solBalance, lamports)
 
 			// 如果有特定的数据结构需要解析，可以在这里添加解析逻辑
-			if owner == tokenProgramID && len(accountData) >= 165 {
+			if owner == solana.TokenProgramID.String() && len(accountData) >= 165 {
 				// SPL代币账户数据结构
 				_mint := solana.PublicKeyFromBytes(accountData[0:32])
 				_owner := solana.PublicKeyFromBytes(accountData[32:64])

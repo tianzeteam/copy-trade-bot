@@ -31,7 +31,7 @@ func (b *Bot) SubscribeToRaydiumPools(ctx context.Context, client *yellowstone_g
 	// Data size filter (equivalent to dataSize: LIQUIDITY_STATE_LAYOUT_V4.span)
 	datasizeFilter := &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilter{
 		Filter: &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilter_Datasize{
-			Datasize: 1328, // Size of Raydium V4 liquidity state layout
+			Datasize: 752, // Size of Raydium V4 liquidity state layout
 		},
 	}
 
@@ -39,7 +39,7 @@ func (b *Bot) SubscribeToRaydiumPools(ctx context.Context, client *yellowstone_g
 	quoteMintFilter := &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilter{
 		Filter: &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilter_Memcmp{
 			Memcmp: &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilterMemcmp{
-				Offset: 72, // Offset of quoteMint in the layout
+				Offset: 432, // Offset of quoteMint in the layout
 				Data: &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilterMemcmp_Base58{
 					Base58: quoteTokenMint.String(),
 				},
@@ -51,7 +51,7 @@ func (b *Bot) SubscribeToRaydiumPools(ctx context.Context, client *yellowstone_g
 	marketProgramFilter := &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilter{
 		Filter: &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilter_Memcmp{
 			Memcmp: &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilterMemcmp{
-				Offset: 104, // Offset of marketProgramId in the layout
+				Offset: 560, // Offset of marketProgramId in the layout
 				Data: &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilterMemcmp_Base58{
 					Base58: core.OPENBOOK_MARKET_PROGRAM_ID.String(),
 				},
@@ -124,41 +124,36 @@ func (b *Bot) handleRaydiumPoolUpdate(accountUpdate *yellowstone_geyser_pb.Subsc
 		return
 	}
 
-	// Decode the pool state
-	var poolLayout layouts.LIQUIDITY_STATE_LAYOUT_V4
-	if err := poolLayout.Decode(accountUpdate.Account.Data); err != nil {
-		logger.Warnf("Failed to decode Raydium V4 pool data for account %s: %v", pubkey, err)
-		return
+	// First check if we already have this pool layout in our global map
+	poolLayout := global.GetRaydiumPoolLayout(poolID.String())
+
+	// If the pool layout doesn't exist in our map or we need to update it
+	if poolLayout == nil {
+		// Decode the pool state
+		poolLayout = new(layouts.LIQUIDITY_STATE_LAYOUT_V4)
+		if err := poolLayout.Decode(accountUpdate.Account.Data); err != nil {
+			logger.Warnf("Failed to decode Raydium V4 pool data for account %s: %v", pubkey, err)
+			return
+		}
+
+		// Store the decoded layout in our global map
+		global.SetRaydiumPoolLayout(poolID.String(), poolLayout)
+	} else {
+		// Update the existing pool layout with new data
+		if err := poolLayout.Decode(accountUpdate.Account.Data); err != nil {
+			logger.Warnf("Failed to update Raydium V4 pool data for account %s: %v", pubkey, err)
+			return
+		}
+		// Update the global map with the updated layout
+		global.SetRaydiumPoolLayout(poolID.String(), poolLayout)
 	}
 
 	// Extract pool information
 	baseMint := poolLayout.BaseMint.String()
 	quoteMint := poolLayout.QuoteMint.String()
-	// Get the reserves from the swap amounts
-	baseReserve := poolLayout.SwapBaseInAmount.Lo
-	quoteReserve := poolLayout.SwapQuoteOutAmount.Lo
 	marketId := poolLayout.MarketId.String()
 
-	// Calculate current price
-	currentPrice := (float64(quoteReserve) / 1e9) / (float64(baseReserve) / 1e6)
-	logger.Infof("Calculated Raydium V4 pool price: %f", currentPrice)
-
-	// Create trade info object
-	tradeInfo := &global.AmmRaydiumV4TradeInfo{
-		AmmPool:      poolID,
-		MintAddress:  poolLayout.BaseMint,
-		CurrentPrice: currentPrice,
-		MarketId:     poolLayout.MarketId,
-		BaseVault:    poolLayout.BaseVault,
-		QuoteVault:   poolLayout.QuoteVault,
-		OpenOrders:   poolLayout.OpenOrders,
-		TargetOrders: poolLayout.TargetOrders,
-	}
-
-	// Store in global map for access from other components
-	global.SetRaydiumV4TradeInfo(baseMint, tradeInfo)
-
 	// Emit pool update event
-	logger.Infof("Raydium V4 pool update: Pool=%s, BaseMint=%s, QuoteMint=%s, BaseReserve=%d, QuoteReserve=%d, MarketId=%s, Price=%f",
-		pubkey, baseMint, quoteMint, baseReserve, quoteReserve, marketId, currentPrice)
+	logger.Debugf("Raydium V4 pool update: Pool=%s, BaseMint=%s, QuoteMint=%s, MarketId=%s",
+		poolID.String(), baseMint, quoteMint, marketId)
 }

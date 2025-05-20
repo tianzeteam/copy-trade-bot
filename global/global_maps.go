@@ -112,9 +112,7 @@ type MarketState struct {
 	// Quote token mint address
 	QuoteMint solana.PublicKey
 	// Base token decimal places
-	BaseDecimal uint8
-	// Quote token decimal places
-	QuoteDecimal uint8
+	MarketEventQueue solana.PublicKey
 	// Base vault address
 	BaseVault solana.PublicKey
 	// Quote vault address
@@ -134,19 +132,18 @@ type MarketState struct {
 // NewMarketStateFromLayout creates a new MarketState from a MarketStateLayoutV3
 func NewMarketStateFromLayout(marketID solana.PublicKey, layout layouts.MarketStateLayoutV3) *MarketState {
 	return &MarketState{
-		MarketID:     marketID,
-		Layout:       layout,
-		BaseMint:     layout.BaseMint,
-		QuoteMint:    layout.QuoteMint,
-		BaseDecimal:   6, // Default to 6 decimals for base token, update if needed
-		QuoteDecimal:  9, // Default to 9 decimals for quote token (SOL), update if needed
-		BaseVault:    layout.BaseVault,
-		QuoteVault:   layout.QuoteVault,
-		Bids:         layout.Bids,
-		Asks:         layout.Asks,
-		BaseLotSize:  layout.BaseLotSize,
-		QuoteLotSize: layout.QuoteLotSize,
-		FeeRateBps:   layout.FeeRateBps,
+		MarketID:         marketID,
+		Layout:           layout,
+		BaseMint:         layout.BaseMint,
+		QuoteMint:        layout.QuoteMint,
+		BaseVault:        layout.BaseVault,
+		QuoteVault:       layout.QuoteVault,
+		Bids:             layout.Bids,
+		Asks:             layout.Asks,
+		BaseLotSize:      layout.BaseLotSize,
+		QuoteLotSize:     layout.QuoteLotSize,
+		FeeRateBps:       layout.FeeRateBps,
+		MarketEventQueue: layout.EventQueue,
 	}
 }
 
@@ -188,6 +185,10 @@ var (
 	// OpenBookMarketStates 存储OpenBook市场状态信息，键为市场ID
 	OpenBookMarketStates     = make(map[string]*MarketState)
 	OpenBookMarketStatesLock = &sync.RWMutex{} // 用于保护映射表的读写锁
+
+	// RaydiumPoolLayouts 存储Raydium池布局信息，键为池地址
+	RaydiumPoolLayouts     = make(map[string]*layouts.LIQUIDITY_STATE_LAYOUT_V4)
+	RaydiumPoolLayoutsLock = &sync.RWMutex{} // 用于保护映射表的读写锁
 
 	// 代币卖出时间间隔限制，默认5秒
 	SellIntervalLimit = 5 * time.Second
@@ -335,7 +336,21 @@ func SetOpenBookMarketState(marketID string, state *MarketState) {
 	OpenBookMarketStatesLock.Lock()
 	defer OpenBookMarketStatesLock.Unlock()
 	OpenBookMarketStates[marketID] = state
-	logger.Infof("更新OpenBook市场状态: Market=%s", marketID)
+
+}
+
+// GetRaydiumPoolLayout 获取指定池地址的Raydium池布局
+func GetRaydiumPoolLayout(poolAddress string) *layouts.LIQUIDITY_STATE_LAYOUT_V4 {
+	RaydiumPoolLayoutsLock.RLock()
+	defer RaydiumPoolLayoutsLock.RUnlock()
+	return RaydiumPoolLayouts[poolAddress]
+}
+
+// SetRaydiumPoolLayout 设置指定池地址的Raydium池布局
+func SetRaydiumPoolLayout(poolAddress string, layout *layouts.LIQUIDITY_STATE_LAYOUT_V4) {
+	RaydiumPoolLayoutsLock.Lock()
+	defer RaydiumPoolLayoutsLock.Unlock()
+	RaydiumPoolLayouts[poolAddress] = layout
 }
 
 // CreateTokenAssetFromAccount 从代币账户数据创建资产条目
