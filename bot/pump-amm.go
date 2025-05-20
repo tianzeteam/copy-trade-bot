@@ -43,6 +43,7 @@ func (b *Bot) parseAmmTransaction(logMessages []string, mintAddress string) *glo
 					TokenAmount:  buyEvent.BaseAmountOut,
 					IsBuy:        true,
 					MintAddress:  solana.MustPublicKeyFromBase58(mintAddress), // 需要从其他地方获取
+					Creator:      buyEvent.CoinCreator,
 					AmmPool:      buyEvent.Pool,
 					TimeStamp:    buyEvent.Timestamp,
 					BaseReserve:  buyEvent.PoolBaseTokenReserves,
@@ -215,6 +216,7 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 				// 设置入场价格
 				global.SetTradeAssetOnce(
 					mintAddress,
+					tradeInfo.Creator,
 					botWallet.String(),
 					entryPrice,
 					tradeInfo.TokenAmount,

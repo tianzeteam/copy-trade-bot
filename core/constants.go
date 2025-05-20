@@ -1,6 +1,8 @@
 package core
 
-import "github.com/gagliardetto/solana-go"
+import (
+	"github.com/gagliardetto/solana-go"
+)
 
 // 系统账户常量
 var (

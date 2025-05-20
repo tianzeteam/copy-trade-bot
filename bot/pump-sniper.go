@@ -240,6 +240,7 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *goys
 				VirtualTokenReserves: tradeEvent.VirtualTokenReserves,
 				RealSolReserves:      tradeEvent.RealSolReserves,
 				RealTokenReserves:    tradeEvent.RealTokenReserves,
+				Creator:              tradeEvent.Creator,
 				TimeStamp:            time.Now().Unix(),
 				TradeTime:            time.Now().Format("2006-01-02 15:04:05.000"),
 				Milliseconds:         time.Now().UnixMilli(),
@@ -254,11 +255,12 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *goys
 			if tradeEvent.IsBuy {
 				// 检查是否是自己的交易
 				if tradeEvent.User.String() == botWallet.String() {
-					entryPrice := float64(tradeEvent.SolAmount/1e9) / float64(tradeEvent.TokenAmount/1e6)
+					entryPrice := float64(tradeEvent.VirtualSolReserves/1e9) / float64(tradeEvent.VirtualTokenReserves/1e6)
 
 					// 设置入场价格
 					global.SetTradeAssetOnce(
 						mintAddress,
+						tradeEvent.Creator,
 						botWallet.String(),
 						entryPrice,
 						tradeEvent.TokenAmount,

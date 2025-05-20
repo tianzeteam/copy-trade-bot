@@ -103,7 +103,9 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 	}
 
 	// 构建Buy指令
+
 	buyInstruction := pump.NewBuyInstructionBuilder().
+		
 		SetGlobalAccount(GLOBAL_ACCOUNT).
 		SetFeeRecipientAccount(FEE_RECIPIENT).
 		SetMintAccount(params.TradeParams.Accounts.Mint).
@@ -113,13 +115,18 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		SetUserAccount(params.TradeParams.Accounts.User).
 		SetSystemProgramAccount(solana.SystemProgramID).
 		SetTokenProgramAccount(solana.TokenProgramID).
-		SetCreatorVaultAccount(solana.SysVarRentPubkey).
+		SetCreatorVaultAccount(params.TradeParams.Accounts.CreatorVault).
 		SetEventAuthorityAccount(EVENT_AUTHORITY).
 		SetProgramAccount(PUMP_PROGRAM_ID).
 		SetAmount(params.TradeParams.Amount).
 		SetMaxSolCost(params.TradeParams.Cost)
+	buildInstruction, err := buyInstruction.ValidateAndBuild()
+	if err != nil {
+		logger.Errorf("构建Buy指令失败: %v", err)
+		return "", err
+	}
 
-	instructions = append(instructions, buyInstruction.Build())
+	instructions = append(instructions, buildInstruction)
 
 	// 创建通道
 	resultChan := make(chan string, 4)
@@ -868,7 +875,7 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 		SetAssociatedUserAccount(params.TradeParams.Accounts.AssociatedTokenAccount).
 		SetUserAccount(params.TradeParams.Accounts.User).
 		SetSystemProgramAccount(solana.SystemProgramID).
-		SetCreatorVaultAccount(params.Accounts.CreatorVault).
+		SetCreatorVaultAccount(params.TradeParams.Accounts.CreatorVault).
 		SetTokenProgramAccount(solana.TokenProgramID).
 		SetEventAuthorityAccount(EVENT_AUTHORITY).
 		SetProgramAccount(PUMP_PROGRAM_ID).

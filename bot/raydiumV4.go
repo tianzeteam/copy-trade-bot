@@ -306,6 +306,7 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 				// 设置入场价格
 				global.SetTradeAssetOnce(
 					mintAddress,
+					solana.PublicKey{},
 					botWallet.String(),
 					entryPrice,
 					tradeInfo.TokenAmount,
@@ -322,12 +323,6 @@ func (b *Bot) RaydiumV4Sell(tokenInfo queue.TokenInfo) {
 	// 使用策略模式进行卖出
 	logger.Infof("使用策略模式卖出代币: %s", tokenInfo.Mint.String())
 
-	// 确保卖出策略已初始化
-	if b.sellStrategy == nil {
-		b.sellStrategy = NewMultiLevelSellStrategy(b.Config.MultiSellLevels)
-		logger.Infof("初始化多级卖出策略: %s", b.sellStrategy.Name())
-	}
-
 	// 执行卖出策略
-	b.ExecuteAmmSellStrategy(tokenInfo)
+	b.ExecuteRaydiumV4SellOrder(tokenInfo)
 }

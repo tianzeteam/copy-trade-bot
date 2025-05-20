@@ -244,7 +244,7 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 	logger.Infof("执行卖出订单: 代币=%s, 数量=%d", tokenInfo.Mint.String(), tokenInfo.Amount)
 
 	// 先计算卖出金额
-	pumpAccounts, err := b.Trader.AccountsCalc.CalculatePumpAccounts(context.Background(), tokenInfo.Mint, tokenInfo.Owner)
+	pumpAccounts, err := b.Trader.AccountsCalc.CalculatePumpAccounts(context.Background(), tokenInfo.Creator, tokenInfo.Mint, tokenInfo.Owner)
 	if err != nil {
 		logger.Errorf("计算卖出金额失败: %v", err)
 		return

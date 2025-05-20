@@ -4,7 +4,7 @@ nonce_account_pubkey: "GgTBxk6r1jyi6QUiUCP7ufvonufBDRS6D3RoRUFnZ7go"
 # 交易钱包私钥
 #private_key: "eaVJTFZg1jkhfYX6LpNupLgFNMT3YUBjuHS7wsmbsG2BvtHUMnxWWXB4JXXtAW9Bk1ZJy59fsvyRpxmFjMakfBa" #交易钱包私钥
 private_key: "yZDBsZwwtmUBXTuVCREteDpf6AwyeEoF5TiUYE5Tdxr2Y9SuU1GMSTNVPNcDzLoQKrLtn26rGtNPZJyZcWmWNqU" #交易钱包私钥
-grpc_url: "https://solana-yellowstone-grpc.publicnode.com:443"
+grpc_url: "https://grpc-ny.fountainhead.land"
 rpc_url: "https://mainnet.helius-rpc.com/?api-key=fc8353eb-13cb-423e-8d36-49e2b26d3a78"  # 全局RPC URL
 
 # 日志配置
@@ -17,8 +17,8 @@ skip_ata_check: true  # 全局参数：是否跳过ATA检查
 buy_sol_amount: 0.0001 # 全局买入金额
 buy_slippage: 0.50   # 全局买入滑点  = 50%
 sell_slippage: 0.50  # 全局卖出滑点
-buy_priority_fee: 0.000005  # 全局买入优先级费用 约等于 5000 lamports
-sell_priority_fee: 0.000005 # 全局卖出优先级费用
+buy_priority_fee: 0.0005  # 全局买入优先级费用 约等于 5000 lamports
+sell_priority_fee: 0.0005 # 全局卖出优先级费用
 sell_mode: "delay_sell" # 全局卖出模式 delay_sell | multi_sell
 sell_delay_time: 10 # 全局卖出延迟时间,单位秒
 multi_sell_levels: # 全局卖出配置
@@ -33,14 +33,14 @@ multi_sell_levels: # 全局卖出配置
 
 normal:
   enable: true # 是否启用普通交易
-  buy_tip: 0.0001 # 该配置不能进行改动 普通模式不生效
-  sell_tip: 0.0001 # 该配置不能进行改动 普通模式不生效
+  buy_tip: 0.001 # 该配置不能进行改动 普通模式不生效
+  sell_tip: 0.001 # 该配置不能进行改动 普通模式不生效
 
 bloXroute:
   enable: false ## 是否启用 bloXroute 交易
   rpc_url: "https://mainnet.helius-rpc.com/?api-key=fc8353eb-13cb-423e-8d36-49e2b26d3a78" ## bloXroute  url
-  buy_tip: 0.0001 ## 买入手续费
-  sell_tip: 0.0001 ## 卖出手续费
+  buy_tip: 0.001 ## 买入手续费
+  sell_tip: 0.001 ## 卖出手续费
   api_keys:
     - "xxx" #需要自己去官网申请key
 

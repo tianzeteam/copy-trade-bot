@@ -72,7 +72,7 @@ func StartServer(configPath string) {
 	server.RegisterRoutes()
 
 	// 启动服务器
-	port := 8081
+	port := 3000
 	logger.Infof("启动Web服务器，监听端口 %d...", port)
 	if err := server.Router.Run(fmt.Sprintf(":%d", port)); err != nil {
 		logger.Errorf("启动Web服务器失败: %v", err)
@@ -84,11 +84,11 @@ func (s *WebServer) RegisterRoutes() {
 	// 获取项目根目录
 	_, b, _, _ := runtime.Caller(0)
 	rootDir := filepath.Dir(filepath.Dir(b)) // 回到项目根目录
-	
+
 	// 确保web目录存在
 	webDir := filepath.Join(rootDir, "web")
 	staticDir := filepath.Join(webDir, "static")
-	
+
 	logger.Infof("静态文件目录: %s", staticDir)
 
 	// 静态文件服务

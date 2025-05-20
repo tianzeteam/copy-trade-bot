@@ -30,13 +30,12 @@ func (c *AmountsCalculator) CalculateBuyAmounts(ctx context.Context, bondingCurv
 	// 计算bonding curve
 	base := float64(1073000191)
 	coef := float64(32190005730)
-	oneBillion := float64(1000000000)
 
-	virtualSol := float64(virtualSolReserves)
-	virtualSol2 := virtualSol + (solAmount * oneBillion)
+	_virtualSol := float64(virtualSolReserves)
+	_afterVirtualSol := _virtualSol + (solAmount * 1e9)
 
-	pay1 := base - (coef / (virtualSol / oneBillion))
-	pay2 := base - (coef / (virtualSol2 / oneBillion))
+	pay1 := base - (coef / (_virtualSol / 1e9))
+	pay2 := base - (coef / (_afterVirtualSol / 1e9))
 
 	tokenAmount := pay2 - pay1
 	tokenAmountWithDecimals := uint64(tokenAmount * 1e6)

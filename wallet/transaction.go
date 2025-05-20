@@ -119,7 +119,7 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 	}
 	m.WalletMonitor.Mux.RUnlock()
 	// 发送买入请求
-	logger.Infof("执行跟单买入: 代币=%s, 金额=%f SOL", tradeInfo.MintAddress, m.BuySolAmount)
+	logger.Infof("执行跟单买入: 代币=%s, 金额=%.6f SOL", tradeInfo.MintAddress, m.BuySolAmount)
 
 	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress, copyAddress, tradeInfo.CurrentPrice, tradeInfo.TokenAmount) // 假设买入了1000000个代币
 	ctx := context.Background()
@@ -130,9 +130,10 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 		logger.Errorf("Failed to parse mint address: %v", err)
 		return
 	}
-
+	creator := tradeInfo.Creator
 	pumpAccounts, err := m.TradeBot.Trader.AccountsCalc.CalculatePumpAccounts(
 		ctx,
+		creator,
 		mintAddr,
 		m.BotWallet,
 	)

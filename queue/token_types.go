@@ -18,6 +18,7 @@ type TokenInfo struct {
 	PoolBaseTokenReserves  uint64           // 代币池基础代币储备
 	PoolQuoteTokenReserves uint64           // 代币池报价代币储备
 	Mint                   solana.PublicKey // 代币Mint地址
+	Creator                solana.PublicKey // 代币创建者
 	Owner                  solana.PublicKey // 代币所有者
 	Amount                 uint64           // 代币数量
 	User                   solana.PublicKey // 用户地址
@@ -36,11 +37,12 @@ var (
 
 // sendTokenToSellChannel 创建 TokenInfo 并将其发送到 WaitingSellChan
 // 它还记录了尝试发送和结果。
-func SendTokenToSellChannel(assetInfo *global.MyBuyMap, currentPrice float64, platform, strategyName string) {
+func SendTokenToSellChannel(assetInfo *global.MyBuyMap, currentPrice float64, platform, strategyName string,reason string) {
 	tokenInfo := TokenInfo{
 		Mint:         solana.MustPublicKeyFromBase58(assetInfo.MintAddress),
 		Owner:        solana.MustPublicKeyFromBase58(assetInfo.UserAddress),
 		Amount:       assetInfo.Amount,
+		Creator:      assetInfo.Creator,
 		User:         solana.MustPublicKeyFromBase58(assetInfo.UserAddress),
 		UpdateTime:   time.Now(),
 		EntryPrice:   assetInfo.EntryPrice,
@@ -49,8 +51,8 @@ func SendTokenToSellChannel(assetInfo *global.MyBuyMap, currentPrice float64, pl
 		StrategyName: strategyName,
 	}
 
-	logger.Infof("[%s] 准备发送代币到卖出通道: Mint=%s, 余额=%d, 入场价=%.6f, 当前价=%.8f, 策略=%s",
-		assetInfo.UserAddress, tokenInfo.Mint, tokenInfo.Amount, assetInfo.EntryPrice, currentPrice, strategyName)
+	logger.Infof("[%s] 准备发送代币到卖出通道: Mint=%s, 余额=%d, 入场价=%.8f, 当前价=%.8f, 策略=%s,触发原因=%s",
+		assetInfo.UserAddress, tokenInfo.Mint, tokenInfo.Amount, assetInfo.EntryPrice, currentPrice, strategyName,reason)
 
 	// 尝试发送到通道，使用select避免阻塞
 	select {

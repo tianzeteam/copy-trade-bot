@@ -69,6 +69,8 @@ func processWaitingSellTokens(tradeBot *bot.Bot) {
 
 		} else if platform == "raydiumV4" {
 
+			go tradeBot.ExecuteRaydiumV4SellOrder(tokenInfo)
+
 		}
 
 	}
@@ -376,8 +378,8 @@ func main() {
 					}
 					// Check if we have a trade record for this token
 					tradeSetting, existCopyTrade := walletMonitor.TradeRecords[_mint.String()]
-					logger.Infof("existCopyTrade", existCopyTrade)
-					logger.Infof("tradeSetting", tradeSetting)
+					logger.Infof("existCopyTrade %v", existCopyTrade)
+					logger.Infof("tradeSetting %v", tradeSetting)
 
 					if existCopyTrade && currentPrice > 0 {
 
@@ -385,7 +387,7 @@ func main() {
 						strategyName := tradeSetting.Settings.Name
 						exitTimeSec := tradeSetting.Settings.ExitTimeSec
 						time.Sleep(time.Duration(exitTimeSec) * time.Second)
-						queue.SendTokenToSellChannel(assetInfo, currentPrice, platform, strategyName)
+						queue.SendTokenToSellChannel(assetInfo, currentPrice, platform, strategyName, "due_to_exit")
 					}
 				}
 

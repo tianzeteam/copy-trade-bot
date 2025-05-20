@@ -11,11 +11,12 @@ import (
 
 // TradeEventInfo 存储交易事件信息
 type TradeEventInfo struct {
-	UserAddress          string    // 用户地址
-	SolAmount            uint64    // Sol数量
-	TokenAmount          uint64    // Token数量
-	IsBuy                bool      // 是否买入
-	MintAddress          string    // Mint地址
+	UserAddress          string // 用户地址
+	SolAmount            uint64 // Sol数量
+	TokenAmount          uint64 // Token数量
+	IsBuy                bool   // 是否买入
+	MintAddress          string // Mint地址
+	Creator              solana.PublicKey
 	TimeStamp            int64     // 时间戳
 	VirtualSolReserves   uint64    // 虚拟Sol储备
 	VirtualTokenReserves uint64    // 虚拟Token储备
@@ -31,6 +32,7 @@ type TradeEventInfo struct {
 type MyBuyMap struct {
 	UserAddress string
 	MintAddress string
+	Creator     solana.PublicKey
 	EntryPrice  float64
 	Amount      uint64
 	SoldLevels  map[int]bool // 记录已经卖出的价格档位
@@ -55,6 +57,7 @@ type AmmTradeEventInfo struct {
 	TokenAmount  uint64           // Token数量
 	IsBuy        bool             // 是否买入
 	MintAddress  solana.PublicKey // Mint地址
+	Creator      solana.PublicKey // 创建者地址
 	AmmPool      solana.PublicKey // AMM池地址
 	TimeStamp    int64            // 时间戳
 	BaseReserve  uint64           // 基础代币储备
@@ -385,7 +388,7 @@ func AddOrUpdatePendingAsset(mint solana.PublicKey, owner solana.PublicKey, amou
 
 // SetTradeAssetOnce 仅在生命周期内第一次设置交易资产信息
 // 如果资产已存在，则不进行更新，确保在生命周期内只写入一次
-func SetTradeAssetOnce(mintAddress string, userAddress string, entryPrice float64, amount uint64) bool {
+func SetTradeAssetOnce(mintAddress string, creator solana.PublicKey, userAddress string, entryPrice float64, amount uint64) bool {
 	PendingHoldAssetLock.Lock()
 	defer PendingHoldAssetLock.Unlock()
 
@@ -402,11 +405,12 @@ func SetTradeAssetOnce(mintAddress string, userAddress string, entryPrice float6
 	PendingHoldAsset[mintAddress] = &MyBuyMap{
 		UserAddress: userAddress,
 		MintAddress: mintAddress,
+		Creator:     creator,
 		EntryPrice:  entryPrice,
 		Amount:      amount,
 		SoldLevels:  make(map[int]bool),
 		TimeStamp:   time.Now().Unix(),
 	}
-	logger.Infof("创建代币 %s 的交易资产: 价格=%.8f, 数量=%d", mintAddress, entryPrice, amount)
+	logger.Infof("创建代币 %s 的交易资产: 价格=%.9f, 数量=%d", mintAddress, entryPrice, amount)
 	return true
 }

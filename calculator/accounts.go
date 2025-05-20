@@ -37,7 +37,7 @@ func NewAccountsCalculator(endpoint string) *AccountsCalculator {
 }
 
 // CalculatePumpAccounts 计算Pump所需的所有账户
-func (c *AccountsCalculator) CalculatePumpAccounts(ctx context.Context, mint, user solana.PublicKey) (*PumpAccounts, error) {
+func (c *AccountsCalculator) CalculatePumpAccounts(ctx context.Context, creator, mint, user solana.PublicKey) (*PumpAccounts, error) {
 	// 计算bonding curve地址
 	bondingCurve, _, err := solana.FindProgramAddress(
 		[][]byte{
@@ -68,11 +68,11 @@ func (c *AccountsCalculator) CalculatePumpAccounts(ctx context.Context, mint, us
 	}
 
 	// 计算creator vault PDA地址
-	// 根据Pump程序的设计，creator vault PDA的seeds是 ["creator-vault", mint]
+	// 根据Pump程序的设计，creator vault PDA的seeds是 ["creator-vault", creator]
 	creatorVaultPda, _, err := solana.FindProgramAddress(
 		[][]byte{
 			[]byte("creator-vault"),
-			mint.Bytes(),
+			creator.Bytes(),
 		},
 		PUMP_PROGRAM_ID,
 	)
