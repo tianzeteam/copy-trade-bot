@@ -30,6 +30,7 @@ type TradeEventInfo struct {
 
 // MyBuyMap 存储买入信息
 type MyBuyMap struct {
+	Decimal     uint32
 	UserAddress string
 	MintAddress string
 	Creator     solana.PublicKey
@@ -91,7 +92,7 @@ type AmmRaydiumV4TradeInfo struct {
 	ReceivedAt   time.Time // 接收时间
 	TxHash       string    // 交易哈希
 	Slot         uint64    // 区块槽位
-
+	Decimal      uint32
 }
 
 // AmmPoolInfo 存储AMM池信息
@@ -388,7 +389,7 @@ func AddOrUpdatePendingAsset(mint solana.PublicKey, owner solana.PublicKey, amou
 
 // SetTradeAssetOnce 仅在生命周期内第一次设置交易资产信息
 // 如果资产已存在，则不进行更新，确保在生命周期内只写入一次
-func SetTradeAssetOnce(mintAddress string, creator solana.PublicKey, userAddress string, entryPrice float64, amount uint64) bool {
+func SetTradeAssetOnce(mintAddress string, creator solana.PublicKey, userAddress string, entryPrice float64, amount uint64, decimal uint32) bool {
 	PendingHoldAssetLock.Lock()
 	defer PendingHoldAssetLock.Unlock()
 
@@ -403,6 +404,7 @@ func SetTradeAssetOnce(mintAddress string, creator solana.PublicKey, userAddress
 
 	// 创建新的交易资产
 	PendingHoldAsset[mintAddress] = &MyBuyMap{
+		Decimal:     decimal,
 		UserAddress: userAddress,
 		MintAddress: mintAddress,
 		Creator:     creator,

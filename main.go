@@ -4,13 +4,16 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
 	"time"
 
+	"copytrade/asset"
 	"copytrade/bot"
 	"copytrade/core"
+
 	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/queue"
@@ -161,6 +164,14 @@ func main() {
 
 	// 启动处理卖出请求的goroutine
 	go processWaitingSellTokens(tradeBot)
+
+	// 初始化资产管理器并启动自动更新服务
+	balanceManager := asset.InitBalanceManager(
+		tradeBot.GetWalletPublicKey().String(),
+		config.RPCUrl,
+		5*time.Minute, // 每5分钟更新一次余额
+	)
+	balanceManager.StartAutoUpdate(ctx)
 
 	// 启动交易监控
 	logger.Infof("启动钱包监控服务，监控 %d 个钱包", len(walletMonitor.Wallets))
@@ -324,7 +335,7 @@ func main() {
 			logger.Infof("收到账户更新: %s", userPubkey)
 			// 获取账户所有者
 			owner := base58.Encode(account.Account.Owner)
-			logger.Infof("账户所有者: %s", owner)
+			//logger.Infof("账户所有者: %s", owner)
 			// 获取账户数据
 			accountData := account.Account.GetData()
 			if len(accountData) == 0 {
@@ -333,10 +344,17 @@ func main() {
 			}
 
 			// 获取账户余额
+			preSolBalance := balanceManager.GetSolBalanceValue()
 			lamports := account.Account.Lamports
 			solBalance := float64(lamports) / 1e9
-			logger.Infof("owner:%s ,账号地址:%s,账户余额: %f SOL (%d lamports)", owner, userPubkey, solBalance, lamports)
-
+			changeSolBalance := preSolBalance - solBalance
+			logger.Infof("owner:%s ,账号地址:%s,变化前账号余额：%.8f,当前账户余额: %.8f ,sol变化: %.8f SOL (%d lamports)", owner, userPubkey, preSolBalance, solBalance, changeSolBalance, lamports)
+			if changeSolBalance != 0 {
+				balanceManager.UpdateSolBalance()
+			} else {
+				logger.Infof("SOL余额未变化，跳过更新")
+				continue
+			}
 			// 如果有特定的数据结构需要解析，可以在这里添加解析逻辑
 			if owner == solana.TokenProgramID.String() && len(accountData) >= 165 {
 				// SPL代币账户数据结构
@@ -345,7 +363,6 @@ func main() {
 				_amount := binary.LittleEndian.Uint64(accountData[64:72])
 				logger.Infof("代币账户信息 - Mint: %s, 所有者: %s, token数量: %d", _mint, _owner, _amount)
 
-				// 如果余额超过10*1e6，则添加到待处理资产列表，否则从列表中删除
 				assetInfo, exist := global.GetPendingHoldAsset(_mint.String())
 				lastestAmmTradeInfo := global.GetAmmTradeInfo(_mint.String())
 				lastestPumpTradeInfo := global.GetTradeInfo(_mint.String())
@@ -357,23 +374,20 @@ func main() {
 					logger.Infof("Asset info for %s is nil", _mint.String())
 				}
 
-				if exist && (lastestAmmTradeInfo != nil || lastestPumpTradeInfo != nil || lastestRaydiumV4TradeInfo != nil) {
+				if exist {
 					platform := "pumpfun"
-					currentPrice := 0.0
+					currentPrice := changeSolBalance / (float64(assetInfo.Amount) / math.Pow(10, float64(assetInfo.Decimal)))
 					if lastestPumpTradeInfo != nil {
 						platform = "pumpfun"
-						currentPrice = lastestPumpTradeInfo.CurrentPrice
 
 					}
 					if lastestAmmTradeInfo != nil {
 						platform = "pumpamm"
-						currentPrice = lastestAmmTradeInfo.CurrentPrice
 
 					}
 
 					if lastestRaydiumV4TradeInfo != nil {
 						platform = "raydiumV4"
-						currentPrice = lastestRaydiumV4TradeInfo.CurrentPrice
 
 					}
 					// Check if we have a trade record for this token
@@ -381,7 +395,7 @@ func main() {
 					logger.Infof("existCopyTrade %v", existCopyTrade)
 					logger.Infof("tradeSetting %v", tradeSetting)
 
-					if existCopyTrade && currentPrice > 0 {
+					if existCopyTrade && changeSolBalance > 0 {
 
 						// tradeRecord := walletMonitor.BotTrades[_mint.String()]
 						strategyName := tradeSetting.Settings.Name

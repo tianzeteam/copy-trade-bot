@@ -149,6 +149,7 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 					TimeStamp:    time.Now().Unix(),
 					ReceivedAt:   time.Now(),
 					TxHash:       _signature,
+					Decimal:      solChange.Decimals,
 				}
 			}
 
@@ -218,6 +219,7 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 						TimeStamp:    time.Now().Unix(),
 						ReceivedAt:   time.Now(),
 						TxHash:       _signature,
+						Decimal:      solChange.Decimals,
 					}
 				}
 			} else {
@@ -278,6 +280,7 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 						TimeStamp:    time.Now().Unix(),
 						ReceivedAt:   time.Now(),
 						TxHash:       _signature,
+						Decimal:      solChange.Decimals,
 					}
 				}
 			}
@@ -310,6 +313,7 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 					botWallet.String(),
 					entryPrice,
 					tradeInfo.TokenAmount,
+					tradeInfo.Decimal,
 				)
 			}
 		}

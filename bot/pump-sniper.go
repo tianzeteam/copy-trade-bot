@@ -264,6 +264,7 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *goys
 						botWallet.String(),
 						entryPrice,
 						tradeEvent.TokenAmount,
+						6,
 					)
 
 				}

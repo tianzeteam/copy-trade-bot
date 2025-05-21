@@ -220,6 +220,7 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 					botWallet.String(),
 					entryPrice,
 					tradeInfo.TokenAmount,
+					6,
 				)
 			}
 		}
