@@ -51,8 +51,8 @@ func SendTokenToSellChannel(assetInfo *global.MyBuyMap, currentPrice float64, pl
 		StrategyName: strategyName,
 	}
 
-	logger.Infof("[%s] 准备发送代币到卖出通道: Mint=%s, 余额=%d, 入场价=%.8f, 当前价=%.8f, 策略=%s,触发原因=%s",
-		assetInfo.UserAddress, tokenInfo.Mint, tokenInfo.Amount, assetInfo.EntryPrice, currentPrice, strategyName,reason)
+	logger.Infof("[%s] 准备发送代币到卖出通道: Mint=%s, 余额=%d, 入场价=%.8f, 策略=%s,触发原因=%s",
+		assetInfo.UserAddress, tokenInfo.Mint, tokenInfo.Amount, assetInfo.EntryPrice, strategyName,reason)
 
 	// 尝试发送到通道，使用select避免阻塞
 	select {

@@ -395,13 +395,22 @@ func main() {
 					logger.Infof("existCopyTrade %v", existCopyTrade)
 					logger.Infof("tradeSetting %v", tradeSetting)
 
+					// 检查代币是否已经被发送到卖出通道
 					if existCopyTrade && changeSolBalance > 0 {
+						// 检查是否可以卖出该代币（防止多次卖出）
+						if global.CanSellToken(_mint.String()) {
+							// 更新代币卖出时间，防止短时间内重复卖出
+							global.UpdateTokenSellTime(_mint.String())
 
-						// tradeRecord := walletMonitor.BotTrades[_mint.String()]
-						strategyName := tradeSetting.Settings.Name
-						exitTimeSec := tradeSetting.Settings.ExitTimeSec
-						time.Sleep(time.Duration(exitTimeSec) * time.Second)
-						queue.SendTokenToSellChannel(assetInfo, currentPrice, platform, strategyName, "due_to_exit")
+							// tradeRecord := walletMonitor.BotTrades[_mint.String()]
+							strategyName := tradeSetting.Settings.Name
+							exitTimeSec := tradeSetting.Settings.ExitTimeSec
+							logger.Infof("将在 %d 秒后卖出代币 %s", exitTimeSec, _mint.String())
+							time.Sleep(time.Duration(exitTimeSec) * time.Second)
+							queue.SendTokenToSellChannel(assetInfo, currentPrice, platform, strategyName, "due_to_exit")
+						} else {
+							logger.Warnf("代币 %s 已经在卖出周期中，跳过重复卖出", _mint.String())
+						}
 					}
 				}
 

@@ -349,22 +349,23 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 	tradeInfo := global.GetAmmTradeInfo(mintAddress)
 
 	// 获取AMM池信息
-	poolInfo := global.GetAmmPoolInfo(mintAddress)
+	//poolInfo := global.GetAmmPoolInfo(mintAddress)
 
 	if tradeInfo == nil {
 		logger.Errorf("未找到代币 %s 的交易信息或创建信息，无法执行卖出操作", mintAddress)
 		return
 	}
+	/*
+			if poolInfo == nil {
+				logger.Errorf("未找到代币 %s 的AMM池信息，无法执行卖出操作", mintAddress)
+				return
+			}
 
-	if poolInfo == nil {
-		logger.Errorf("未找到代币 %s 的AMM池信息，无法执行卖出操作", mintAddress)
-		return
-	}
-
-	logger.Infof("使用AMM池信息执行卖出操作: BaseMint=%s, QuoteMint=%s",
-		poolInfo.BaseMint.String(), poolInfo.QuoteMint.String())
-	logger.Infof("池代币账户: BaseToken=%s, QuoteToken=%s",
-		poolInfo.PoolBaseTokenAccount.String(), poolInfo.PoolQuoteTokenAccount.String())
+		logger.Infof("使用AMM池信息执行卖出操作: BaseMint=%s, QuoteMint=%s",
+			poolInfo.BaseMint.String(), poolInfo.QuoteMint.String())
+		logger.Infof("池代币账户: BaseToken=%s, QuoteToken=%s",
+			poolInfo.PoolBaseTokenAccount.String(), poolInfo.PoolQuoteTokenAccount.String())
+	*/
 
 	ammAccounts, err := b.Trader.AccountsCalc.CalculateAmmAccounts(
 
@@ -402,13 +403,17 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
-			User:                  tokenInfo.User,
-			Mint:                  ammAccounts.Mint,
-			BaseMint:              ammAccounts.BaseMint,
-			QuoteMint:             ammAccounts.QuoteMint,
-			UserBaseTokenAccount:  ammAccounts.UserBaseTokenAccount,
-			PoolBaseTokenAccount:  ammAccounts.PoolBaseTokenAccount,
-			PoolQuoteTokenAccount: ammAccounts.PoolQuoteTokenAccount,
+			User:                     tokenInfo.User,
+			Mint:                     ammAccounts.Mint,
+			BaseMint:                 ammAccounts.BaseMint,
+			QuoteMint:                ammAccounts.QuoteMint,
+			UserBaseTokenAccount:     ammAccounts.UserBaseTokenAccount,
+			UserQuoteTokenAccount:    ammAccounts.UserQuoteTokenAccount,
+			PoolBaseTokenAccount:     ammAccounts.PoolBaseTokenAccount,
+			PoolQuoteTokenAccount:    ammAccounts.PoolQuoteTokenAccount,
+			Pool:                     ammAccounts.Pool,
+			CreatorVault:             ammAccounts.CoinCreatorVaultAta,
+			CoinCreatorVaultAuthority: ammAccounts.CoinCreatorVaultAuthority,
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MinOut,

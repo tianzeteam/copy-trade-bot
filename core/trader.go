@@ -12,8 +12,6 @@ import (
 	"copytrade/swqos"
 	"copytrade/types"
 	"copytrade/utils"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"log"
@@ -21,8 +19,6 @@ import (
 
 	"github.com/gagliardetto/solana-go"
 	associatedtokenaccount "github.com/gagliardetto/solana-go/programs/associated-token-account"
-	"github.com/gagliardetto/solana-go/programs/system"
-	"github.com/gagliardetto/solana-go/programs/token"
 	"github.com/gagliardetto/solana-go/rpc"
 )
 
@@ -1065,58 +1061,58 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 
 	// 添加优先级费用指令
 	instructions = append(instructions, createSetComputeUnitPriceInstruction(params.TradeParams.FeeConfig.PriorityFee))
-	// 为WSOL账户生成种子
-	logger.Info("AmmSell: Generating seed for WSOL account...")
-	randomBytes := make([]byte, 24)
-	_, err := rand.Read(randomBytes)
-	if err != nil {
-		logger.Errorf("AmmSell生成随机种子失败: %v", err)
-		return "", fmt.Errorf("failed to generate random bytes: %v", err)
-	}
-	seed := base64.URLEncoding.EncodeToString(randomBytes)
+	/* 	// 为WSOL账户生成种子
+	   	logger.Info("AmmSell: Generating seed for WSOL account...")
+	   	randomBytes := make([]byte, 24)
+	   	_, err := rand.Read(randomBytes)
+	   	if err != nil {
+	   		logger.Errorf("AmmSell生成随机种子失败: %v", err)
+	   		return "", fmt.Errorf("failed to generate random bytes: %v", err)
+	   	}
+	   	seed := base64.URLEncoding.EncodeToString(randomBytes)
 
-	//@TODO 创建WSOL账户地址（with seed）
-	wsolTokenAccount, err := solana.CreateWithSeed(
-		t.Wallet.PublicKey(),
-		seed,
-		solana.TokenProgramID,
-	)
-	if err != nil {
-		logger.Errorf("AmmSell创建WSOL账户失败: %v", err)
-		return "", fmt.Errorf("failed to create WSOL account with seed: %v", err)
-	}
+	   	//@TODO 创建WSOL账户地址（with seed）
+	   	wsolTokenAccount, err := solana.CreateWithSeed(
+	   		t.Wallet.PublicKey(),
+	   		seed,
+	   		solana.TokenProgramID,
+	   	)
+	   	if err != nil {
+	   		logger.Errorf("AmmSell创建WSOL账户失败: %v", err)
+	   		return "", fmt.Errorf("failed to create WSOL account with seed: %v", err)
+	   	}
 
-	// 检查WSOL账户是否已存在
-	accountInfo, err := t.Client.GetAccountInfo(ctx, wsolTokenAccount)
-	if err != nil {
-		logger.Errorf("AmmSell检查WSOL账户存在失败: %v", err)
-		return "", fmt.Errorf("error checking WSOL account existence: %v", err)
-	}
+	   	// 检查WSOL账户是否已存在
+	   	accountInfo, err := t.Client.GetAccountInfo(ctx, wsolTokenAccount)
+	   	if err != nil {
+	   		logger.Errorf("AmmSell检查WSOL账户存在失败: %v", err)
+	   		return "", fmt.Errorf("error checking WSOL account existence: %v", err)
+	   	}
 
-	if accountInfo.Value == nil {
-		logger.Info("AmmSell: WSOL账户不存在，创建并初始化...")
-		// 创建WSOL账户指令
-		createWsolAccountInstruction := system.NewCreateAccountWithSeedInstruction(
-			t.Wallet.PublicKey(),
-			seed,
-			balanceNeeded,
-			ACCOUNT_SPACE,
-			solana.TokenProgramID,
-			t.Wallet.PublicKey(),
-			t.Wallet.PublicKey(),
-			wsolTokenAccount,
-		).Build()
-		// 初始化WSOL账户指令
-		initWsolAccountInstruction := token.NewInitializeAccountInstruction(
-			wsolTokenAccount,
-			WSOL,
-			t.Wallet.PublicKey(),
-			solana.SysVarRentPubkey,
-		).Build()
-		instructions = append(instructions, createWsolAccountInstruction, initWsolAccountInstruction)
-	} else {
-		logger.Info("WSOL账户已存在，跳过创建和初始化步骤")
-	}
+	   	if accountInfo.Value == nil {
+	   		logger.Info("AmmSell: WSOL账户不存在，创建并初始化...")
+	   		// 创建WSOL账户指令
+	   		createWsolAccountInstruction := system.NewCreateAccountWithSeedInstruction(
+	   			t.Wallet.PublicKey(),
+	   			seed,
+	   			balanceNeeded,
+	   			ACCOUNT_SPACE,
+	   			solana.TokenProgramID,
+	   			t.Wallet.PublicKey(),
+	   			t.Wallet.PublicKey(),
+	   			wsolTokenAccount,
+	   		).Build()
+	   		// 初始化WSOL账户指令
+	   		initWsolAccountInstruction := token.NewInitializeAccountInstruction(
+	   			wsolTokenAccount,
+	   			WSOL,
+	   			t.Wallet.PublicKey(),
+	   			solana.SysVarRentPubkey,
+	   		).Build()
+	   		instructions = append(instructions, createWsolAccountInstruction, initWsolAccountInstruction)
+	   	} else {
+	   		logger.Info("WSOL账户已存在，跳过创建和初始化步骤")
+	   	} */
 	// 构建Sell指令
 	sellInstruction := pumpamm.NewSellInstructionBuilder().
 		SetGlobalConfigAccount(GLOBAL_CONFIG_ACCOUNT).
@@ -1130,12 +1126,14 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 		SetAssociatedTokenProgramAccount(associatedtokenaccount.ProgramID).
 		SetUserAccount(params.TradeParams.Accounts.User).
 		SetUserBaseTokenAccountAccount(params.TradeParams.Accounts.UserBaseTokenAccount).
-		SetUserQuoteTokenAccountAccount(wsolTokenAccount).
+		SetUserQuoteTokenAccountAccount(params.TradeParams.Accounts.UserQuoteTokenAccount).
 		SetBaseTokenProgramAccount(solana.TokenProgramID).
 		SetQuoteTokenProgramAccount(solana.TokenProgramID).
 		SetSystemProgramAccount(solana.SystemProgramID).
 		SetEventAuthorityAccount(AMM_EVENT_AUTHORITY).
 		SetProgramAccount(AMM_PROGRAM_ID).
+		SetCoinCreatorVaultAtaAccount(params.TradeParams.Accounts.CreatorVault).
+		SetCoinCreatorVaultAuthorityAccount(params.TradeParams.Accounts.CoinCreatorVaultAuthority).
 		SetBaseAmountIn(params.TradeParams.Amount).
 		SetMinQuoteAmountOut(params.TradeParams.Cost)
 
