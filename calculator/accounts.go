@@ -2,10 +2,11 @@ package calculator
 
 import (
 	"context"
+	"copytrade/logger"
 	"fmt"
-	"log"
 
 	"copytrade/global"
+	"copytrade/pumpamm"
 	"copytrade/raydium/layouts"
 	"copytrade/raydium/utils"
 
@@ -111,6 +112,37 @@ type AmmAccounts struct {
 	CoinCreatorVaultAuthority solana.PublicKey // 代币创建者金库授权地址
 	CoinCreatorVaultAta       solana.PublicKey // 代币创建者金库ATA地址
 }
+
+// String 返回AmmAccounts的字符串表示，用于调试输出
+func (a *AmmAccounts) String() string {
+	return fmt.Sprintf("AmmAccounts:\n"+
+		"  Pool: %s\n"+
+		"  Mint: %s\n"+
+		"  BaseMint: %s\n"+
+		"  QuoteMint: %s\n"+
+		"  PoolBaseTokenAccount: %s\n"+
+		"  PoolQuoteTokenAccount: %s\n"+
+		"  UserBaseTokenAccount: %s\n"+
+		"  UserQuoteTokenAccount: %s\n"+
+		"  WsolTokenAccount: %s\n"+
+		"  CoinCreator: %s\n"+
+		"  CoinCreatorVaultAuthority: %s\n"+
+		"  CoinCreatorVaultAta: %s",
+		a.Pool.String(),
+		a.Mint.String(),
+		a.BaseMint.String(),
+		a.QuoteMint.String(),
+		a.PoolBaseTokenAccount.String(),
+		a.PoolQuoteTokenAccount.String(),
+		a.UserBaseTokenAccount.String(),
+		a.UserQuoteTokenAccount.String(),
+		a.WsolTokenAccount.String(),
+		a.CoinCreator.String(),
+		a.CoinCreatorVaultAuthority.String(),
+		a.CoinCreatorVaultAta.String(),
+	)
+}
+
 type RaydiumV4Accounts struct {
 	Pool                  solana.PublicKey
 	ID                    solana.PublicKey
@@ -163,7 +195,7 @@ func (c *AccountsCalculator) CalculateV4Accounts(user solana.PublicKey, tradeInf
 		solana.SolMint,
 	)
 	if err != nil {
-		log.Printf("failed to create WSOL account with seed: %v", err)
+		logger.Errorf("failed to create WSOL account with seed: %v", err)
 		return nil, fmt.Errorf("failed to create WSOL account with seed: %v", err)
 	}
 
@@ -210,7 +242,7 @@ func (c *AccountsCalculator) CalculateAmmAccounts(pool, baseMint, user solana.Pu
 		solana.SolMint,
 	)
 	if err != nil {
-		log.Printf("failed to create WSOL account with seed: %v", err)
+		logger.Errorf("failed to create WSOL account with seed: %v", err)
 		return nil, fmt.Errorf("failed to create WSOL account with seed: %v", err)
 	}
 
@@ -274,20 +306,22 @@ func (c *AccountsCalculator) CalculateAmmAccounts(pool, baseMint, user solana.Pu
 			[]byte("creator_vault"),
 			coinCreator.Bytes(),
 		},
-		PumpAMMProgramID,
+		pumpamm.ProgramID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find coin creator vault authority: %w", err)
 	}
 
 	// 计算coin_creator_vault_ata (代币创建者金库ATA地址)
-	// 根据IDL，seeds是 [coin_creator_vault_authority, quote_token_program, quote_mint]
+	var seeds [][]byte
+	// path: coinCreatorVaultAuthority
+	seeds = append(seeds, coinCreatorVaultAuthority.Bytes())
+	// path: quoteTokenProgram
+	seeds = append(seeds, solana.TokenProgramID.Bytes())
+	// path: quoteMint
+	seeds = append(seeds, quoteMint.Bytes())
 	coinCreatorVaultAta, _, err := solana.FindProgramAddress(
-		[][]byte{
-			coinCreatorVaultAuthority.Bytes(),
-			solana.TokenProgramID.Bytes(),
-			quoteMint.Bytes(),
-		},
+		seeds,
 		solana.SPLAssociatedTokenAccountProgramID,
 	)
 	if err != nil {
@@ -295,7 +329,7 @@ func (c *AccountsCalculator) CalculateAmmAccounts(pool, baseMint, user solana.Pu
 	}
 
 	// 返回所有计算出的账户地址
-	return &AmmAccounts{
+	ammAccounts := &AmmAccounts{
 		Pool:                      pool,
 		Mint:                      baseMint,
 		BaseMint:                  baseMint,
@@ -308,5 +342,11 @@ func (c *AccountsCalculator) CalculateAmmAccounts(pool, baseMint, user solana.Pu
 		CoinCreator:               coinCreator,
 		CoinCreatorVaultAuthority: coinCreatorVaultAuthority,
 		CoinCreatorVaultAta:       coinCreatorVaultAta,
-	}, nil
+	}
+
+	// 调试输出所有账户地址
+	logger.Infof("[DEBUG] CalculateAmmAccounts 结果:\n%s", ammAccounts)
+
+	return ammAccounts, nil
+
 }

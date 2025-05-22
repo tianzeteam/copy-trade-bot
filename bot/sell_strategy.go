@@ -366,10 +366,10 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 	logger.Infof("池代币账户: BaseToken=%s, QuoteToken=%s",
 		poolInfo.PoolBaseTokenAccount.String(), poolInfo.PoolQuoteTokenAccount.String())
 
-	pumpAccounts, err := b.Trader.AccountsCalc.CalculateAmmAccounts(
+	ammAccounts, err := b.Trader.AccountsCalc.CalculateAmmAccounts(
 
-		poolInfo.AmmPool,
-		poolInfo.BaseMint,
+		tradeInfo.AmmPool,
+		tradeInfo.MintAddress,
 		b.privateKey.PublicKey(),
 		tradeInfo.CoinCreator,
 	)
@@ -403,12 +403,12 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
 			User:                  tokenInfo.User,
-			Mint:                  pumpAccounts.Mint,
-			BaseMint:              poolInfo.BaseMint,
-			QuoteMint:             poolInfo.QuoteMint,
-			UserBaseTokenAccount:  pumpAccounts.UserBaseTokenAccount,
-			PoolBaseTokenAccount:  poolInfo.PoolBaseTokenAccount,
-			PoolQuoteTokenAccount: poolInfo.PoolQuoteTokenAccount,
+			Mint:                  ammAccounts.Mint,
+			BaseMint:              ammAccounts.BaseMint,
+			QuoteMint:             ammAccounts.QuoteMint,
+			UserBaseTokenAccount:  ammAccounts.UserBaseTokenAccount,
+			PoolBaseTokenAccount:  ammAccounts.PoolBaseTokenAccount,
+			PoolQuoteTokenAccount: ammAccounts.PoolQuoteTokenAccount,
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MinOut,

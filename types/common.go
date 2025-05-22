@@ -2,6 +2,7 @@ package types
 
 import (
 	"copytrade/calculator"
+
 	"github.com/gagliardetto/solana-go"
 )
 

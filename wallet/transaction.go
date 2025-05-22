@@ -272,11 +272,13 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
+			Pool:                      tradeInfo.AmmPool,
 			User:                      m.BotWallet,
 			Mint:                      pumpAccounts.Mint,
 			BaseMint:                  pumpAccounts.Mint,
 			QuoteMint:                 pumpAccounts.QuoteMint,
 			UserBaseTokenAccount:      pumpAccounts.UserBaseTokenAccount,
+			UserQuoteTokenAccount:     pumpAccounts.UserQuoteTokenAccount,
 			PoolBaseTokenAccount:      pumpAccounts.PoolBaseTokenAccount,
 			PoolQuoteTokenAccount:     pumpAccounts.PoolQuoteTokenAccount,
 			CreatorVault:              pumpAccounts.CoinCreatorVaultAta,

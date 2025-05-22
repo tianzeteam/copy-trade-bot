@@ -14,8 +14,8 @@ var (
 	GLOBAL_ACCOUNT                       = solana.MustPublicKeyFromBase58("4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf")
 	FEE_RECIPIENT                        = solana.MustPublicKeyFromBase58("62qc2CNXwrYqQScmEdiZFFAnJR262PxWEuNQtxfafNgV")
 	AMM_EVENT_AUTHORITY                  = solana.MustPublicKeyFromBase58("GS4CU59F31iL7aR2Q8zVS8DRrcRnXX1yjQ66TqNVQnaR")
-	PROTOCOL_FEE_RECIPIENT               = solana.MustPublicKeyFromBase58("FWsW1xNtWscwNmKv6wVsU1iTzRN6wmmk3MjxRP5tT7hz")
-	PROTOCOL_FEE_RECIPIENT_TOKEN_ACCOUNT = solana.MustPublicKeyFromBase58("A9AKE7gPf3xn3rU3WhVJYpAz494izRzPeb1Fn8KdtAeu")
+	PROTOCOL_FEE_RECIPIENT               = solana.MustPublicKeyFromBase58("JCRGumoE9Qi5BBgULTgdgTLjSgkCMSbF62ZZfGs84JeU")
+	PROTOCOL_FEE_RECIPIENT_TOKEN_ACCOUNT = solana.MustPublicKeyFromBase58("DWpvfqzGWuVy9jVSKSShdM2733nrEsnnhsUStYbkj6Nn")
 	ACCOUNT_SPACE                        = uint64(165)
 	WSOL                                 = solana.MustPublicKeyFromBase58("So11111111111111111111111111111111111111112")
 

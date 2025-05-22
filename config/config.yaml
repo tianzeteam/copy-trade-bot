@@ -11,7 +11,7 @@ rpc_url: "https://mainnet.helius-rpc.com/?api-key=fc8353eb-13cb-423e-8d36-49e2b2
 logging:
   level: "info"      # 日志级别: debug, info, warn, error, fatal
   format: "text"     # 日志格式: text, json
-  file: "logs/pump-sniper.log"   # 日志文件路径，为空则输出到控制台
+  file: ""   # 日志文件路径，为空则输出到控制台
   isTerminal: true
 skip_ata_check: true  # 全局参数：是否跳过ATA检查
 buy_sol_amount: 0.0001 # 全局买入金额

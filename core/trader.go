@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+
 	"copytrade/calculator"
 	"copytrade/global"
 	"copytrade/logger"
@@ -105,7 +106,6 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 	// 构建Buy指令
 
 	buyInstruction := pump.NewBuyInstructionBuilder().
-		
 		SetGlobalAccount(GLOBAL_ACCOUNT).
 		SetFeeRecipientAccount(FEE_RECIPIENT).
 		SetMintAccount(params.TradeParams.Accounts.Mint).
@@ -263,7 +263,7 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		logger.Infof("模拟模式，不执行买入交易 %s", params.TradeParams.Accounts.Mint)
 		return "mock", fmt.Errorf("模拟模式，不执行买入交易")
 	}
-	logger.Infof("开始执行买入交易...")
+	logger.Infof("开始执行Pump Amm买入交易...")
 	logger.Infof("Mint地址: %s", params.TradeParams.Accounts.Mint)
 	logger.Infof("购买数量: %d", params.TradeParams.Amount)
 	logger.Infof("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
@@ -300,8 +300,6 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		}
 	}
 
-	// 构建Buy指令
-	// 使用pumpamm包的正确API
 	buyInstruction := pumpamm.NewBuyInstructionBuilder().
 		SetPoolAccount(params.TradeParams.Accounts.Pool).
 		SetUserAccount(params.TradeParams.Accounts.User).
@@ -316,6 +314,9 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		SetProtocolFeeRecipientTokenAccountAccount(PROTOCOL_FEE_RECIPIENT_TOKEN_ACCOUNT).
 		SetBaseTokenProgramAccount(solana.TokenProgramID).
 		SetQuoteTokenProgramAccount(solana.TokenProgramID).
+		SetSystemProgramAccount(solana.SystemProgramID).
+		SetCoinCreatorVaultAtaAccount(params.TradeParams.Accounts.CreatorVault).
+		SetCoinCreatorVaultAuthorityAccount(params.TradeParams.Accounts.CoinCreatorVaultAuthority).
 		SetEventAuthorityAccount(AMM_EVENT_AUTHORITY).
 		SetProgramAccount(pumpamm.ProgramID).
 		SetBaseAmountOut(params.TradeParams.Amount).

@@ -413,6 +413,6 @@ func SetTradeAssetOnce(mintAddress string, creator solana.PublicKey, userAddress
 		SoldLevels:  make(map[int]bool),
 		TimeStamp:   time.Now().Unix(),
 	}
-	logger.Infof("创建代币 %s 的交易资产: 价格=%.9f, 数量=%d", mintAddress, entryPrice, amount)
+	logger.Infof("持仓资产更新： %s 的交易资产, 价格=%.8f, 数量=%d", mintAddress, entryPrice, amount)
 	return true
 }

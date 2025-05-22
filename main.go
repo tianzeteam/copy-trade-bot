@@ -332,7 +332,7 @@ func main() {
 			}
 			// 获取账户公钥
 			userPubkey := base58.Encode(account.Account.Pubkey)
-			logger.Infof("收到账户更新: %s", userPubkey)
+			logger.Debugf("收到账户更新: %s", userPubkey)
 			// 获取账户所有者
 			owner := base58.Encode(account.Account.Owner)
 			//logger.Infof("账户所有者: %s", owner)
@@ -348,11 +348,11 @@ func main() {
 			lamports := account.Account.Lamports
 			solBalance := float64(lamports) / 1e9
 			changeSolBalance := preSolBalance - solBalance
-			logger.Infof("owner:%s ,账号地址:%s,变化前账号余额：%.8f,当前账户余额: %.8f ,sol变化: %.8f SOL (%d lamports)", owner, userPubkey, preSolBalance, solBalance, changeSolBalance, lamports)
+			logger.Debugf("owner:%s ,账号地址:%s,变化前账号余额：%.8f,当前账户余额: %.8f ,sol变化: %.8f SOL (%d lamports)", owner, userPubkey, preSolBalance, solBalance, changeSolBalance, lamports)
 			if changeSolBalance != 0 {
 				balanceManager.UpdateSolBalance()
 			} else {
-				logger.Infof("SOL余额未变化，跳过更新")
+				logger.Debugf("SOL余额未变化，跳过更新")
 				continue
 			}
 			// 如果有特定的数据结构需要解析，可以在这里添加解析逻辑
