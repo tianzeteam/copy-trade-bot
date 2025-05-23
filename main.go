@@ -277,11 +277,12 @@ func main() {
 
 		}
 	}()
-	// -----------------------------------------订阅market data ----------------------------------
+	// -----------------------------------------订阅open market data ----------------------------------
 	tradeBot.SubscribeToOpenBookMarkets(ctx, client, solana.SolMint)
-	// -------------------------------------------订阅pool v4 data--------------------------
 
+	// -------------------------------------------订阅raydium pool v4 data--------------------------
 	tradeBot.SubscribeToRaydiumPools(ctx, client, solana.SolMint)
+
 	//-----------------------------  监听交易钱包账户变化 --------------------------------------------
 	if err = client.AddStreamClient(ctx, "accounts_stream", yellowstone_geyser_pb.CommitmentLevel_CONFIRMED); err != nil {
 		logger.Fatalf("添加账户流客户端失败: %v", err)

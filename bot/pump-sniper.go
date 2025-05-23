@@ -254,8 +254,13 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *goys
 			// 管道步骤3: 处理买入事件
 			if tradeEvent.IsBuy {
 				// 检查是否是自己的交易
+				// 定义常量以提高可读性
+				const (
+					SolDecimals   = 1e9 // SOL有9位小数
+					TokenDecimals = 1e6 // 代币有6位小数
+				)
 				if tradeEvent.User.String() == botWallet.String() {
-					entryPrice := float64(tradeEvent.VirtualSolReserves/1e9) / float64(tradeEvent.VirtualTokenReserves/1e6)
+					entryPrice := (float64(tradeEvent.VirtualSolReserves) / SolDecimals) / (float64(tradeEvent.VirtualTokenReserves) / TokenDecimals)
 
 					// 设置入场价格
 					global.SetTradeAssetOnce(
