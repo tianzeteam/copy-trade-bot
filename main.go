@@ -376,7 +376,7 @@ func main() {
 				}
 
 				if exist {
-					platform := "pumpfun"
+					platform := "unknown"
 					currentPrice := changeSolBalance / (float64(assetInfo.Amount) / math.Pow(10, float64(assetInfo.Decimal)))
 					if lastestPumpTradeInfo != nil {
 						platform = "pumpfun"
@@ -397,7 +397,7 @@ func main() {
 					logger.Infof("tradeSetting %v", tradeSetting)
 
 					// 检查代币是否已经被发送到卖出通道
-					if existCopyTrade && changeSolBalance > 0 {
+					if existCopyTrade && changeSolBalance > 0 && platform != "unknown" {
 						// 检查是否可以卖出该代币（防止多次卖出）
 						if global.CanSellToken(_mint.String()) {
 							// 更新代币卖出时间，防止短时间内重复卖出

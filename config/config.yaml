@@ -2,7 +2,6 @@ simulate_mode: false
 create_nonce_account: false
 nonce_account_pubkey: "GgTBxk6r1jyi6QUiUCP7ufvonufBDRS6D3RoRUFnZ7go"
 # 交易钱包私钥
-#private_key: "eaVJTFZg1jkhfYX6LpNupLgFNMT3YUBjuHS7wsmbsG2BvtHUMnxWWXB4JXXtAW9Bk1ZJy59fsvyRpxmFjMakfBa" #交易钱包私钥
 private_key: "yZDBsZwwtmUBXTuVCREteDpf6AwyeEoF5TiUYE5Tdxr2Y9SuU1GMSTNVPNcDzLoQKrLtn26rGtNPZJyZcWmWNqU" #交易钱包私钥
 grpc_url: "https://grpc-ny.fountainhead.land"
 rpc_url: "https://mainnet.helius-rpc.com/?api-key=fc8353eb-13cb-423e-8d36-49e2b26d3a78"  # 全局RPC URL
@@ -11,7 +10,7 @@ rpc_url: "https://mainnet.helius-rpc.com/?api-key=fc8353eb-13cb-423e-8d36-49e2b2
 logging:
   level: "info"      # 日志级别: debug, info, warn, error, fatal
   format: "text"     # 日志格式: text, json
-  file: ""   # 日志文件路径，为空则输出到控制台
+  file: "logs/copytrade.log"   # 日志文件路径，为空则输出到控制台
   isTerminal: true
 skip_ata_check: true  # 全局参数：是否跳过ATA检查
 buy_sol_amount: 0.0001 # 全局买入金额

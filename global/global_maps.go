@@ -194,8 +194,8 @@ var (
 	RaydiumPoolLayouts     = make(map[string]*layouts.LIQUIDITY_STATE_LAYOUT_V4)
 	RaydiumPoolLayoutsLock = &sync.RWMutex{} // 用于保护映射表的读写锁
 
-	// 代币卖出时间间隔限制，默认5秒
-	SellIntervalLimit = 5 * time.Second
+	// 代币卖出时间间隔限制，默认10秒
+	SellIntervalLimit = 10 * time.Second
 )
 
 // GetTradeInfo 获取指定代币的交易信息
