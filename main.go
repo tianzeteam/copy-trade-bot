@@ -377,18 +377,22 @@ func main() {
 
 				if exist {
 					platform := "unknown"
+					//@TODO
 					currentPrice := changeSolBalance / (float64(assetInfo.Amount) / math.Pow(10, float64(assetInfo.Decimal)))
 					if lastestPumpTradeInfo != nil {
 						platform = "pumpfun"
+						currentPrice = lastestPumpTradeInfo.CurrentPrice
 
 					}
 					if lastestAmmTradeInfo != nil {
 						platform = "pumpamm"
+						currentPrice = lastestAmmTradeInfo.CurrentPrice
 
 					}
 
 					if lastestRaydiumV4TradeInfo != nil {
 						platform = "raydiumV4"
+						currentPrice = lastestRaydiumV4TradeInfo.CurrentPrice
 
 					}
 					// Check if we have a trade record for this token
@@ -406,9 +410,13 @@ func main() {
 							// tradeRecord := walletMonitor.BotTrades[_mint.String()]
 							strategyName := tradeSetting.Settings.Name
 							exitTimeSec := tradeSetting.Settings.ExitTimeSec
-							logger.Infof("将在 %d 秒后卖出代币 %s", exitTimeSec, _mint.String())
+							nowTime := time.Now().Unix()
+							waitSellTime := int64(exitTimeSec) + nowTime
+
+							logger.Infof("将在 %d 秒后卖出代币 %s ,卖出时间: %s", exitTimeSec, _mint.String(), time.Unix(waitSellTime, 0).Format("2006-01-02 15:04:05"))
 							time.Sleep(time.Duration(exitTimeSec) * time.Second)
 							queue.SendTokenToSellChannel(assetInfo, currentPrice, platform, strategyName, "due_to_exit")
+
 						} else {
 							logger.Warnf("代币 %s 已经在卖出周期中，跳过重复卖出", _mint.String())
 						}

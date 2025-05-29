@@ -101,7 +101,7 @@ func (b *Bot) createTradeInfo(
 	isBuy := solChange.SolChangeAmount >= 0
 
 	// Log the trade details
-	logger.Infof("Raydium V%d mintAddress: %s, solChange %.8f, tokenChange %.8f, currentPrice %.8f, (decimals=%d)",
+	logger.Debugf("Raydium V%d mintAddress: %s, solChange %.8f, tokenChange %.8f, currentPrice %.8f, (decimals=%d)",
 		version, mintAddress, solChange.SolChangeAmount, solChange.TokenChangeAmount, currentPrice, solChange.Decimals)
 
 	// Create the trade info struct
@@ -178,7 +178,7 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 			if err != nil {
 				return nil
 			}
-			logger.Infof("SwapBaseIn instruction found, signature: %s", _signature)
+			logger.Debugf("SwapBaseIn instruction found, signature: %s", _signature)
 			accounts := instruction.Accounts
 			if len(accounts) < 17 {
 				logger.Debug("Not enough accounts in the instruction")

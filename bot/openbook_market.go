@@ -72,14 +72,14 @@ func (b *Bot) processOpenBookMarketUpdates(marketStreamClient *yellowstone_geyse
 	for update := range marketStreamClient.Ch {
 		// Check if update is nil
 		if update == nil {
-			logger.Warn("Received nil update from OpenBook market stream")
+			logger.Debugf("Received nil update from OpenBook market stream")
 			continue
 		}
 
 		// Check if the update contains account data
 		accountUpdate := update.GetAccount()
 		if accountUpdate == nil {
-			logger.Warn("Received nil account data from OpenBook market stream")
+			logger.Debugf("Received nil account data from OpenBook market stream")
 			continue
 		}
 

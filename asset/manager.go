@@ -113,7 +113,7 @@ func (bm *BalanceManager) StartAutoUpdate(ctx context.Context) {
 		}
 	}()
 
-	logger.Infof("已启动SOL余额自动更新服务，更新间隔: %v", bm.updateInterval)
+	logger.Infof("已启动SOL余额自动更新服务，更新间隔: %v (秒)", bm.updateInterval.Seconds())
 }
 
 // IsBalanceSufficient 检查余额是否足够

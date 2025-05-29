@@ -4,7 +4,7 @@ nonce_account_pubkey: "GgTBxk6r1jyi6QUiUCP7ufvonufBDRS6D3RoRUFnZ7go"
 # 交易钱包私钥
 private_key: "yZDBsZwwtmUBXTuVCREteDpf6AwyeEoF5TiUYE5Tdxr2Y9SuU1GMSTNVPNcDzLoQKrLtn26rGtNPZJyZcWmWNqU" #交易钱包私钥
 grpc_url: "https://grpc-ny.fountainhead.land"
-rpc_url: "https://mainnet.helius-rpc.com/?api-key=fc8353eb-13cb-423e-8d36-49e2b26d3a78"  # 全局RPC URL
+rpc_url: "https://mainnet.helius-rpc.com/?api-key=12bc002e-520d-4c0b-b289-8ca9cf41169e"  # 全局RPC URL
 
 # 日志配置
 logging:
