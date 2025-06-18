@@ -2,7 +2,7 @@ simulate_mode: false
 create_nonce_account: false
 nonce_account_pubkey: "GgTBxk6r1jyi6QUiUCP7ufvonufBDRS6D3RoRUFnZ7go"
 # 交易钱包私钥
-private_key: "yZDBsZwwtmUBXTuVCREteDpf6AwyeEoF5TiUYE5Tdxr2Y9SuU1GMSTNVPNcDzLoQKrLtn26rGtNPZJyZcWmWNqU" #交易钱包私钥
+private_key: "xxxxxxxxxxx" #交易钱包私钥
 grpc_url: "https://grpc-ny.fountainhead.land"
 rpc_url: "https://mainnet.helius-rpc.com/?api-key=12bc002e-520d-4c0b-b289-8ca9cf41169e"  # 全局RPC URL
 
