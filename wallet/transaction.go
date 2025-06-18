@@ -51,6 +51,14 @@ func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo
 		// 不是我们监控的钱包，忽略
 		return
 	}
+	if float64(tradeInfo.SolAmount) < m.TradeBot.Config.MinFollowTriggerAmount || float64(tradeInfo.SolAmount) > m.TradeBot.Config.MaxFollowTriggerAmount {
+		//不在跟卖金额范围内，忽略
+		return
+	}
+	if float64(tradeInfo.RealSolReserves) < m.TradeBot.Config.MinPoolSize || float64(tradeInfo.RealSolReserves) > m.TradeBot.Config.MaxPoolSize {
+		//不在跟卖池子大小范围内，忽略
+		return
+	}
 
 	logger.Infof("检测到监控钱包交易: 钱包=%s (%s), 代币=%s, 数量=%d",
 		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount)
@@ -75,7 +83,14 @@ func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *global.AmmRa
 		// 不是我们监控的钱包，忽略
 		return
 	}
-
+	if float64(tradeInfo.SolAmount) < m.TradeBot.Config.MinFollowTriggerAmount || float64(tradeInfo.SolAmount) > m.TradeBot.Config.MaxFollowTriggerAmount {
+		//不在跟卖金额范围内，忽略
+		return
+	}
+	if float64(tradeInfo.SolReserve) < m.TradeBot.Config.MinPoolSize || float64(tradeInfo.SolReserve) > m.TradeBot.Config.MaxPoolSize {
+		//不在跟卖池子大小范围内，忽略
+		return
+	}
 	logger.Infof("检测到监控钱包Raydium V4 交易: 钱包=%s (%s), 代币=%s, 数量=%d",
 		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount)
 
@@ -100,7 +115,14 @@ func (m *TransactionMonitor) ProcessAmmTransaction(tradeInfo *global.AmmTradeEve
 		// 不是我们监控的钱包，忽略
 		return
 	}
-
+	if float64(tradeInfo.SolAmount) < m.TradeBot.Config.MinFollowTriggerAmount || float64(tradeInfo.SolAmount) > m.TradeBot.Config.MaxFollowTriggerAmount {
+		//不在跟卖金额范围内，忽略
+		return
+	}
+	if float64(tradeInfo.BaseReserve) < m.TradeBot.Config.MinPoolSize || float64(tradeInfo.BaseReserve) > m.TradeBot.Config.MaxPoolSize {
+		//不在跟卖池子大小范围内，忽略
+		return
+	}
 	logger.Infof("检测到监控钱包AMM交易: 钱包=%s (%s), 代币=%s, 数量=%d",
 		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount)
 

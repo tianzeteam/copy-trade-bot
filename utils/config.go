@@ -37,28 +37,37 @@ type LogConfig struct {
 
 // Config 表示整个配置文件结构
 type Config struct {
-	CreateNonceAccount bool             `yaml:"create_nonce_account"`
-	NonceAccountPubkey string           `yaml:"nonce_account_pubkey"`
-	SimulateMode       bool             `yaml:"simulate_mode"`
-	PrivateKey         string           `yaml:"private_key"`
-	GRPCUrl            string           `yaml:"grpc_url"`
-	RPCUrl             string           `yaml:"rpc_url"`
-	BuySolAmount       float64          `yaml:"buy_sol_amount"`
-	SellMode           string           `yaml:"sell_mode"`
-	SellDelayTime      int              `yaml:"sell_delay_time"`
-	MultiSellLevels    []MultiSellLevel `yaml:"multi_sell_levels"`
-	BatchSellConfig    BatchSellConfig  `yaml:"batch_sell_config"`
-	SkipATACheck       bool             `yaml:"skip_ata_check"`
-	BuySlippage        float64          `yaml:"buy_slippage"`      // 全局买入滑点
-	SellSlippage       float64          `yaml:"sell_slippage"`     // 全局卖出滑点
-	BuyPriorityFee     float64          `yaml:"buy_priority_fee"`  // 全局买入优先级费用
-	SellPriorityFee    float64          `yaml:"sell_priority_fee"` // 全局卖出优先级费用
-	Logging            LogConfig        `yaml:"logging"`           // 日志配置
-	Normal             ModeConfig       `yaml:"normal"`
-	Jito               ModeConfig       `yaml:"jito"`
-	NextBlock          ModeConfig       `yaml:"nextblock"`
-	Temporal           ModeConfig       `yaml:"temporal"`
-	BloXroute          ModeConfig       `yaml:"bloXroute"`
+	CreateNonceAccount     bool             `yaml:"create_nonce_account"`
+	NonceAccountPubkey     string           `yaml:"nonce_account_pubkey"`
+	SimulateMode           bool             `yaml:"simulate_mode"`
+	PrivateKey             string           `yaml:"private_key"`
+	GRPCUrl                string           `yaml:"grpc_url"`
+	RPCUrl                 string           `yaml:"rpc_url"`
+	BuySolAmount           float64          `yaml:"buy_sol_amount"`
+	SellMode               string           `yaml:"sell_mode"`
+	SellDelayTime          int              `yaml:"sell_delay_time"`
+	MultiSellLevels        []MultiSellLevel `yaml:"multi_sell_levels"`
+	BatchSellConfig        BatchSellConfig  `yaml:"batch_sell_config"`
+	SkipATACheck           bool             `yaml:"skip_ata_check"`
+	PumpTradeEnable        bool             `yaml:"pump_trade_enable"`
+	PumpammTradeEnable     bool             `yaml:"pumpamm_trade_enable"`
+	RaydiumTradeEnable     bool             `yaml:"raydium_trade_enable"`
+	MinFollowTriggerAmount float64          `yaml:"min_follow_trigger_amount"` // 最小触发买入数量
+	MaxFollowTriggerAmount float64          `yaml:"max_follow_trigger_amount"` // 最大触发买入数量
+	MinPoolSize            float64          `yaml:"min_pool_size"`             // 最小pool大小
+	MaxPoolSize            float64          `yaml:"max_pool_size"`             // 最大pool大小
+	BuySlippage            float64          `yaml:"buy_slippage"`              // 全局买入滑点
+	SellSlippage           float64          `yaml:"sell_slippage"`             // 全局卖出滑点
+	BuyPriorityFee         float64          `yaml:"buy_priority_fee"`          // 全局买入优先级费用
+	BuyTipFee              float64          `yaml:"buy_tip_fee"`               // 全局买入Tip费用
+	SellPriorityFee        float64          `yaml:"sell_priority_fee"`         // 全局卖出优先级费用
+	SellTipFee             float64          `yaml:"sell_tip_fee"`              // 全局卖出Tip费用
+	Logging                LogConfig        `yaml:"logging"`                   // 日志配置
+	Normal                 ModeConfig       `yaml:"normal"`
+	Jito                   ModeConfig       `yaml:"jito"`
+	NextBlock              ModeConfig       `yaml:"nextblock"`
+	Temporal               ModeConfig       `yaml:"temporal"`
+	BloXroute              ModeConfig       `yaml:"bloXroute"`
 }
 
 // LoadConfig 从文件加载配置

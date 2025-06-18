@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"gopkg.in/yaml.v3"
 )
 
 // WebServer Web服务器
@@ -98,6 +99,10 @@ func (s *WebServer) RegisterRoutes() {
 	// 注册配置API
 	s.Router.GET("/api/config", s.handleGetConfig)
 	s.Router.POST("/api/config", s.handleUpdateConfig)
+	
+	// 注册交易设置API
+	s.Router.GET("/api/trade-settings", s.handleGetTradeSettings)
+	s.Router.POST("/api/trade-settings", s.handleUpdateTradeSettings)
 
 	// 注册钱包控制器
 	walletController := NewWalletController(s.RedisService)
@@ -145,6 +150,104 @@ func (s *WebServer) handleUpdateConfig(ctx *gin.Context) {
 
 	// 保存配置
 	configData, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("序列化配置失败: %v", err)})
+		return
+	}
+
+	if err := os.WriteFile(s.ConfigPath, configData, 0644); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("保存配置失败: %v", err)})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+// handleGetTradeSettings 获取交易设置
+func (s *WebServer) handleGetTradeSettings(ctx *gin.Context) {
+	// 设置缓存控制头
+	setNoCacheHeaders(ctx)
+
+	// 获取配置
+	config, err := utils.LoadConfig(s.ConfigPath)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("加载配置失败: %v", err)})
+		return
+	}
+
+	// 只返回交易设置相关的配置
+	tradeSettings := gin.H{
+		"pump_trade_enable":         config.PumpTradeEnable,
+		"pumpamm_trade_enable":      config.PumpammTradeEnable,
+		"raydium_trade_enable":      config.RaydiumTradeEnable,
+		"min_pool_size":             config.MinPoolSize,
+		"max_pool_size":             config.MaxPoolSize,
+		"min_follow_trigger_amount": config.MinFollowTriggerAmount,
+		"max_follow_trigger_amount": config.MaxFollowTriggerAmount,
+		"buy_slippage":              config.BuySlippage,
+		"buy_priority_fee":          config.BuyPriorityFee,
+		"buy_tip_fee":               config.BuyTipFee,
+		"buy_sol_amount":            config.BuySolAmount,
+		"sell_slippage":             config.SellSlippage,
+		"sell_priority_fee":         config.SellPriorityFee,
+		"sell_tip_fee":              config.SellTipFee,
+	}
+
+	ctx.JSON(http.StatusOK, tradeSettings)
+}
+
+// handleUpdateTradeSettings 更新交易设置
+func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
+	// 交易设置请求体
+	type TradeSettingsRequest struct {
+		PumpTradeEnable        bool    `json:"pump_trade_enable"`
+		PumpammTradeEnable     bool    `json:"pumpamm_trade_enable"`
+		RaydiumTradeEnable     bool    `json:"raydium_trade_enable"`
+		MinPoolSize            float64 `json:"min_pool_size"`
+		MaxPoolSize            float64 `json:"max_pool_size"`
+		MinFollowTriggerAmount float64 `json:"min_follow_trigger_amount"`
+		MaxFollowTriggerAmount float64 `json:"max_follow_trigger_amount"`
+		BuySlippage            float64 `json:"buy_slippage"`
+		BuyPriorityFee         float64 `json:"buy_priority_fee"`
+		BuyTipFee              float64 `json:"buy_tip_fee"`
+		BuySolAmount           float64 `json:"buy_sol_amount"`
+		SellSlippage           float64 `json:"sell_slippage"`
+		SellPriorityFee        float64 `json:"sell_priority_fee"`
+		SellTipFee             float64 `json:"sell_tip_fee"`
+	}
+
+	var updates TradeSettingsRequest
+
+	if err := ctx.ShouldBindJSON(&updates); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("解析请求失败: %v", err)})
+		return
+	}
+
+	// 加载当前配置
+	config, err := utils.LoadConfig(s.ConfigPath)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("加载配置失败: %v", err)})
+		return
+	}
+
+	// 更新配置
+	config.PumpTradeEnable = updates.PumpTradeEnable
+	config.PumpammTradeEnable = updates.PumpammTradeEnable
+	config.RaydiumTradeEnable = updates.RaydiumTradeEnable
+	config.MinPoolSize = updates.MinPoolSize
+	config.MaxPoolSize = updates.MaxPoolSize
+	config.MinFollowTriggerAmount = updates.MinFollowTriggerAmount
+	config.MaxFollowTriggerAmount = updates.MaxFollowTriggerAmount
+	config.BuySlippage = updates.BuySlippage
+	config.BuyPriorityFee = updates.BuyPriorityFee
+	config.BuyTipFee = updates.BuyTipFee
+	config.BuySolAmount = updates.BuySolAmount
+	config.SellSlippage = updates.SellSlippage
+	config.SellPriorityFee = updates.SellPriorityFee
+	config.SellTipFee = updates.SellTipFee
+
+	// 保存配置
+	configData, err := yaml.Marshal(config)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("序列化配置失败: %v", err)})
 		return

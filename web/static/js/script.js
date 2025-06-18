@@ -1,6 +1,7 @@
 // 全局变量
 let currentWallet = null;
 let wallets = [];
+let tradeSettings = {};
 
 // DOM 元素
 const walletSelect = document.getElementById('walletSelect');
@@ -29,9 +30,29 @@ const newExitTimeSec = document.getElementById('newExitTimeSec');
 const newWalletEnabled = document.getElementById('newWalletEnabled');
 const addWalletModal = new bootstrap.Modal(document.getElementById('addWalletModal'));
 
-// 页面加载时获取钱包列表
+// 交易设置元素
+const pumpTradeEnable = document.getElementById('pumpTradeEnable');
+const pumpammTradeEnable = document.getElementById('pumpammTradeEnable');
+const raydiumTradeEnable = document.getElementById('raydiumTradeEnable');
+const minPoolSize = document.getElementById('minPoolSize');
+const maxPoolSize = document.getElementById('maxPoolSize');
+const minFollowTriggerAmount = document.getElementById('minFollowTriggerAmount');
+const maxFollowTriggerAmount = document.getElementById('maxFollowTriggerAmount');
+const buySlippage = document.getElementById('buySlippage');
+const buyPriorityFee = document.getElementById('buyPriorityFee');
+const buyTipFee = document.getElementById('buyTipFee');
+const buySolAmount = document.getElementById('buySolAmount');
+const sellSlippage = document.getElementById('sellSlippage');
+const sellPriorityFee = document.getElementById('sellPriorityFee');
+const sellTipFee = document.getElementById('sellTipFee');
+const saveTradeSettingsBtn = document.getElementById('saveTradeSettingsBtn');
+
+// 页面加载时获取钱包列表和交易设置
 document.addEventListener('DOMContentLoaded', async () => {
-    await loadWallets();
+    await Promise.all([
+        loadWallets(),
+        loadTradeSettings()
+    ]);
 });
 
 // 加载钱包列表
@@ -245,6 +266,11 @@ saveNewWalletBtn.addEventListener('click', async () => {
     }
 });
 
+// 保存交易设置按钮点击事件
+saveTradeSettingsBtn.addEventListener('click', async () => {
+    await saveTradeSettings();
+});
+
 // 验证新钱包表单
 function validateNewWalletForm() {
     // 验证钱包地址
@@ -300,4 +326,81 @@ function showAlert(alertElement, message) {
     setTimeout(() => {
         alertElement.classList.add('d-none');
     }, 3000);
+}
+
+// 加载交易设置
+async function loadTradeSettings() {
+    try {
+        // 添加时间戳参数防止缓存
+        const timestamp = new Date().getTime();
+        const response = await fetch(`/api/trade-settings?t=${timestamp}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        tradeSettings = await response.json();
+        console.log('加载的交易设置:', tradeSettings);
+        
+        // 填充表单数据
+        pumpTradeEnable.checked = tradeSettings.pump_trade_enable;
+        pumpammTradeEnable.checked = tradeSettings.pumpamm_trade_enable;
+        raydiumTradeEnable.checked = tradeSettings.raydium_trade_enable;
+        minPoolSize.value = tradeSettings.min_pool_size;
+        maxPoolSize.value = tradeSettings.max_pool_size;
+        minFollowTriggerAmount.value = tradeSettings.min_follow_trigger_amount;
+        maxFollowTriggerAmount.value = tradeSettings.max_follow_trigger_amount;
+        buySlippage.value = tradeSettings.buy_slippage;
+        buyPriorityFee.value = tradeSettings.buy_priority_fee;
+        buyTipFee.value = tradeSettings.buy_tip_fee;
+        buySolAmount.value = tradeSettings.buy_sol_amount;
+        sellSlippage.value = tradeSettings.sell_slippage;
+        sellPriorityFee.value = tradeSettings.sell_priority_fee;
+        sellTipFee.value = tradeSettings.sell_tip_fee;
+    } catch (error) {
+        console.error('获取交易设置失败:', error);
+        showAlert(errorAlert, `加载交易设置失败: ${error.message}`);
+    }
+}
+
+// 保存交易设置
+async function saveTradeSettings() {
+    try {
+        const updates = {
+            pump_trade_enable: pumpTradeEnable.checked,
+            pumpamm_trade_enable: pumpammTradeEnable.checked,
+            raydium_trade_enable: raydiumTradeEnable.checked,
+            min_pool_size: parseFloat(minPoolSize.value),
+            max_pool_size: parseFloat(maxPoolSize.value),
+            min_follow_trigger_amount: parseFloat(minFollowTriggerAmount.value),
+            max_follow_trigger_amount: parseFloat(maxFollowTriggerAmount.value),
+            buy_slippage: parseFloat(buySlippage.value),
+            buy_priority_fee: parseFloat(buyPriorityFee.value),
+            buy_tip_fee: parseFloat(buyTipFee.value),
+            buy_sol_amount: parseFloat(buySolAmount.value),
+            sell_slippage: parseFloat(sellSlippage.value),
+            sell_priority_fee: parseFloat(sellPriorityFee.value),
+            sell_tip_fee: parseFloat(sellTipFee.value)
+        };
+        
+        const response = await fetch('/api/trade-settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updates)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        // 显示成功消息
+        showAlert(successAlert, '交易设置保存成功！');
+        
+        // 重新加载交易设置
+        await loadTradeSettings();
+    } catch (error) {
+        console.error('保存交易设置失败:', error);
+        showAlert(errorAlert, `保存交易设置失败: ${error.message}`);
+    }
 }

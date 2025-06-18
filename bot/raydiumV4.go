@@ -88,7 +88,7 @@ func (b *Bot) extractAccountInfo(accounts []byte, accountList []string) (ammId, 
 func (b *Bot) createTradeInfo(
 	mintAddress, ammId, openOrders, targetOrders, poolCoinTokenAccount,
 	poolPcTokenAccount, serumMarket, userOwner, signature string,
-	solChange *SolBalanceChange, version uint32, hasTargetOrders bool) *global.AmmRaydiumV4TradeInfo {
+	solChange *SolBalanceChange, version uint32, hasTargetOrders bool, solReserve float64) *global.AmmRaydiumV4TradeInfo {
 
 	if solChange == nil {
 		return nil
@@ -122,6 +122,7 @@ func (b *Bot) createTradeInfo(
 		TxHash:       signature,
 		Decimal:      solChange.Decimals,
 		Version:      version,
+		SolReserve:   solReserve,
 	}
 
 	// Add target orders if available
@@ -203,13 +204,13 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 
 			// Get balance changes
 			solChange := GetSwapBalances(txn, poolCoinTokenAccount, poolPcTokenAccount, accountList)
-			logger.Debugf("solChange: %v", solChange)
+			logger.Debugf("mintAddress: %s, solReserve: %.8f", mintAddress, solChange.SolReserve)
 
 			// Create trade info using the helper function
 			tradeInfo = b.createTradeInfo(
 				mintAddress, ammId, openOrders, targetOrders,
 				poolCoinTokenAccount, poolPcTokenAccount, serumMarket,
-				userOwner, _signature, solChange, version, hasTargetOrders)
+				userOwner, _signature, solChange, version, hasTargetOrders, solChange.SolReserve)
 
 		case raydium.SwapDiscriminator_V2:
 			logger.Debugf("SwapBaseOut instruction found, signature: %s", _signature)
@@ -235,12 +236,12 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 
 			// Get balance changes
 			solChange := GetSwapBalances(txn, poolCoinTokenAccount, poolPcTokenAccount, accountList)
-
+			logger.Debugf("mintAddress: %s, solReserve: %.8f", mintAddress, solChange.SolReserve)
 			// Create trade info using the helper function
 			tradeInfo = b.createTradeInfo(
 				mintAddress, ammId, openOrders, targetOrders,
 				poolCoinTokenAccount, poolPcTokenAccount, serumMarket,
-				userOwner, _signature, solChange, version, hasTargetOrders)
+				userOwner, _signature, solChange, version, hasTargetOrders, solChange.SolReserve)
 
 		default:
 			logger.Debug("未匹配判别器")

@@ -58,8 +58,8 @@ func (b *Bot) parseAmmTransaction(logMessages []string, mintAddress string) *glo
 				tokenDecimal := 1e6 // Token有6个小数位
 
 				// 转换为浮点数进行价格计算
-				solReserveFloat := float64(buyEvent.PoolQuoteTokenReserves) / solDecimal
-				tokenReserveFloat := float64(buyEvent.PoolBaseTokenReserves) / tokenDecimal
+				solReserveFloat := float64(buyEvent.PoolBaseTokenReserves) / solDecimal
+				tokenReserveFloat := float64(buyEvent.PoolQuoteTokenReserves) / tokenDecimal
 
 				// 计算当前价格 (SOL/TOKEN)
 				tradeInfo.CurrentPrice = solReserveFloat / tokenReserveFloat
@@ -86,8 +86,8 @@ func (b *Bot) parseAmmTransaction(logMessages []string, mintAddress string) *glo
 					MintAddress:  solana.MustPublicKeyFromBase58(mintAddress), // 需要从其他地方获取
 					AmmPool:      sellEvent.Pool,
 					TimeStamp:    sellEvent.Timestamp,
-					BaseReserve:  sellEvent.PoolBaseTokenReserves,
-					QuoteReserve: sellEvent.PoolQuoteTokenReserves,
+					BaseReserve:  sellEvent.PoolBaseTokenReserves,  //sol储备
+					QuoteReserve: sellEvent.PoolQuoteTokenReserves, //token储备
 					ReceivedAt:   time.Now(),
 					CoinCreator:  sellEvent.CoinCreator,
 				}
@@ -97,8 +97,8 @@ func (b *Bot) parseAmmTransaction(logMessages []string, mintAddress string) *glo
 				tokenDecimal := 1e6 // Token有6个小数位
 
 				// 转换为浮点数进行价格计算
-				tokenReserveFloat := float64(sellEvent.PoolBaseTokenReserves) / tokenDecimal
-				solReserveFloat := float64(sellEvent.PoolQuoteTokenReserves) / solDecimal
+				tokenReserveFloat := float64(sellEvent.PoolQuoteTokenReserves) / tokenDecimal
+				solReserveFloat := float64(sellEvent.PoolBaseTokenReserves) / solDecimal
 
 				// 计算当前价格 (SOL/TOKEN)
 				tradeInfo.CurrentPrice = solReserveFloat / tokenReserveFloat
@@ -133,12 +133,7 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 	}
 
 	messages := txn.Transaction.Transaction.Message
-	/*cacheBlockhash := base58.Encode(messages.GetRecentBlockhash())
-	logger.Infof("recent blockhash :%s", cacheBlockhash)
-	err := b.CacheLatestBlockhash(cacheBlockhash)
-	if err != nil {
-		logger.Errorf("cache recent blockhash :%v", err)
-	} */
+
 	instructions := messages.Instructions
 	_signature := base58.Encode(txn.Transaction.Transaction.Signatures[0])
 
@@ -214,8 +209,8 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 			if userPubkey.String() == botWallet.String() {
 				// 定义常量以提高可读性
 				const (
-					SolDecimals   = 1e9  // SOL有9位小数
-					TokenDecimals = 1e6  // 代币有6位小数
+					SolDecimals   = 1e9 // SOL有9位小数
+					TokenDecimals = 1e6 // 代币有6位小数
 				)
 
 				// 安全地计算入场价格
@@ -229,9 +224,9 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 					entryPrice = 0
 				}
 
-				logger.Infof("买入交易: SOL=%d (%.4f), 代币=%d (%.2f), 价格=%.8f", 
-					tradeInfo.SolAmount, float64(tradeInfo.SolAmount)/SolDecimals, 
-					tradeInfo.TokenAmount, float64(tradeInfo.TokenAmount)/TokenDecimals, 
+				logger.Infof("买入交易: SOL=%d (%.4f), 代币=%d (%.2f), 价格=%.8f",
+					tradeInfo.SolAmount, float64(tradeInfo.SolAmount)/SolDecimals,
+					tradeInfo.TokenAmount, float64(tradeInfo.TokenAmount)/TokenDecimals,
 					entryPrice)
 				// 设置入场价格
 				global.SetTradeAssetOnce(

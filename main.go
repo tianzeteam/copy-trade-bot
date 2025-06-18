@@ -228,6 +228,10 @@ func main() {
 			}
 
 			if slices.Contains(accountsAddress, core.PUMP_PROGRAM_ID.String()) {
+				if !config.PumpTradeEnable {
+					logger.Warn("pump trade is disabled")
+					continue
+				}
 				tradeInfo := tradeBot.PumpParse(out, client, ctx)
 				if tradeInfo != nil && transactionMonitor != nil {
 					transactionMonitor.ProcessTransaction(tradeInfo)
@@ -240,6 +244,10 @@ func main() {
 
 			if slices.Contains(accountsAddress, core.AMM_PROGRAM_ID.String()) {
 				// 处理AMM交易信息
+				if !config.PumpammTradeEnable {
+					logger.Warn("pumpamm trade is disabled")
+					continue
+				}
 				ammTradeInfo := tradeBot.PumpAmmParse(out, client, ctx)
 
 				// 处理钱包监控AMM交易
@@ -252,6 +260,10 @@ func main() {
 			}
 
 			if slices.Contains(accountsAddress, core.RAYDIUM_V4_PROGRAM_ID.String()) {
+				if !config.RaydiumTradeEnable {
+					logger.Warn("raydium trade is disabled")
+					continue
+				}
 				raydiumV4TradeInfo := tradeBot.RaydiumV4Parse(out, client, ctx)
 
 				// 处理钱包监控AMM交易

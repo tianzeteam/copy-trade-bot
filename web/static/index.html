@@ -93,6 +93,164 @@
             </div>
         </div>
         
+        <!-- 交易开关设置 -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">交易开关设置</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="pumpTradeEnable">
+                            <label class="form-check-label" for="pumpTradeEnable">
+                                Pump 交易开关
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="pumpammTradeEnable">
+                            <label class="form-check-label" for="pumpammTradeEnable">
+                                Pump AMM 交易开关
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="raydiumTradeEnable">
+                            <label class="form-check-label" for="raydiumTradeEnable">
+                                Raydium 交易开关
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="minPoolSize" class="form-label">最小池子大小</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="minPoolSize" min="0" step="0.1">
+                                <span class="input-group-text">SOL</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="maxPoolSize" class="form-label">最大池子大小</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="maxPoolSize" min="0" step="0.1">
+                                <span class="input-group-text">SOL</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="minFollowTriggerAmount" class="form-label">最小触发买入数量</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="minFollowTriggerAmount" min="0" step="0.0001">
+                                <span class="input-group-text">SOL</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="maxFollowTriggerAmount" class="form-label">最大触发买入数量</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="maxFollowTriggerAmount" min="0" step="0.1">
+                                <span class="input-group-text">SOL</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h5 class="mt-4 mb-3">交易参数设置</h5>
+                <h6 class="mb-2">买入参数</h6>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="buySlippage" class="form-label">买入滑点</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="buySlippage" min="0" max="1" step="0.01">
+                                <span class="input-group-text">%</span>
+                            </div>
+                            <small class="form-text text-muted">范围: 0-1 (0-100%)</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="buyPriorityFee" class="form-label">买入优先级费用</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="buyPriorityFee" min="0" step="0.0001">
+                                <span class="input-group-text">SOL</span>
+                            </div>
+                            <small class="form-text text-muted">交易优先级费用</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="buyTipFee" class="form-label">买入Tip费用</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="buyTipFee" min="0" step="0.0001">
+                                <span class="input-group-text">SOL</span>
+                            </div>
+                            <small class="form-text text-muted">给验证者的额外奖励</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="buySolAmount" class="form-label">买入金额</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="buySolAmount" min="0" step="0.0001">
+                                <span class="input-group-text">SOL</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="mt-4 mb-2">卖出参数</h6>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="sellSlippage" class="form-label">卖出滑点</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="sellSlippage" min="0" max="1" step="0.01">
+                                <span class="input-group-text">%</span>
+                            </div>
+                            <small class="form-text text-muted">范围: 0-1 (0-100%)</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="sellPriorityFee" class="form-label">卖出优先级费用</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="sellPriorityFee" min="0" step="0.0001">
+                                <span class="input-group-text">SOL</span>
+                            </div>
+                            <small class="form-text text-muted">交易优先级费用</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="sellTipFee" class="form-label">卖出Tip费用</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="sellTipFee" min="0" step="0.0001">
+                                <span class="input-group-text">SOL</span>
+                            </div>
+                            <small class="form-text text-muted">给验证者的额外奖励</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-end mt-3">
+                    <button type="button" class="btn btn-primary" id="saveTradeSettingsBtn">
+                        <i class="bi bi-save"></i> 保存交易设置
+                    </button>
+                </div>
+            </div>
+        </div>
+        
         <!-- 状态提示 -->
         <div class="alert alert-success mt-3 d-none" id="successAlert">
             操作成功！
