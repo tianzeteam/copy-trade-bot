@@ -12,6 +12,8 @@ import (
 	"runtime"
 	"time"
 
+	"copytrade/global"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/yaml.v3"
@@ -100,7 +102,7 @@ func (s *WebServer) RegisterRoutes() {
 	// 注册配置API
 	s.Router.GET("/api/config", s.handleGetConfig)
 	s.Router.POST("/api/config", s.handleUpdateConfig)
-	
+
 	// 注册交易设置API
 	s.Router.GET("/api/trade-settings", s.handleGetTradeSettings)
 	s.Router.POST("/api/trade-settings", s.handleUpdateTradeSettings)
@@ -108,7 +110,7 @@ func (s *WebServer) RegisterRoutes() {
 	// 注册钱包控制器
 	walletController := NewWalletController(s.RedisService)
 	walletController.RegisterRoutes(s.Router)
-	
+
 	// 注册Redis配置控制器
 	configController := NewConfigController(s.RedisService)
 	configController.RegisterRoutes(s.Router)
@@ -183,8 +185,9 @@ func (s *WebServer) handleGetTradeSettings(ctx *gin.Context) {
 	// 只返回交易设置相关的配置
 	tradeSettings := gin.H{
 		"pump_trade_enable":         config.PumpTradeEnable,
-		"pumpamm_trade_enable":      config.PumpammTradeEnable,
+		"pump_amm_trade_enable":     config.PumpAmmTradeEnable,
 		"raydium_trade_enable":      config.RaydiumTradeEnable,
+		"sell_delay_time":           config.SellDelayTime,
 		"min_pool_size":             config.MinPoolSize,
 		"max_pool_size":             config.MaxPoolSize,
 		"min_follow_trigger_amount": config.MinFollowTriggerAmount,
@@ -203,11 +206,30 @@ func (s *WebServer) handleGetTradeSettings(ctx *gin.Context) {
 
 // handleUpdateTradeSettings 更新交易设置
 func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
+
+	// 解析请求体
+	var globalUpdates map[string]any
+	if err := ctx.ShouldBindJSON(&globalUpdates); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "解析请求失败"})
+		return
+	}
+
+	// 更新各个字段
+	for key, value := range globalUpdates {
+		global.UpdateConfigField(key, value)
+	}
+
+	// 获取更新后的配置
+	updatedConfig := global.GetConfig()
+
+	logger.Infof("更新后的配置: %v", updatedConfig)
+
 	// 交易设置请求体
 	type TradeSettingsRequest struct {
 		PumpTradeEnable        bool    `json:"pump_trade_enable"`
-		PumpammTradeEnable     bool    `json:"pumpamm_trade_enable"`
+		PumpAmmTradeEnable     bool    `json:"pump_amm_trade_enable"`
 		RaydiumTradeEnable     bool    `json:"raydium_trade_enable"`
+		SellDelayTime          int     `json:"sell_delay_time"`
 		MinPoolSize            float64 `json:"min_pool_size"`
 		MaxPoolSize            float64 `json:"max_pool_size"`
 		MinFollowTriggerAmount float64 `json:"min_follow_trigger_amount"`
@@ -237,8 +259,9 @@ func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
 
 	// 更新配置
 	config.PumpTradeEnable = updates.PumpTradeEnable
-	config.PumpammTradeEnable = updates.PumpammTradeEnable
+	config.PumpAmmTradeEnable = updates.PumpAmmTradeEnable
 	config.RaydiumTradeEnable = updates.RaydiumTradeEnable
+	config.SellDelayTime = updates.SellDelayTime
 	config.MinPoolSize = updates.MinPoolSize
 	config.MaxPoolSize = updates.MaxPoolSize
 	config.MinFollowTriggerAmount = updates.MinFollowTriggerAmount

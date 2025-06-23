@@ -6,7 +6,7 @@ grpc_url: https://solana-yellowstone-grpc.publicnode.com:443
 rpc_url: https://mainnet.helius-rpc.com/?api-key=e3e379af-d66c-4978-b75d-8f29b3e2c141
 buy_sol_amount: 0.001
 sell_mode: delay_sell
-sell_delay_time: 10
+sell_delay_time: 5000 #延迟卖出时间（ms）
 multi_sell_levels:
     - price_percent: 100
       sell_percent: 10
@@ -21,12 +21,12 @@ batch_sell_config:
     thresholds: []
 skip_ata_check: true
 pump_trade_enable: true
-pumpamm_trade_enable: false
-raydium_trade_enable: false
+pump_amm_trade_enable: true
+raydium_trade_enable: true
 min_follow_trigger_amount: 0.5
 max_follow_trigger_amount: 10
 min_pool_size: 200
-max_pool_size: 1000
+max_pool_size: 100
 buy_slippage: 0.2
 sell_slippage: 0.2
 buy_priority_fee: 0.005
@@ -65,5 +65,12 @@ bloXroute:
     sell_tip: 0.001
     enable: false
     rpc_url: https://mainnet.helius-rpc.com/?api-key=fc8353eb-13cb-423e-8d36-49e2b26d3a78
+    api_keys:
+        - xxx
+zeroslot:
+    buy_tip: 0.001
+    sell_tip: 0.001
+    enable: false
+    rpc_url: http://ny1.0slot.trade
     api_keys:
         - xxx

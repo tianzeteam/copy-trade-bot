@@ -12,6 +12,8 @@ import (
 	"copytrade/logger"
 	"copytrade/pump"
 	"copytrade/queue"
+	"copytrade/types"
+
 	goyser "copytrade/yellowstone_geyser"
 	yellowstone_geyser_pb "copytrade/yellowstone_geyser/pb"
 
@@ -43,6 +45,10 @@ type MyBuyMap struct {
 	Amount      uint64
 	SoldLevels  map[int]bool // 记录已经卖出的价格档位
 	TimeStamp   int64
+}
+
+func (b *Bot) SetWalletMonitor(walletMonitor types.WalletMonitorInterface) {
+	b.walletMonitor = walletMonitor
 }
 
 // 全局交易信息映射表已移至 global_maps.go
@@ -271,6 +277,12 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *goys
 						tradeEvent.TokenAmount,
 						6,
 					)
+					assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+					if ok {
+						time.Sleep(time.Duration(global.GetConfig().SellDelayTime) * time.Millisecond)
+						queue.SendTokenToSellChannel(assetInfo, entryPrice, "pump", "delay_sell", "延迟卖出")
+					}
+					//买入记录处理
 
 				}
 			}

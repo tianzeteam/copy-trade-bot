@@ -237,6 +237,11 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 					tradeInfo.TokenAmount,
 					6,
 				)
+				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+				if ok {
+					time.Sleep(time.Duration(global.GetConfig().SellDelayTime) * time.Millisecond)
+					queue.SendTokenToSellChannel(assetInfo, entryPrice, "pumpamm", "delay_sell", "延迟卖出")
+				}
 			}
 		}
 

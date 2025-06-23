@@ -122,7 +122,7 @@ func (b *Bot) createTradeInfo(
 		TxHash:       signature,
 		Decimal:      solChange.Decimals,
 		Version:      version,
-		SolReserve:   solReserve,
+		SolReserve:   uint64(solReserve * 1e9),
 	}
 
 	// Add target orders if available
@@ -204,7 +204,7 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 
 			// Get balance changes
 			solChange := GetSwapBalances(txn, poolCoinTokenAccount, poolPcTokenAccount, accountList)
-			logger.Debugf("mintAddress: %s, solReserve: %.8f", mintAddress, solChange.SolReserve)
+			logger.Debugf("mintAddress: %s, solAmount: %.8f, solReserve: %.8f", mintAddress, solChange.SolChangeAmount, solChange.SolReserve)
 
 			// Create trade info using the helper function
 			tradeInfo = b.createTradeInfo(
@@ -285,6 +285,11 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 					tradeInfo.TokenAmount,
 					tradeInfo.Decimal,
 				)
+				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+				if ok {
+					time.Sleep(time.Duration(global.GetConfig().SellDelayTime) * time.Millisecond)
+					queue.SendTokenToSellChannel(assetInfo, entryPrice, "raydiumV4", "delay_sell", "延迟卖出")
+				}
 			}
 		}
 

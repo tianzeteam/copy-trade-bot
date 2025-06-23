@@ -40,7 +40,7 @@ func (c *ConfigController) handleGetConfig(ctx *gin.Context) {
 // handleUpdateConfig 更新内存中的配置
 func (c *ConfigController) handleUpdateConfig(ctx *gin.Context) {
 	// 解析请求体
-	var updates map[string]interface{}
+	var updates map[string]any
 	if err := ctx.ShouldBindJSON(&updates); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "解析请求失败"})
 		return

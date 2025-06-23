@@ -50,7 +50,7 @@ type Config struct {
 	BatchSellConfig        BatchSellConfig  `yaml:"batch_sell_config"`
 	SkipATACheck           bool             `yaml:"skip_ata_check"`
 	PumpTradeEnable        bool             `yaml:"pump_trade_enable"`
-	PumpammTradeEnable     bool             `yaml:"pumpamm_trade_enable"`
+	PumpAmmTradeEnable     bool             `yaml:"pump_amm_trade_enable"`
 	RaydiumTradeEnable     bool             `yaml:"raydium_trade_enable"`
 	MinFollowTriggerAmount float64          `yaml:"min_follow_trigger_amount"` // 最小触发买入数量
 	MaxFollowTriggerAmount float64          `yaml:"max_follow_trigger_amount"` // 最大触发买入数量
@@ -68,6 +68,7 @@ type Config struct {
 	NextBlock              ModeConfig       `yaml:"nextblock"`
 	Temporal               ModeConfig       `yaml:"temporal"`
 	BloXroute              ModeConfig       `yaml:"bloXroute"`
+	Zeroslot               ModeConfig       `yaml:"zeroslot"`
 }
 
 // LoadConfig 从文件加载配置

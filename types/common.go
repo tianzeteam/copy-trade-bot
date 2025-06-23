@@ -15,12 +15,13 @@ const (
 	NextBlock TradeMode = "nextblock"
 	Temportal TradeMode = "temportal"
 	BloXroute TradeMode = "bloXroute"
+	Zeroslot  TradeMode = "zeroslot"
 )
 
 // ValidateMode 验证交易模式是否有效
 func (m TradeMode) IsValid() bool {
 	switch m {
-	case Normal, Jito, NextBlock, Temportal, BloXroute:
+	case Normal, Jito, NextBlock, Temportal, BloXroute, Zeroslot:
 		return true
 	default:
 		return false
@@ -67,6 +68,15 @@ type TradeParams struct {
 	FeeConfig FeeConfig
 }
 
+// ZeroslotParams 定义 Zeroslot 模式特有的参数
+type ZeroslotParams struct {
+	Enable    bool
+	BundleUrl string
+	RpcUrl    string
+	ApiKeys   []string
+	TipAmount uint64
+}
+
 // NextBlockParams 定义 NextBlock 模式特有的参数
 type NextBlockParams struct {
 	BundleUrl string
@@ -105,4 +115,5 @@ type OrderParams struct {
 	JitoParams      *JitoParams      // Jito 特有参数
 	TemporalParams  *TemporalParams  // Temportal 特有参数
 	BloXrouteParams *BloXrouteParams // BloXroute 特有参数
+	ZeroslotParams  *ZeroslotParams  // Zeroslot 特有参数
 }

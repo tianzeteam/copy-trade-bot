@@ -11,7 +11,7 @@ type GlobalConfig struct {
 	PumpTradeEnable    bool `json:"pump_trade_enable"`    // PumpFun交易启用状态
 	PumpAmmTradeEnable bool `json:"pumpamm_trade_enable"` // PumpAMM交易启用状态
 	RaydiumTradeEnable bool `json:"raydium_trade_enable"` // Raydium交易启用状态
-
+	SellDelayTime      int  `json:"sell_delay_time"`      // 延迟卖出时间（ms）
 	// 交易触发和池子大小参数
 	MinFollowTriggerAmount float64 `json:"min_follow_trigger_amount"` // 最小触发买入数量 (SOL)
 	MaxFollowTriggerAmount float64 `json:"max_follow_trigger_amount"` // 最大触发买入数量 (SOL)
@@ -72,13 +72,17 @@ func UpdateConfigField(key string, value interface{}) {
 		if val, ok := value.(bool); ok {
 			Config.PumpTradeEnable = val
 		}
-	case "pumpamm_trade_enable":
+	case "pump_amm_trade_enable":
 		if val, ok := value.(bool); ok {
 			Config.PumpAmmTradeEnable = val
 		}
 	case "raydium_trade_enable":
 		if val, ok := value.(bool); ok {
 			Config.RaydiumTradeEnable = val
+		}
+	case "sell_delay_time":
+		if val, ok := value.(int); ok {
+			Config.SellDelayTime = val
 		}
 
 	// 交易触发和池子大小参数

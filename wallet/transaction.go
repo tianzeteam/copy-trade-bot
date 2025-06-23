@@ -51,11 +51,11 @@ func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo
 		// 不是我们监控的钱包，忽略
 		return
 	}
-	if float64(tradeInfo.SolAmount) < global.Config.MinFollowTriggerAmount || float64(tradeInfo.SolAmount) > global.Config.MaxFollowTriggerAmount {
+	if float64(tradeInfo.SolAmount) < (global.Config.MinFollowTriggerAmount*1e9) || float64(tradeInfo.SolAmount) > (global.Config.MaxFollowTriggerAmount*1e9) {
 		//不在跟卖金额范围内，忽略
 		return
 	}
-	if float64(tradeInfo.RealSolReserves) < global.Config.MinPoolSize || float64(tradeInfo.RealSolReserves) > global.Config.MaxPoolSize {
+	if float64(tradeInfo.RealSolReserves) < (global.Config.MinPoolSize*1e9) || float64(tradeInfo.RealSolReserves) > (global.Config.MaxPoolSize*1e9) {
 		//不在跟卖池子大小范围内，忽略
 		return
 	}
@@ -83,11 +83,11 @@ func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *global.AmmRa
 		// 不是我们监控的钱包，忽略
 		return
 	}
-	if float64(tradeInfo.SolAmount) < global.Config.MinFollowTriggerAmount || float64(tradeInfo.SolAmount) > global.Config.MaxFollowTriggerAmount {
+	if float64(tradeInfo.SolAmount) < (global.Config.MinFollowTriggerAmount*1e9) || float64(tradeInfo.SolAmount) > (global.Config.MaxFollowTriggerAmount*1e9) {
 		//不在跟卖金额范围内，忽略
 		return
 	}
-	if float64(tradeInfo.SolReserve) < global.Config.MinPoolSize || float64(tradeInfo.SolReserve) > global.Config.MaxPoolSize {
+	if float64(tradeInfo.SolReserve) < (global.Config.MinPoolSize*1e9) || float64(tradeInfo.SolReserve) > (global.Config.MaxPoolSize*1e9) {
 		//不在跟卖池子大小范围内，忽略
 		return
 	}
@@ -115,11 +115,11 @@ func (m *TransactionMonitor) ProcessAmmTransaction(tradeInfo *global.AmmTradeEve
 		// 不是我们监控的钱包，忽略
 		return
 	}
-	if float64(tradeInfo.SolAmount) < global.Config.MinFollowTriggerAmount || float64(tradeInfo.SolAmount) > global.Config.MaxFollowTriggerAmount {
+	if float64(tradeInfo.SolAmount) < (global.Config.MinFollowTriggerAmount*1e9) || float64(tradeInfo.SolAmount) > (global.Config.MaxFollowTriggerAmount*1e9) {
 		//不在跟卖金额范围内，忽略
 		return
 	}
-	if float64(tradeInfo.BaseReserve) < global.Config.MinPoolSize || float64(tradeInfo.BaseReserve) > global.Config.MaxPoolSize {
+	if float64(tradeInfo.BaseReserve) < (global.Config.MinPoolSize*1e9) || float64(tradeInfo.BaseReserve) > (global.Config.MaxPoolSize*1e9) {
 		//不在跟卖池子大小范围内，忽略
 		return
 	}
@@ -223,6 +223,13 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 	// Build complete transaction parameters
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+
+		ZeroslotParams: &types.ZeroslotParams{
+			Enable:    m.TradeBot.Config.Zeroslot.Enable,
+			RpcUrl:    m.TradeBot.Config.Zeroslot.RpcUrl,
+			ApiKeys:   m.TradeBot.Config.Zeroslot.ApiKeys,
+			TipAmount: uint64(m.TradeBot.Config.Zeroslot.BuyTip * 1e9),
+		},
 		JitoParams: &types.JitoParams{
 			Enable:    m.TradeBot.Config.Jito.Enable,
 			BundleUrl: m.TradeBot.Config.Jito.RpcUrl,

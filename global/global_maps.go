@@ -93,7 +93,7 @@ type AmmRaydiumV4TradeInfo struct {
 	TxHash       string    // 交易哈希
 	Slot         uint64    // 区块槽位
 	Decimal      uint32
-	SolReserve   float64   // SOL储备量
+	SolReserve   uint64 // SOL储备量
 }
 
 // AmmPoolInfo 存储AMM池信息
@@ -414,6 +414,7 @@ func SetTradeAssetOnce(mintAddress string, creator solana.PublicKey, userAddress
 		SoldLevels:  make(map[int]bool),
 		TimeStamp:   time.Now().Unix(),
 	}
+
 	logger.Infof("持仓资产更新： %s 的交易资产, 价格=%.8f, 数量=%d", mintAddress, entryPrice, amount)
 	return true
 }

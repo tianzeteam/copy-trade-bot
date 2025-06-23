@@ -32,7 +32,7 @@ const addWalletModal = new bootstrap.Modal(document.getElementById('addWalletMod
 
 // 交易设置元素
 const pumpTradeEnable = document.getElementById('pumpTradeEnable');
-const pumpammTradeEnable = document.getElementById('pumpammTradeEnable');
+const pumpAmmTradeEnable = document.getElementById('pumpAmmTradeEnable');
 const raydiumTradeEnable = document.getElementById('raydiumTradeEnable');
 const minPoolSize = document.getElementById('minPoolSize');
 const maxPoolSize = document.getElementById('maxPoolSize');
@@ -45,6 +45,7 @@ const buySolAmount = document.getElementById('buySolAmount');
 const sellSlippage = document.getElementById('sellSlippage');
 const sellPriorityFee = document.getElementById('sellPriorityFee');
 const sellTipFee = document.getElementById('sellTipFee');
+const sellDelayTime = document.getElementById('sellDelayTime');
 const saveTradeSettingsBtn = document.getElementById('saveTradeSettingsBtn');
 
 // 页面加载时获取钱包列表和交易设置
@@ -343,7 +344,7 @@ async function loadTradeSettings() {
         
         // 填充表单数据
         pumpTradeEnable.checked = tradeSettings.pump_trade_enable;
-        pumpammTradeEnable.checked = tradeSettings.pumpamm_trade_enable;
+        pumpAmmTradeEnable.checked = tradeSettings.pump_amm_trade_enable;
         raydiumTradeEnable.checked = tradeSettings.raydium_trade_enable;
         minPoolSize.value = tradeSettings.min_pool_size;
         maxPoolSize.value = tradeSettings.max_pool_size;
@@ -356,6 +357,7 @@ async function loadTradeSettings() {
         sellSlippage.value = tradeSettings.sell_slippage;
         sellPriorityFee.value = tradeSettings.sell_priority_fee;
         sellTipFee.value = tradeSettings.sell_tip_fee;
+        sellDelayTime.value = tradeSettings.sell_delay_time || 0;
     } catch (error) {
         console.error('获取交易设置失败:', error);
         showAlert(errorAlert, `加载交易设置失败: ${error.message}`);
@@ -367,7 +369,7 @@ async function saveTradeSettings() {
     try {
         const updates = {
             pump_trade_enable: pumpTradeEnable.checked,
-            pumpamm_trade_enable: pumpammTradeEnable.checked,
+            pump_amm_trade_enable: pumpAmmTradeEnable.checked,
             raydium_trade_enable: raydiumTradeEnable.checked,
             min_pool_size: parseFloat(minPoolSize.value),
             max_pool_size: parseFloat(maxPoolSize.value),
@@ -379,7 +381,8 @@ async function saveTradeSettings() {
             buy_sol_amount: parseFloat(buySolAmount.value),
             sell_slippage: parseFloat(sellSlippage.value),
             sell_priority_fee: parseFloat(sellPriorityFee.value),
-            sell_tip_fee: parseFloat(sellTipFee.value)
+            sell_tip_fee: parseFloat(sellTipFee.value),
+            sell_delay_time: parseInt(sellDelayTime.value) || 0
         };
         
         const response = await fetch('/api/trade-settings', {
