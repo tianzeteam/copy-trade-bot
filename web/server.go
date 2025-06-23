@@ -29,7 +29,7 @@ func NewWebServer(configPath string, redisService *wallet.RedisWalletService) *W
 	// 设置Gin为发布模式
 	gin.SetMode(gin.ReleaseMode)
 
-	// 创建Gin引擎
+	// 创建引擎
 	router := gin.Default()
 
 	// 配置CORS
@@ -60,6 +60,7 @@ func StartServer(configPath string) {
 	redisDB := 0                  // 默认使用DB 0
 	redisKeyPrefix := "copytrade" // 默认键前缀
 
+	// 创建Redis服务
 	redisService, err := wallet.NewRedisWalletService(redisAddr, redisDB, redisKeyPrefix)
 	if err != nil {
 		logger.Errorf("创建Redis服务失败: %v", err)
@@ -107,6 +108,10 @@ func (s *WebServer) RegisterRoutes() {
 	// 注册钱包控制器
 	walletController := NewWalletController(s.RedisService)
 	walletController.RegisterRoutes(s.Router)
+	
+	// 注册Redis配置控制器
+	configController := NewConfigController(s.RedisService)
+	configController.RegisterRoutes(s.Router)
 }
 
 // handleGetConfig 获取配置

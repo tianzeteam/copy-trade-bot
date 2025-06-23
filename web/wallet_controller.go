@@ -221,11 +221,3 @@ func (c *WalletController) DeleteWallet(ctx *gin.Context) {
 	// 返回成功响应
 	ctx.JSON(http.StatusOK, gin.H{"message": "钱包删除成功", "address": address})
 }
-
-// setNoCacheHeaders 设置无缓存头
-func setNoCacheHeaders(ctx *gin.Context) {
-	// 设置缓存控制头，确保前端始终获取最新数据
-	ctx.Header("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
-	ctx.Header("Pragma", "no-cache")
-	ctx.Header("Expires", "0")
-}

@@ -13,7 +13,6 @@ import (
 	"copytrade/asset"
 	"copytrade/bot"
 	"copytrade/core"
-
 	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/queue"
@@ -165,6 +164,40 @@ func main() {
 	// 启动处理卖出请求的goroutine
 	go processWaitingSellTokens(tradeBot)
 
+	// 初始化全局配置到内存中
+	configMap := map[string]any{
+		// 交易平台启用状态
+		"pump_trade_enable":    true,  // PumpFun交易启用
+		"pumpamm_trade_enable": false, // PumpAMM交易禁用
+		"raydium_trade_enable": false, // Raydium交易禁用
+
+		// 交易触发和池子大小参数
+		"min_follow_trigger_amount": config.MinFollowTriggerAmount,
+		"max_follow_trigger_amount": 10.0,
+		"min_pool_size":             200.0,
+		"max_pool_size":             config.MaxPoolSize,
+
+		// 交易参数
+		"max_buy_amount":         config.BuySolAmount,
+		"min_buy_amount":         config.BuySolAmount * 0.5, // 默认为买入金额的一半
+		"sell_percentage":        100.0,                     // 默认卖出100%
+		"stop_loss_percentage":   10.0,                      // 默认止损10%
+		"take_profit_percentage": 50.0,                      // 默认止盈50%
+
+		// 滑点参数
+		"buy_slippage":  0.2,
+		"sell_slippage": 0.2,
+
+		// 交易手续费参数
+		"buy_priority_fee":  0.005,
+		"buy_tip_fee":       0.005,
+		"sell_priority_fee": 0.03,
+		"sell_tip_fee":      0.03,
+	}
+
+	global.InitConfig(configMap)
+	logger.Infof("成功将配置参数初始化到内存中")
+
 	// 初始化资产管理器并启动自动更新服务
 	balanceManager := asset.InitBalanceManager(
 		tradeBot.GetWalletPublicKey().String(),
@@ -228,7 +261,7 @@ func main() {
 			}
 
 			if slices.Contains(accountsAddress, core.PUMP_PROGRAM_ID.String()) {
-				if !config.PumpTradeEnable {
+				if !global.Config.PumpTradeEnable {
 					logger.Warn("pump trade is disabled")
 					continue
 				}
@@ -244,7 +277,7 @@ func main() {
 
 			if slices.Contains(accountsAddress, core.AMM_PROGRAM_ID.String()) {
 				// 处理AMM交易信息
-				if !config.PumpammTradeEnable {
+				if !global.Config.PumpAmmTradeEnable {
 					logger.Warn("pumpamm trade is disabled")
 					continue
 				}
@@ -260,7 +293,7 @@ func main() {
 			}
 
 			if slices.Contains(accountsAddress, core.RAYDIUM_V4_PROGRAM_ID.String()) {
-				if !config.RaydiumTradeEnable {
+				if !global.Config.RaydiumTradeEnable {
 					logger.Warn("raydium trade is disabled")
 					continue
 				}

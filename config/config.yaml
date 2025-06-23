@@ -1,86 +1,69 @@
-simulate_mode: false
 create_nonce_account: false
-nonce_account_pubkey: "GgTBxk6r1jyi6QUiUCP7ufvonufBDRS6D3RoRUFnZ7go"
-# 交易钱包私钥
-private_key: "2vwxPuvUGHExVUNtWgXXH94bq4mWKTvSSQowv8ie4owaKMzKDNAvJXFJwZqubKVXX3BD4EAEMGe1mT9YEGgqNkLy" #交易钱包私钥
-#grpc_url: "https://grpc-ny.fountainhead.land"
-grpc_url: "https://solana-yellowstone-grpc.publicnode.com:443"
-rpc_url: "https://mainnet.helius-rpc.com/?api-key=12bc002e-520d-4c0b-b289-8ca9cf41169e"  # 全局RPC URL
-
-# 日志配置
+nonce_account_pubkey: GgTBxk6r1jyi6QUiUCP7ufvonufBDRS6D3RoRUFnZ7go
+simulate_mode: false
+private_key: 2vwxPuvUGHExVUNtWgXXH94bq4mWKTvSSQowv8ie4owaKMzKDNAvJXFJwZqubKVXX3BD4EAEMGe1mT9YEGgqNkLy
+grpc_url: https://solana-yellowstone-grpc.publicnode.com:443
+rpc_url: https://mainnet.helius-rpc.com/?api-key=e3e379af-d66c-4978-b75d-8f29b3e2c141
+buy_sol_amount: 0.001
+sell_mode: delay_sell
+sell_delay_time: 10
+multi_sell_levels:
+    - price_percent: 100
+      sell_percent: 10
+    - price_percent: 200
+      sell_percent: 20
+    - price_percent: 300
+      sell_percent: 20
+    - price_percent: 400
+      sell_percent: 50
+batch_sell_config:
+    num_batches: 0
+    thresholds: []
+skip_ata_check: true
+pump_trade_enable: true
+pumpamm_trade_enable: false
+raydium_trade_enable: false
+min_follow_trigger_amount: 0.5
+max_follow_trigger_amount: 10
+min_pool_size: 200
+max_pool_size: 1000
+buy_slippage: 0.2
+sell_slippage: 0.2
+buy_priority_fee: 0.005
+buy_tip_fee: 0.005
+sell_priority_fee: 0.03
+sell_tip_fee: 0.03
 logging:
-  level: "info"      # 日志级别: debug, info, warn, error, fatal
-  format: "text"     # 日志格式: text, json
-  file: ""   # 日志文件路径，为空则输出到控制台
-  isTerminal: true
-
-# 全局参数
-pump_trade_enable: true # 是否启用pump交易
-pumpamm_trade_enable: true # 是否启用pump AMM交易
-raydium_trade_enable: true # 是否启用raydium交易
-skip_ata_check: true  # 全局参数：是否跳过ATA检查
-
-#pool 大小过滤
-min_pool_size: 2 # 最小pool大小
-max_pool_size: 100 # 最大pool大小
-
-#跟单钱包买入数量范围
-min_follow_trigger_amount: 0.0001 # 最小触发买入数量
-max_follow_trigger_amount: 5 # 最大触发买入数量
-
-#交易参数
-buy_sol_amount: 0.0001 # 全局买入金额
-buy_slippage: 0.50   # 全局买入滑点  = 50%
-sell_slippage: 0.50  # 全局卖出滑点
-# 优先级费用
-buy_priority_fee: 0.0005  # 全局买入优先级费用 约等于 5000 lamports
-sell_priority_fee: 0.0005 # 全局卖出优先级费用
-
-# 卖出设置
-sell_mode: "delay_sell" # 全局卖出模式 delay_sell | multi_sell
-sell_delay_time: 10 # 全局卖出延迟时间,单位秒
-multi_sell_levels: # 全局卖出配置
-  - price_percent: 100
-    sell_percent: 10
-  - price_percent: 200
-    sell_percent: 20
-  - price_percent: 300
-    sell_percent: 20
-  - price_percent: 400
-    sell_percent: 50
-
+    level: info
+    format: text
+    file: ""
 normal:
-  enable: true # 是否启用普通交易
-  buy_tip: 0.001 # 该配置不能进行改动 普通模式不生效
-  sell_tip: 0.001 # 该配置不能进行改动 普通模式不生效
-
-bloXroute:
-  enable: false ## 是否启用 bloXroute 交易
-  rpc_url: "https://mainnet.helius-rpc.com/?api-key=fc8353eb-13cb-423e-8d36-49e2b26d3a78" ## bloXroute  url
-  buy_tip: 0.001 ## 买入手续费
-  sell_tip: 0.001 ## 卖出手续费
-  api_keys:
-    - "xxx" #需要自己去官网申请key
-
+    buy_tip: 0.001
+    sell_tip: 0.001
+    enable: false
 jito:
-  enable: false ## 是否启用 jito 交易
-  rpc_url: "https://frankfurt.mainnet.block-engine.jito.wtf/api/v1" ## jito  url
-  buy_tip: 0.0001 ## 交易手续费
-  sell_tip: 0.0001 ## 交易手续费
-
+    buy_tip: 0.0001
+    sell_tip: 0.0001
+    enable: false
+    rpc_url: https://frankfurt.mainnet.block-engine.jito.wtf/api/v1
 nextblock:
-  enable: false ## 是否启用 nextblock 交易
-  buy_tip: 0.001 ## 交易手续费
-  sell_tip: 0.001 ## 交易手续费
-  rpc_url: "https://fra.nextblock.io/api/v2/submit" ## nextblock  url
-  api_keys:
-    - "xxx" #需要自己去官网申请key
-
-
+    buy_tip: 0.001
+    sell_tip: 0.001
+    enable: false
+    rpc_url: https://fra.nextblock.io/api/v2/submit
+    api_keys:
+        - xxx
 temporal:
-  enable: false  ## 是否启用 temporal 交易
-  buy_tip: 0.001 ## 交易手续费
-  sell_tip: 0.001 ## 交易手续费
-  rpc_url: "http://fra2.nozomi.temporal.xyz/" ## temporal  url
-  api_keys:
-    - "8ecf81ea-c846-451e-b840-ad9332e96834" # buff anti mev key 
+    buy_tip: 0.001
+    sell_tip: 0.001
+    enable: true
+    rpc_url: http://fra2.nozomi.temporal.xyz/
+    api_keys:
+        - f9b4c049-bfb1-4981-90ed-edc3aed018fb
+bloXroute:
+    buy_tip: 0.001
+    sell_tip: 0.001
+    enable: false
+    rpc_url: https://mainnet.helius-rpc.com/?api-key=fc8353eb-13cb-423e-8d36-49e2b26d3a78
+    api_keys:
+        - xxx
