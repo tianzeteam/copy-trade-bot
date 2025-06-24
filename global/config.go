@@ -198,6 +198,7 @@ func InitConfig(config map[string]any) {
 		PumpTradeEnable:    getBoolValue(config, "pump_trade_enable", true),
 		PumpAmmTradeEnable: getBoolValue(config, "pumpamm_trade_enable", false),
 		RaydiumTradeEnable: getBoolValue(config, "raydium_trade_enable", false),
+		SellDelayTime:      getIntValue(config, "sell_delay_time", 0),
 
 		// 交易触发和池子大小参数
 		MinFollowTriggerAmount: getFloat64Value(config, "min_follow_trigger_amount", 0.5),
@@ -249,6 +250,23 @@ func getFloat64Value(config map[string]interface{}, key string, defaultValue flo
 			return float64(v)
 		case float32:
 			return float64(v)
+		}
+	}
+	return defaultValue
+}
+
+// getIntValue 从配置中获取整数值，如果不存在则使用默认值
+func getIntValue(config map[string]any, key string, defaultValue int) int {
+	if val, ok := config[key]; ok {
+		switch v := val.(type) {
+		case int:
+			return v
+		case int64:
+			return int(v)
+		case float64:
+			return int(v)
+		case float32:
+			return int(v)
 		}
 	}
 	return defaultValue

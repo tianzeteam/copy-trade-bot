@@ -129,6 +129,24 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
 
+	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
+		logger.Infof("[0slot] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionZeroSlot(
+				t.Wallet,
+				instructions,
+				params.ZeroslotParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("0slot发送失败: %s", err)
+				errChan <- fmt.Errorf("0slot发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
 	if params.BloXrouteParams != nil && params.BloXrouteParams.Enable {
 		logger.Debugf("[BloXroute] 准备发送交易...")
 		go func() {
@@ -324,6 +342,23 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 	resultChan := make(chan string, 4)
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
+	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
+		logger.Infof("[0slot] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionZeroSlot(
+				t.Wallet,
+				instructions,
+				params.ZeroslotParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("0slot发送失败: %s", err)
+				errChan <- fmt.Errorf("0slot发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
 
 	if params.BloXrouteParams != nil && params.BloXrouteParams.Enable {
 		logger.Infof("[BloXroute] 准备发送交易...")
@@ -522,6 +557,24 @@ func (t *TraderImpl) RaydiumV4Buy(ctx context.Context, params types.OrderParams)
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
 
+	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
+		logger.Infof("[0slot] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionZeroSlot(
+				t.Wallet,
+				instructions,
+				params.ZeroslotParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("0slot发送失败: %s", err)
+				errChan <- fmt.Errorf("0slot发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
 	if params.BloXrouteParams != nil && params.BloXrouteParams.Enable {
 		logger.Infof("[BloXroute] 准备发送交易...")
 		go func() {
@@ -718,6 +771,24 @@ func (t *TraderImpl) RaydiumV4Sell(ctx context.Context, params types.OrderParams
 	resultChan := make(chan string, 4)
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
+	// 检查各个模式是否启用并准备发送
+	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
+		logger.Debugf("[0slot] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionZeroSlot(
+				t.Wallet,
+				instructions,
+				params.ZeroslotParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("0slot发送失败: %s", err)
+				errChan <- fmt.Errorf("0slot发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
 
 	if params.BloXrouteParams != nil && params.BloXrouteParams.Enable {
 		logger.Infof("[BloXroute] 准备发送交易...")
@@ -891,6 +962,24 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 	resultChan := make(chan string, 4)
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
+	// 检查各个模式是否启用并准备发送
+	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
+		logger.Debugf("[0slot] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionZeroSlot(
+				t.Wallet,
+				instructions,
+				params.ZeroslotParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("0slot发送失败: %s", err)
+				errChan <- fmt.Errorf("0slot发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
 
 	// 检查各个模式是否启用并准备发送
 	if params.BloXrouteParams != nil && params.BloXrouteParams.Enable {
@@ -1149,6 +1238,24 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 	resultChan := make(chan string, 4)
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
+
+	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
+		logger.Debugf("[0slot] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionZeroSlot(
+				t.Wallet,
+				instructions,
+				params.ZeroslotParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("0slot发送失败: %s", err)
+				errChan <- fmt.Errorf("0slot发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
 
 	// 检查各个模式是否启用并准备发送
 	if params.BloXrouteParams != nil && params.BloXrouteParams.Enable {

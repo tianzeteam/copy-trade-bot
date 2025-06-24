@@ -8,7 +8,6 @@ import (
 	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/queue"
-	"copytrade/types"
 
 	"github.com/gagliardetto/solana-go"
 )
@@ -274,43 +273,6 @@ func (m *WalletMonitor) StartMonitoring(ctx context.Context) {
 			}
 		}
 	}()
-}
-
-// GetTradeRecords returns the map of trade records
-func (m *WalletMonitor) GetTradeRecords() map[string]*types.TradeRecord {
-	m.Mux.RLock()
-	defer m.Mux.RUnlock()
-	
-	// Convert the trade records to the interface type
-	result := make(map[string]*types.TradeRecord)
-	for key, record := range m.TradeRecords {
-		typeRecord := &types.TradeRecord{
-			MintAddress:   record.MintAddress,
-			WalletAddress: record.WalletAddress,
-			EntryPrice:    record.EntryPrice,
-			Amount:        record.Amount,
-			Timestamp:     record.Timestamp,
-			ExitDeadline:  record.ExitDeadline,
-			StrategyName:  record.StrategyName,
-		}
-		
-		// Convert WalletSettings
-		if record.Settings != nil {
-			typeRecord.Settings = &types.WalletSettings{
-				Address:       record.Settings.Address,
-				Name:          record.Settings.Name,
-				Type:          types.WalletType(record.Settings.Type),
-				TakeProfitPct: record.Settings.TakeProfitPct,
-				StopLossPct:   record.Settings.StopLossPct,
-				ExitTimeSec:   record.Settings.ExitTimeSec,
-				Enabled:       record.Settings.Enabled,
-			}
-		}
-		
-		result[key] = typeRecord
-	}
-	
-	return result
 }
 
 // refreshWalletList 从 Redis 刷新钱包列表

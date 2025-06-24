@@ -193,7 +193,7 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 		pumpAccounts.BondingCurve,
 		m.BuySolAmount,
 		virtualSolReserves,
-		m.TradeBot.Config.BuySlippage,
+		global.GetConfig().BuySlippage,
 	)
 
 	if err != nil {
@@ -215,8 +215,8 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 		Cost:      amounts.MaxCost,
 		Blockhash: *m.TradeBot.Blockhash,
 		FeeConfig: types.FeeConfig{
-			Slippage:    m.TradeBot.Config.BuySlippage,
-			PriorityFee: uint64(m.TradeBot.Config.BuyPriorityFee * 1e9),
+			Slippage:    global.GetConfig().BuySlippage,
+			PriorityFee: uint64(global.GetConfig().BuyPriorityFee * 1e9),
 		},
 	}
 
@@ -228,24 +228,24 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 			Enable:    m.TradeBot.Config.Zeroslot.Enable,
 			RpcUrl:    m.TradeBot.Config.Zeroslot.RpcUrl,
 			ApiKeys:   m.TradeBot.Config.Zeroslot.ApiKeys,
-			TipAmount: uint64(m.TradeBot.Config.Zeroslot.BuyTip * 1e9),
+			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
 		},
 		JitoParams: &types.JitoParams{
 			Enable:    m.TradeBot.Config.Jito.Enable,
 			BundleUrl: m.TradeBot.Config.Jito.RpcUrl,
-			TipAmount: uint64(m.TradeBot.Config.Jito.BuyTip * 1e9),
+			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
 		},
 		TemporalParams: &types.TemporalParams{
 			Enable:    m.TradeBot.Config.Temporal.Enable,
 			BundleUrl: m.TradeBot.Config.Temporal.RpcUrl,
 			ApiKey:    m.TradeBot.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(m.TradeBot.Config.Temporal.BuyTip * 1e9),
+			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
 		},
 		BloXrouteParams: &types.BloXrouteParams{
 			Enable:    m.TradeBot.Config.BloXroute.Enable,
 			RpcUrl:    m.TradeBot.Config.BloXroute.RpcUrl,
 			ApiKeys:   m.TradeBot.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(m.TradeBot.Config.BloXroute.BuyTip * 1e9),
+			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
 		},
 	}
 
@@ -291,7 +291,7 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 		m.BuySolAmount,
 		baseReserve,
 		quoteReserve,
-		m.TradeBot.Config.BuySlippage,
+		global.GetConfig().BuySlippage,
 	)
 
 	if err != nil {
@@ -317,31 +317,37 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 		Cost:      amounts.MinOut,
 		Blockhash: *m.TradeBot.Blockhash,
 		FeeConfig: types.FeeConfig{
-			Slippage:    m.TradeBot.Config.BuySlippage,
-			PriorityFee: uint64(m.TradeBot.Config.BuyPriorityFee * 1e9),
+			Slippage:    global.GetConfig().BuySlippage,
+			PriorityFee: uint64(global.GetConfig().BuyPriorityFee * 1e9),
 		},
 	}
 
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		ZeroslotParams: &types.ZeroslotParams{
+			Enable:    m.TradeBot.Config.Zeroslot.Enable,
+			RpcUrl:    m.TradeBot.Config.Zeroslot.RpcUrl,
+			ApiKeys:   m.TradeBot.Config.Zeroslot.ApiKeys,
+			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
+		},
 
 		JitoParams: &types.JitoParams{
 			Enable:    m.TradeBot.Config.Jito.Enable,
 			BundleUrl: m.TradeBot.Config.Jito.RpcUrl,
-			TipAmount: uint64(m.TradeBot.Config.Jito.BuyTip * 1e9),
+			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
 		},
 		TemporalParams: &types.TemporalParams{
 			Enable:    m.TradeBot.Config.Temporal.Enable,
 			BundleUrl: m.TradeBot.Config.Temporal.RpcUrl,
 			ApiKey:    m.TradeBot.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(m.TradeBot.Config.Temporal.BuyTip * 1e9),
+			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
 		},
 		BloXrouteParams: &types.BloXrouteParams{
 			Enable:    m.TradeBot.Config.BloXroute.Enable,
 			RpcUrl:    m.TradeBot.Config.BloXroute.RpcUrl,
 			ApiKeys:   m.TradeBot.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(m.TradeBot.Config.BloXroute.BuyTip * 1e9),
+			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
 		},
 	}
 
@@ -384,7 +390,7 @@ func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *global.AmmRayd
 		m.BuySolAmount,
 		tradeInfo.CurrentPrice,
 		poolLayout.BaseDecimal,
-		m.TradeBot.Config.BuySlippage,
+		global.GetConfig().BuySlippage,
 	)
 
 	if err != nil {
@@ -404,31 +410,37 @@ func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *global.AmmRayd
 		Cost:      amounts.MinOut,
 		Blockhash: *m.TradeBot.Blockhash,
 		FeeConfig: types.FeeConfig{
-			Slippage:    m.TradeBot.Config.BuySlippage,
-			PriorityFee: uint64(m.TradeBot.Config.BuyPriorityFee * 1e9),
+			Slippage:    global.GetConfig().BuySlippage,
+			PriorityFee: uint64(global.GetConfig().BuyPriorityFee * 1e9),
 		},
 	}
 
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		ZeroslotParams: &types.ZeroslotParams{
+			Enable:    m.TradeBot.Config.Zeroslot.Enable,
+			RpcUrl:    m.TradeBot.Config.Zeroslot.RpcUrl,
+			ApiKeys:   m.TradeBot.Config.Zeroslot.ApiKeys,
+			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
+		},
 
 		JitoParams: &types.JitoParams{
 			Enable:    m.TradeBot.Config.Jito.Enable,
 			BundleUrl: m.TradeBot.Config.Jito.RpcUrl,
-			TipAmount: uint64(m.TradeBot.Config.Jito.BuyTip * 1e9),
+			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
 		},
 		TemporalParams: &types.TemporalParams{
 			Enable:    m.TradeBot.Config.Temporal.Enable,
 			BundleUrl: m.TradeBot.Config.Temporal.RpcUrl,
 			ApiKey:    m.TradeBot.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(m.TradeBot.Config.Temporal.BuyTip * 1e9),
+			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
 		},
 		BloXrouteParams: &types.BloXrouteParams{
 			Enable:    m.TradeBot.Config.BloXroute.Enable,
 			RpcUrl:    m.TradeBot.Config.BloXroute.RpcUrl,
 			ApiKeys:   m.TradeBot.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(m.TradeBot.Config.BloXroute.BuyTip * 1e9),
+			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
 		},
 	}
 

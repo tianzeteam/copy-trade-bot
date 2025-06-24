@@ -8,7 +8,6 @@ import (
 
 	"copytrade/core"
 	"copytrade/logger"
-	"copytrade/types"
 	"copytrade/utils"
 
 	"github.com/blocto/solana-go-sdk/client"
@@ -46,7 +45,6 @@ type Bot struct {
 	// OpenBook market states map, with baseMint as key
 	marketStates     map[string]*MarketState
 	marketStatesLock sync.RWMutex
-	walletMonitor    types.WalletMonitorInterface
 }
 
 func (b *Bot) status(msg interface{}) {

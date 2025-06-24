@@ -207,23 +207,6 @@ func (s *WebServer) handleGetTradeSettings(ctx *gin.Context) {
 // handleUpdateTradeSettings 更新交易设置
 func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
 
-	// 解析请求体
-	var globalUpdates map[string]any
-	if err := ctx.ShouldBindJSON(&globalUpdates); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "解析请求失败"})
-		return
-	}
-
-	// 更新各个字段
-	for key, value := range globalUpdates {
-		global.UpdateConfigField(key, value)
-	}
-
-	// 获取更新后的配置
-	updatedConfig := global.GetConfig()
-
-	logger.Infof("更新后的配置: %v", updatedConfig)
-
 	// 交易设置请求体
 	type TradeSettingsRequest struct {
 		PumpTradeEnable        bool    `json:"pump_trade_enable"`
@@ -249,6 +232,35 @@ func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("解析请求失败: %v", err)})
 		return
 	}
+	
+	// 将结构体转换为map以便更新配置
+	updateMap := map[string]interface{}{
+		"pump_trade_enable":         updates.PumpTradeEnable,
+		"pump_amm_trade_enable":     updates.PumpAmmTradeEnable,
+		"raydium_trade_enable":      updates.RaydiumTradeEnable,
+		"sell_delay_time":           updates.SellDelayTime,
+		"min_pool_size":             updates.MinPoolSize,
+		"max_pool_size":             updates.MaxPoolSize,
+		"min_follow_trigger_amount": updates.MinFollowTriggerAmount,
+		"max_follow_trigger_amount": updates.MaxFollowTriggerAmount,
+		"buy_slippage":              updates.BuySlippage,
+		"buy_priority_fee":          updates.BuyPriorityFee,
+		"buy_tip_fee":               updates.BuyTipFee,
+		"buy_sol_amount":            updates.BuySolAmount,
+		"sell_slippage":             updates.SellSlippage,
+		"sell_priority_fee":         updates.SellPriorityFee,
+		"sell_tip_fee":              updates.SellTipFee,
+	}
+
+	// 更新各个字段
+	for key, value := range updateMap {
+		global.UpdateConfigField(key, value)
+	}
+
+	// 获取更新后的配置
+	updatedConfig := global.GetConfig()
+
+	logger.Infof("更新后的配置: %v", updatedConfig)
 
 	// 加载当前配置
 	config, err := utils.LoadConfig(s.ConfigPath)

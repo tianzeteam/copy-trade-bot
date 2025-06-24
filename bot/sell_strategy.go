@@ -257,7 +257,7 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 		float64(tokenInfo.Amount),
 		vTokenReserves,
 		vSolReserves,
-		b.Config.SellSlippage,
+		global.GetConfig().SellSlippage,
 	)
 	if err != nil {
 		logger.Errorf("计算卖出金额失败: %v", err)
@@ -277,8 +277,8 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 		Cost:      amounts.MinOut, // 卖出时 Cost 表示最小获得数量
 		Blockhash: *b.Blockhash,
 		FeeConfig: types.FeeConfig{
-			Slippage:    b.Config.SellSlippage,
-			PriorityFee: uint64(b.Config.SellPriorityFee * 1e9),
+			Slippage:    global.GetConfig().SellSlippage,
+			PriorityFee: uint64(global.GetConfig().SellPriorityFee * 1e9),
 		},
 	}
 
@@ -289,24 +289,24 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 			Enable:    b.Config.NextBlock.Enable,
 			BundleUrl: b.Config.NextBlock.RpcUrl,
 			ApiKey:    b.Config.NextBlock.ApiKeys[0],
-			TipAmount: uint64(b.Config.NextBlock.SellTip * 1e9),
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
 		},
 		JitoParams: &types.JitoParams{
 			Enable:    b.Config.Jito.Enable,
 			BundleUrl: b.Config.Jito.RpcUrl,
-			TipAmount: uint64(b.Config.Jito.SellTip * 1e9),
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
 		},
 		TemporalParams: &types.TemporalParams{
 			Enable:    b.Config.Temporal.Enable,
 			BundleUrl: b.Config.Temporal.RpcUrl,
 			ApiKey:    b.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(b.Config.Temporal.SellTip * 1e9),
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
 		},
 		BloXrouteParams: &types.BloXrouteParams{
 			Enable:    b.Config.BloXroute.Enable,
 			RpcUrl:    b.Config.BloXroute.RpcUrl,
 			ApiKeys:   b.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(b.Config.BloXroute.SellTip * 1e9),
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
 		},
 	}
 
@@ -371,7 +371,7 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 		baseAmountIn,
 		baseReserve,
 		quoteReserve,
-		b.Config.BuySlippage,
+		global.GetConfig().SellSlippage,
 	)
 
 	if err != nil {
@@ -405,8 +405,8 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 		Cost:      amounts.MinOut,
 		Blockhash: *b.Blockhash,
 		FeeConfig: types.FeeConfig{
-			Slippage:    b.Config.SellSlippage,
-			PriorityFee: uint64(b.Config.SellPriorityFee * 1e9),
+			Slippage:    global.GetConfig().SellSlippage,
+			PriorityFee: uint64(global.GetConfig().SellPriorityFee * 1e9),
 		},
 	}
 
@@ -417,24 +417,24 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 			Enable:    b.Config.NextBlock.Enable,
 			BundleUrl: b.Config.NextBlock.RpcUrl,
 			ApiKey:    b.Config.NextBlock.ApiKeys[0],
-			TipAmount: uint64(b.Config.NextBlock.BuyTip * 1e9),
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
 		},
 		JitoParams: &types.JitoParams{
 			Enable:    b.Config.Jito.Enable,
 			BundleUrl: b.Config.Jito.RpcUrl,
-			TipAmount: uint64(b.Config.Jito.BuyTip * 1e9),
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
 		},
 		TemporalParams: &types.TemporalParams{
 			Enable:    b.Config.Temporal.Enable,
 			BundleUrl: b.Config.Temporal.RpcUrl,
 			ApiKey:    b.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(b.Config.Temporal.BuyTip * 1e9),
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
 		},
 		BloXrouteParams: &types.BloXrouteParams{
 			Enable:    b.Config.BloXroute.Enable,
 			RpcUrl:    b.Config.BloXroute.RpcUrl,
 			ApiKeys:   b.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(b.Config.BloXroute.BuyTip * 1e9),
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
 		},
 	}
 
@@ -487,7 +487,7 @@ func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 		float64(tokenInfo.Amount),
 		tradeInfo.CurrentPrice,
 		poolLayout.BaseDecimal,
-		b.Config.SellSlippage,
+		global.GetConfig().SellSlippage,
 	)
 	if err != nil {
 		logger.Errorf("计算卖出金额失败: %v", err)
@@ -506,8 +506,8 @@ func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 		Cost:      amounts.MinOut,
 		Blockhash: *b.Blockhash,
 		FeeConfig: types.FeeConfig{
-			Slippage:    b.Config.BuySlippage,
-			PriorityFee: uint64(b.Config.BuyPriorityFee * 1e9),
+			Slippage:    global.GetConfig().SellSlippage,
+			PriorityFee: uint64(global.GetConfig().SellPriorityFee * 1e9),
 		},
 	}
 
@@ -518,24 +518,24 @@ func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 			Enable:    b.Config.NextBlock.Enable,
 			BundleUrl: b.Config.NextBlock.RpcUrl,
 			ApiKey:    b.Config.NextBlock.ApiKeys[0],
-			TipAmount: uint64(b.Config.NextBlock.SellTip * 1e9),
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
 		},
 		JitoParams: &types.JitoParams{
 			Enable:    b.Config.Jito.Enable,
 			BundleUrl: b.Config.Jito.RpcUrl,
-			TipAmount: uint64(b.Config.Jito.SellTip * 1e9),
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
 		},
 		TemporalParams: &types.TemporalParams{
 			Enable:    b.Config.Temporal.Enable,
 			BundleUrl: b.Config.Temporal.RpcUrl,
 			ApiKey:    b.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(b.Config.Temporal.SellTip * 1e9),
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
 		},
 		BloXrouteParams: &types.BloXrouteParams{
 			Enable:    b.Config.BloXroute.Enable,
 			RpcUrl:    b.Config.BloXroute.RpcUrl,
 			ApiKeys:   b.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(b.Config.BloXroute.SellTip * 1e9),
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
 		},
 	}
 
