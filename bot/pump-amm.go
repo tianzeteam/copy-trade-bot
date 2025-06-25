@@ -198,54 +198,56 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 	// 处理AMM交易信息
 	tradeInfo := b.parseAmmTransaction(logMessages, mintAddress)
 	botWallet := b.privateKey.PublicKey()
-	if tradeInfo != nil {
-		global.SetAmmTradeInfo(mintAddress, tradeInfo)
-		logger.Debugf("AMM交易信息: 用户=%s, SOL=%d, 代币=%d, 是否买入=%v, 价格=%.8f",
-			tradeInfo.UserAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.IsBuy, tradeInfo.CurrentPrice)
 
-		userPubkey := tradeInfo.UserAddress
-		if tradeInfo.IsBuy {
-			// 检查是否是自己的交易
-			if userPubkey.String() == botWallet.String() {
-				// 定义常量以提高可读性
-				const (
-					SolDecimals   = 1e9 // SOL有9位小数
-					TokenDecimals = 1e6 // 代币有6位小数
-				)
+	if tradeInfo == nil {
+		return nil
+	}
+	global.SetAmmTradeInfo(mintAddress, tradeInfo)
+	logger.Debugf("AMM交易信息: 用户=%s, SOL=%d, 代币=%d, 是否买入=%v, 价格=%.8f",
+		tradeInfo.UserAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.IsBuy, tradeInfo.CurrentPrice)
 
-				// 安全地计算入场价格
-				var entryPrice float64
-				if tradeInfo.TokenAmount > 0 {
-					solAmountFloat := float64(tradeInfo.SolAmount) / SolDecimals
-					tokenAmountFloat := float64(tradeInfo.TokenAmount) / TokenDecimals
-					entryPrice = solAmountFloat / tokenAmountFloat
-				} else {
-					logger.Warnf("计算入场价格时发现代币数量为零: %d", tradeInfo.TokenAmount)
-					entryPrice = 0
-				}
+	userPubkey := tradeInfo.UserAddress
+	if tradeInfo.IsBuy {
+		// 检查是否是自己的交易
+		if userPubkey.String() == botWallet.String() {
+			// 定义常量以提高可读性
+			const (
+				SolDecimals   = 1e9 // SOL有9位小数
+				TokenDecimals = 1e6 // 代币有6位小数
+			)
 
-				logger.Infof("买入交易: SOL=%d (%.4f), 代币=%d (%.2f), 价格=%.8f",
-					tradeInfo.SolAmount, float64(tradeInfo.SolAmount)/SolDecimals,
-					tradeInfo.TokenAmount, float64(tradeInfo.TokenAmount)/TokenDecimals,
-					entryPrice)
-				// 设置入场价格
-				global.SetTradeAssetOnce(
-					mintAddress,
-					tradeInfo.Creator,
-					botWallet.String(),
-					entryPrice,
-					tradeInfo.TokenAmount,
-					6,
-				)
-				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
-				if ok {
-					time.Sleep(time.Duration(global.GetConfig().SellDelayTime) * time.Millisecond)
-					queue.SendTokenToSellChannel(assetInfo, entryPrice, "pumpamm", "delay_sell", "延迟卖出")
-				}
+			// 安全地计算入场价格
+			var entryPrice float64
+			if tradeInfo.TokenAmount > 0 {
+				solAmountFloat := float64(tradeInfo.SolAmount) / SolDecimals
+				tokenAmountFloat := float64(tradeInfo.TokenAmount) / TokenDecimals
+				entryPrice = solAmountFloat / tokenAmountFloat
+			} else {
+				logger.Warnf("计算入场价格时发现代币数量为零: %d", tradeInfo.TokenAmount)
+				entryPrice = 0
+			}
+
+			logger.Infof("买入交易: SOL=%d (%.4f), 代币=%d (%.2f), 价格=%.8f",
+				tradeInfo.SolAmount, float64(tradeInfo.SolAmount)/SolDecimals,
+				tradeInfo.TokenAmount, float64(tradeInfo.TokenAmount)/TokenDecimals,
+				entryPrice)
+			// 设置入场价格
+			global.SetTradeAssetOnce(
+				mintAddress,
+				tradeInfo.Creator,
+				botWallet.String(),
+				entryPrice,
+				tradeInfo.TokenAmount,
+				6,
+			)
+			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+			if ok {
+				time.Sleep(time.Duration(global.GetConfig().SellDelayTime) * time.Millisecond)
+				queue.SendTokenToSellChannel(assetInfo, entryPrice, "pumpamm", "delay_sell", "延迟卖出")
 			}
 		}
-
 	}
+
 	return tradeInfo
 }
 

@@ -21,8 +21,8 @@ batch_sell_config:
     thresholds: []
 skip_ata_check: true
 pump_trade_enable: true
-pump_amm_trade_enable: false
-raydium_trade_enable: false
+pump_amm_trade_enable: true
+raydium_trade_enable: true
 min_follow_trigger_amount: 0.55
 max_follow_trigger_amount: 105
 min_pool_size: 2005

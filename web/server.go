@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	"copytrade/global"
@@ -86,9 +85,7 @@ func StartServer(configPath string) {
 // RegisterRoutes 注册路由
 func (s *WebServer) RegisterRoutes() {
 	// 获取项目根目录
-	_, b, _, _ := runtime.Caller(0)
-	rootDir := filepath.Dir(filepath.Dir(b)) // 回到项目根目录
-
+	rootDir := utils.GetRootDir()
 	// 确保web目录存在
 	webDir := filepath.Join(rootDir, "web")
 	staticDir := filepath.Join(webDir, "static")
@@ -97,6 +94,8 @@ func (s *WebServer) RegisterRoutes() {
 
 	// 静态文件服务
 	s.Router.Static("/static", staticDir)
+	
+	// 处理根路径请求，返回 index.html
 	s.Router.StaticFile("/", filepath.Join(staticDir, "index.html"))
 
 	// 注册配置API
@@ -232,9 +231,9 @@ func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("解析请求失败: %v", err)})
 		return
 	}
-	
+
 	// 将结构体转换为map以便更新配置
-	updateMap := map[string]interface{}{
+	updateMap := map[string]any{
 		"pump_trade_enable":         updates.PumpTradeEnable,
 		"pump_amm_trade_enable":     updates.PumpAmmTradeEnable,
 		"raydium_trade_enable":      updates.RaydiumTradeEnable,
