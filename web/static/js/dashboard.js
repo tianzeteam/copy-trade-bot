@@ -203,7 +203,9 @@ function updateWallet() {
     if (!currentWalletAddress) return;
     
     const walletData = {
+        address: currentWalletAddress,
         name: document.getElementById('walletName').textContent,
+        type: document.getElementById('walletType').textContent === '高频交易' ? 'high_frequency' : 'low_frequency',
         take_profit_pct: parseFloat(document.getElementById('takeProfitPct').value),
         stop_loss_pct: parseFloat(document.getElementById('stopLossPct').value),
         exit_time_sec: parseInt(document.getElementById('exitTimeSec').value),
@@ -219,17 +221,22 @@ function updateWallet() {
         body: JSON.stringify(walletData)
     })
     .then(response => {
+        console.log('钱包更新响应状态:', response.status);
         if (response.status === 401) {
             logout();
             return;
         }
-        return response.json();
+        return response.json().catch(err => {
+            console.error('解析响应JSON失败:', err);
+            return { error: '服务器响应格式错误' };
+        });
     })
     .then(data => {
         if (!data) return;
+        console.log('钱包更新响应数据:', data);
         
-        if (data.status === 'success') {
-            showSuccess('钱包设置已更新');
+        if (data.status === 'success' || data.message) {
+            showSuccess(data.message || '钱包设置已更新');
             loadWallets(); // 重新加载钱包列表
         } else {
             showError('更新钱包设置失败: ' + (data.error || '未知错误'));
@@ -237,7 +244,7 @@ function updateWallet() {
     })
     .catch(error => {
         console.error('更新钱包设置失败:', error);
-        showError('更新钱包设置失败，请重试');
+        showError('更新钱包设置失败: ' + error.message);
     });
 }
 
@@ -264,9 +271,10 @@ function deleteWallet() {
     })
     .then(data => {
         if (!data) return;
+        console.log('删除钱包响应数据:', data);
         
-        if (data.status === 'success') {
-            showSuccess('钱包已删除');
+        if (data.status === 'success' || data.message === '钱包删除成功' || data.message) {
+            showSuccess(data.message || '钱包已删除');
             hideWalletDetails();
             loadWallets(); // 重新加载钱包列表
         } else {
@@ -297,6 +305,12 @@ function addNewWallet() {
         return;
     }
     
+    // 验证 Solana 地址格式
+    if (!isValidSolanaAddress(walletData.address)) {
+        showError('无效的 Solana 钱包地址格式');
+        return;
+    }
+    
     fetch('/api/wallets', {
         method: 'POST',
         headers: {
@@ -314,8 +328,9 @@ function addNewWallet() {
     })
     .then(data => {
         if (!data) return;
+        console.log('添加钱包响应数据:', data);
         
-        if (data.status === 'success') {
+        if (data.status === 'success' || data.message === '钱包创建成功' || data.message) {
             // 关闭模态框
             const modal = bootstrap.Modal.getInstance(document.getElementById('addWalletModal'));
             modal.hide();
@@ -323,7 +338,7 @@ function addNewWallet() {
             // 清空表单
             document.getElementById('addWalletForm').reset();
             
-            showSuccess('钱包已添加');
+            showSuccess(data.message || '钱包已添加');
             loadWallets(); // 重新加载钱包列表
         } else {
             showError('添加钱包失败: ' + (data.error || '未知错误'));
@@ -447,14 +462,21 @@ function showSuccess(message) {
     }, 3000);
 }
 
-// 显示错误消息
+// 显示错误提示
 function showError(message) {
-    const alert = document.getElementById('errorAlert');
-    alert.textContent = message;
-    alert.classList.remove('d-none');
+    const errorAlert = document.getElementById('errorAlert');
+    errorAlert.textContent = message;
+    errorAlert.classList.remove('d-none');
     
-    // 5秒后隐藏
+    // 3秒后自动隐藏
     setTimeout(() => {
-        alert.classList.add('d-none');
-    }, 5000);
+        errorAlert.classList.add('d-none');
+    }, 3000);
+}
+
+// 验证 Solana 地址格式
+function isValidSolanaAddress(address) {
+    // Solana 地址是 32-44 个字符的 Base58 编码字符串
+    const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+    return base58Regex.test(address);
 }

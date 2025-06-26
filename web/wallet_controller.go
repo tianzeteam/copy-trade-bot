@@ -179,7 +179,9 @@ func (c *WalletController) CreateWallet(ctx *gin.Context) {
 func (c *WalletController) UpdateWallet(ctx *gin.Context) {
 	// 获取地址参数
 	address := ctx.Param("address")
+	logger.Infof("尝试更新钱包，地址参数: %s", address)
 	if address == "" {
+		logger.Warnf("更新钱包失败: 地址参数为空")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "钱包地址不能为空"})
 		return
 	}
@@ -187,12 +189,18 @@ func (c *WalletController) UpdateWallet(ctx *gin.Context) {
 	// 解析请求体
 	var request WalletResponse
 	if err := ctx.ShouldBindJSON(&request); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求数据"})
+		logger.Warnf("更新钱包失败: 无法解析请求体: %v", err)
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求数据: " + err.Error()})
 		return
 	}
 
+	// 记录请求数据
+	logger.Infof("钱包更新请求数据: 地址=%s, 名称=%s, 类型=%s, 止盈=%d, 止损=%d, 退出时间=%d, 启用=%v",
+		request.Address, request.Name, request.Type, request.TakeProfitPct, request.StopLossPct, request.ExitTimeSec, request.Enabled)
+
 	// 确保地址匹配
 	if address != request.Address {
+		logger.Warnf("更新钱包失败: 地址不匹配: 路径=%s, 请求体=%s", address, request.Address)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "路径中的地址与请求体中的地址不匹配"})
 		return
 	}
@@ -212,11 +220,12 @@ func (c *WalletController) UpdateWallet(ctx *gin.Context) {
 	err := c.RedisService.UpdateWallet(context.Background(), &walletConfig)
 	if err != nil {
 		logger.Errorf("更新钱包失败: %v", err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "更新钱包失败"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "更新钱包失败: " + err.Error()})
 		return
 	}
 
 	// 返回成功响应
+	logger.Infof("钱包更新成功: %s", request.Address)
 	ctx.JSON(http.StatusOK, gin.H{"message": "钱包更新成功", "address": request.Address})
 }
 
