@@ -68,6 +68,9 @@ func StartServer(configPath string) {
 		return
 	}
 
+	// 初始化认证系统
+	InitAuth()
+
 	// 创建服务器
 	server := NewWebServer(configPath, redisService)
 
@@ -94,25 +97,43 @@ func (s *WebServer) RegisterRoutes() {
 
 	// 静态文件服务
 	s.Router.Static("/static", staticDir)
+	s.Router.Static("/js", filepath.Join(staticDir, "js"))
+	s.Router.Static("/css", filepath.Join(staticDir, "css"))
 
-	// 处理根路径请求，返回 index.html
-	s.Router.StaticFile("/", filepath.Join(staticDir, "index.html"))
+	// 处理登录页面请求
+	s.Router.StaticFile("/login", filepath.Join(staticDir, "login.html"))
+	
+	// 处理根路径请求，重定向到登录页面
+	s.Router.GET("/", func(c *gin.Context) {
+		c.Redirect(http.StatusFound, "/login")
+	})
 
-	// 注册配置API
-	s.Router.GET("/api/config", s.handleGetConfig)
-	s.Router.POST("/api/config", s.handleUpdateConfig)
+	// 处理仪表盘页面请求
+	s.Router.StaticFile("/dashboard", filepath.Join(staticDir, "dashboard.html"))
+	
+	// 注册认证路由
+	RegisterAuthRoutes(s.Router)
 
-	// 注册交易设置API
-	s.Router.GET("/api/trade-settings", s.handleGetTradeSettings)
-	s.Router.POST("/api/trade-settings", s.handleUpdateTradeSettings)
+	// 需要认证的API路由组
+	api := s.Router.Group("/api")
+	api.Use(AuthMiddleware())
+	{
+		// 注册配置API
+		api.GET("/config", s.handleGetConfig)
+		api.POST("/config", s.handleUpdateConfig)
 
-	// 注册钱包控制器
+		// 注册交易设置API
+		api.GET("/trade-settings", s.handleGetTradeSettings)
+		api.POST("/trade-settings", s.handleUpdateTradeSettings)
+	}
+
+	// 注册钱包控制器（需要认证）
 	walletController := NewWalletController(s.RedisService)
-	walletController.RegisterRoutes(s.Router)
+	walletController.RegisterRoutesWithAuth(s.Router)
 
-	// 注册Redis配置控制器
+	// 注册Redis配置控制器（需要认证）
 	configController := NewConfigController(s.RedisService)
-	configController.RegisterRoutes(s.Router)
+	configController.RegisterRoutesWithAuth(s.Router)
 }
 
 // handleGetConfig 获取配置

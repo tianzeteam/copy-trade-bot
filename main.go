@@ -241,7 +241,7 @@ func main() {
 			}
 
 			if out.GetTransaction() == nil {
-				logger.Info("Received update with nil transaction")
+				logger.Debugf("Received update with nil transaction")
 				continue
 			}
 

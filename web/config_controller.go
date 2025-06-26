@@ -20,10 +20,21 @@ func NewConfigController(redisService *wallet.RedisWalletService) *ConfigControl
 	}
 }
 
-// RegisterRoutes 注册路由
+// RegisterRoutes 注册路由（不需要认证，仅用于兼容旧代码）
 func (c *ConfigController) RegisterRoutes(router *gin.Engine) {
 	router.GET("/api/redis-config", c.handleGetConfig)
 	router.POST("/api/redis-config", c.handleUpdateConfig)
+}
+
+// RegisterRoutesWithAuth 注册需要认证的路由
+func (c *ConfigController) RegisterRoutesWithAuth(router *gin.Engine) {
+	// 创建需要认证的API组
+	api := router.Group("/api")
+	api.Use(AuthMiddleware())
+	{
+		api.GET("/redis-config", c.handleGetConfig)
+		api.POST("/redis-config", c.handleUpdateConfig)
+	}
 }
 
 // handleGetConfig 获取内存中的配置

@@ -23,9 +23,28 @@ func NewWalletController(redisService *wallet.RedisWalletService) *WalletControl
 	}
 }
 
-// RegisterRoutes 注册路由
+// RegisterRoutes 注册路由（不需要认证，仅用于兼容旧代码）
 func (c *WalletController) RegisterRoutes(router *gin.Engine) {
 	api := router.Group("/api/wallets")
+	{
+		// 获取所有钱包
+		api.GET("", c.GetAllWallets)
+		// 获取单个钱包
+		api.GET("/:address", c.GetWallet)
+		// 创建钱包
+		api.POST("", c.CreateWallet)
+		// 更新钱包
+		api.PUT("/:address", c.UpdateWallet)
+		// 删除钱包
+		api.DELETE("/:address", c.DeleteWallet)
+	}
+}
+
+// RegisterRoutesWithAuth 注册需要认证的路由
+func (c *WalletController) RegisterRoutesWithAuth(router *gin.Engine) {
+	// 创建需要认证的API组
+	api := router.Group("/api/wallets")
+	api.Use(AuthMiddleware())
 	{
 		// 获取所有钱包
 		api.GET("", c.GetAllWallets)
