@@ -94,7 +94,7 @@ func (s *WebServer) RegisterRoutes() {
 
 	// 静态文件服务
 	s.Router.Static("/static", staticDir)
-	
+
 	// 处理根路径请求，返回 index.html
 	s.Router.StaticFile("/", filepath.Join(staticDir, "index.html"))
 
@@ -208,10 +208,11 @@ func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
 
 	// 交易设置请求体
 	type TradeSettingsRequest struct {
-		PumpTradeEnable        bool    `json:"pump_trade_enable"`
-		PumpAmmTradeEnable     bool    `json:"pump_amm_trade_enable"`
-		RaydiumTradeEnable     bool    `json:"raydium_trade_enable"`
-		SellDelayTime          int     `json:"sell_delay_time"`
+		PumpTradeEnable    bool `json:"pump_trade_enable"`
+		PumpAmmTradeEnable bool `json:"pump_amm_trade_enable"`
+		RaydiumTradeEnable bool `json:"raydium_trade_enable"`
+		SellDelayTime      int  `json:"sell_delay_time"`
+
 		MinPoolSize            float64 `json:"min_pool_size"`
 		MaxPoolSize            float64 `json:"max_pool_size"`
 		MinFollowTriggerAmount float64 `json:"min_follow_trigger_amount"`

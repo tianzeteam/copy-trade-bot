@@ -259,8 +259,8 @@ func main() {
 				}
 				tradeInfo := tradeBot.PumpParse(out, client, ctx)
 				if tradeInfo != nil && transactionMonitor != nil {
-					transactionMonitor.ProcessTransaction(tradeInfo)
-					walletMonitor.CheckExitConditions("pumpfun", tradeInfo.MintAddress, tradeInfo.CurrentPrice)
+					go transactionMonitor.ProcessTransaction(tradeInfo)
+					go walletMonitor.CheckExitConditions("pumpfun", tradeInfo.MintAddress, tradeInfo.CurrentPrice)
 					continue
 
 				}
@@ -277,8 +277,8 @@ func main() {
 
 				// 处理钱包监控AMM交易
 				if ammTradeInfo != nil && transactionMonitor != nil {
-					transactionMonitor.ProcessAmmTransaction(ammTradeInfo)
-					walletMonitor.CheckExitConditions("pumpamm", ammTradeInfo.MintAddress.String(), ammTradeInfo.CurrentPrice)
+					go transactionMonitor.ProcessAmmTransaction(ammTradeInfo)
+					go walletMonitor.CheckExitConditions("pumpamm", ammTradeInfo.MintAddress.String(), ammTradeInfo.CurrentPrice)
 					continue
 				}
 
@@ -305,8 +305,8 @@ func main() {
 						logger.Warnf(" poolLayout dont exist %s", poolId.String())
 						return
 					}
-					transactionMonitor.ProcessRaydiumV4Transaction(raydiumV4TradeInfo, marketLayout, poolLayout)
-					walletMonitor.CheckExitConditions("raydiumV4", raydiumV4TradeInfo.MintAddress.String(), raydiumV4TradeInfo.CurrentPrice)
+					go transactionMonitor.ProcessRaydiumV4Transaction(raydiumV4TradeInfo, marketLayout, poolLayout)
+					go walletMonitor.CheckExitConditions("raydiumV4", raydiumV4TradeInfo.MintAddress.String(), raydiumV4TradeInfo.CurrentPrice)
 					continue
 				}
 

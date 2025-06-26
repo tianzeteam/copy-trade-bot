@@ -20,6 +20,13 @@ import (
 	"github.com/mr-tron/base58"
 )
 
+// 检查是否是自己的交易
+// 定义常量以提高可读性
+const (
+	SolDecimals   = 1e9 // SOL有9位小数
+	TokenDecimals = 1e6 // 代币有6位小数
+)
+
 // TradeEventInfo 存储交易事件信息
 type TradeEventInfo struct {
 	UserAddress          string    // 用户地址
@@ -253,14 +260,9 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *goys
 			global.SetTradeInfo(mintAddress, tradeInfo)
 
 			// 管道步骤3: 处理买入事件
-			if tradeEvent.IsBuy {
-				// 检查是否是自己的交易
-				// 定义常量以提高可读性
-				const (
-					SolDecimals   = 1e9 // SOL有9位小数
-					TokenDecimals = 1e6 // 代币有6位小数
-				)
-				if tradeEvent.User.String() == botWallet.String() {
+			if tradeEvent.User.String() == botWallet.String() {
+				if tradeEvent.IsBuy {
+
 					entryPrice := (float64(tradeEvent.VirtualSolReserves) / SolDecimals) / (float64(tradeEvent.VirtualTokenReserves) / TokenDecimals)
 
 					// 设置入场价格
@@ -275,9 +277,16 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *goys
 					assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 					if ok {
 						time.Sleep(time.Duration(global.GetConfig().SellDelayTime) * time.Millisecond)
-						queue.SendTokenToSellChannel(assetInfo, entryPrice, "pump", "delay_sell", "延迟卖出")
+						queue.SendTokenToSellChannel(assetInfo, entryPrice, "pumpfun", "delay_sell", "延迟卖出")
 					}
 					//买入记录处理
+
+				} else {
+					//卖出记录处理
+					_, ok := global.GetPendingHoldAsset(mintAddress)
+					if ok {
+						global.DelPendingHoldAssetWithAmount(mintAddress, tradeEvent.TokenAmount)
+					}
 
 				}
 			}

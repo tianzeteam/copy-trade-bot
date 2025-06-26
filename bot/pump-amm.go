@@ -207,14 +207,9 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 		tradeInfo.UserAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.IsBuy, tradeInfo.CurrentPrice)
 
 	userPubkey := tradeInfo.UserAddress
-	if tradeInfo.IsBuy {
-		// 检查是否是自己的交易
-		if userPubkey.String() == botWallet.String() {
-			// 定义常量以提高可读性
-			const (
-				SolDecimals   = 1e9 // SOL有9位小数
-				TokenDecimals = 1e6 // 代币有6位小数
-			)
+	if userPubkey.String() == botWallet.String() {
+		if tradeInfo.IsBuy {
+			// 检查是否是自己的交易
 
 			// 安全地计算入场价格
 			var entryPrice float64
@@ -244,6 +239,11 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 			if ok {
 				time.Sleep(time.Duration(global.GetConfig().SellDelayTime) * time.Millisecond)
 				queue.SendTokenToSellChannel(assetInfo, entryPrice, "pumpamm", "delay_sell", "延迟卖出")
+			}
+		} else {
+			_, ok := global.GetPendingHoldAsset(mintAddress)
+			if ok {
+				global.DelPendingHoldAssetWithAmount(mintAddress, tradeInfo.TokenAmount)
 			}
 		}
 	}

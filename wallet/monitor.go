@@ -202,14 +202,14 @@ func (m *WalletMonitor) CheckExitConditions(platform, mintAddress string, curren
 	}
 	assetInfo, exists := global.GetPendingHoldAsset(mintAddress)
 	if !exists {
-		logger.Errorf("读取买入资产信息发生异常 ：%s", mintAddress)
+		logger.Debugf("读取买入资产信息发生异常 ：%s", mintAddress)
 		return false, "读取买入资产信息发生异常", nil
 	}
 	// 计算价格变化百分比
 	var priceChangePct float64
 	if assetInfo.EntryPrice == 0 {
 
-		logger.Errorf("代币 %s 的入场价格为零，无法计算价格变化百分比", mintAddress)
+		logger.Debugf("代币 %s 的入场价格为零，无法计算价格变化百分比", mintAddress)
 		return false, "入场价信息异常", nil
 	} else {
 		priceChangePct = (currentPrice - assetInfo.EntryPrice) / assetInfo.EntryPrice * 100

@@ -191,7 +191,7 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 	amounts, err := m.TradeBot.Trader.AmountsCalc.CalculateBuyAmounts(
 		ctx,
 		pumpAccounts.BondingCurve,
-		m.BuySolAmount,
+		global.GetConfig().BuySolAmount,
 		virtualSolReserves,
 		global.GetConfig().BuySlippage,
 	)
@@ -288,7 +288,7 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 	quoteReserve := tradeInfo.QuoteReserve
 	// Calculate buy amounts
 	amounts, err := m.TradeBot.Trader.AmountsCalc.CalculateAmmBuyAmounts(
-		m.BuySolAmount,
+		global.GetConfig().BuySolAmount,
 		baseReserve,
 		quoteReserve,
 		global.GetConfig().BuySlippage,
@@ -314,7 +314,7 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 			CoinCreatorVaultAuthority: pumpAccounts.CoinCreatorVaultAuthority,
 		},
 		Amount:    amounts.TokenAmount,
-		Cost:      amounts.MinOut,
+		Cost:      amounts.MaxCost,
 		Blockhash: *m.TradeBot.Blockhash,
 		FeeConfig: types.FeeConfig{
 			Slippage:    global.GetConfig().BuySlippage,
@@ -387,7 +387,7 @@ func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *global.AmmRayd
 
 	// Calculate buy amounts
 	amounts, err := m.TradeBot.Trader.AmountsCalc.CalculateRaydiumV4BuyAmounts(
-		m.BuySolAmount,
+		global.GetConfig().BuySolAmount,
 		tradeInfo.CurrentPrice,
 		poolLayout.BaseDecimal,
 		global.GetConfig().BuySlippage,
@@ -407,7 +407,7 @@ func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *global.AmmRayd
 			RaydiumV4Accounts: raydiumV4Accounts,
 		},
 		Amount:    amounts.TokenAmount,
-		Cost:      amounts.MinOut,
+		Cost:      amounts.MaxCost,
 		Blockhash: *m.TradeBot.Blockhash,
 		FeeConfig: types.FeeConfig{
 			Slippage:    global.GetConfig().BuySlippage,

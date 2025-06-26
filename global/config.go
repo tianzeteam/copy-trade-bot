@@ -21,6 +21,7 @@ type GlobalConfig struct {
 	// 交易参数
 	MaxBuyAmount         float64 `json:"max_buy_amount"`         // 最大买入金额 (SOL)
 	MinBuyAmount         float64 `json:"min_buy_amount"`         // 最小买入金额 (SOL)
+	BuySolAmount         float64 `json:"buy_sol_amount"`         // 买入金额 (SOL)
 	SellPercentage       float64 `json:"sell_percentage"`        // 卖出百分比
 	StopLossPercentage   float64 `json:"stop_loss_percentage"`   // 止损百分比
 	TakeProfitPercentage float64 `json:"take_profit_percentage"` // 止盈百分比
@@ -104,6 +105,10 @@ func UpdateConfigField(key string, value interface{}) {
 		}
 
 	// 交易参数
+	case "buy_sol_amount":
+		if val, ok := value.(float64); ok {
+			Config.BuySolAmount = val
+		}
 	case "max_buy_amount":
 		if val, ok := value.(float64); ok {
 			Config.MaxBuyAmount = val
@@ -158,9 +163,25 @@ func UpdateConfigField(key string, value interface{}) {
 		if val, ok := value.(float64); ok {
 			Config.MaxPoolSize = val
 		}
+	case "minPoolSize":
+		if val, ok := value.(float64); ok {
+			Config.MinPoolSize = val
+		}
 	case "minFollowTriggerAmount":
 		if val, ok := value.(float64); ok {
 			Config.MinFollowTriggerAmount = val
+		}
+	case "maxFollowTriggerAmount":
+		if val, ok := value.(float64); ok {
+			Config.MaxFollowTriggerAmount = val
+		}
+	case "sellDelayTime":
+		if val, ok := value.(int); ok {
+			Config.SellDelayTime = val
+		}
+	case "buySolAmount":
+		if val, ok := value.(float64); ok {
+			Config.BuySolAmount = val
 		}
 	case "maxBuyAmount":
 		if val, ok := value.(float64); ok {
@@ -207,6 +228,7 @@ func InitConfig(config map[string]any) {
 		MaxPoolSize:            getFloat64Value(config, "max_pool_size", 1000.0),
 
 		// 交易参数
+		BuySolAmount:         getFloat64Value(config, "buy_sol_amount", 0.002),
 		MaxBuyAmount:         getFloat64Value(config, "max_buy_amount", 1.0),
 		MinBuyAmount:         getFloat64Value(config, "min_buy_amount", 0.5),
 		SellPercentage:       getFloat64Value(config, "sell_percentage", 100.0),

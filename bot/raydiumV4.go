@@ -260,9 +260,10 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 			tradeInfo.UserAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.IsBuy, tradeInfo.CurrentPrice)
 
 		userPubkey := tradeInfo.UserAddress
-		if tradeInfo.IsBuy {
-			// 检查是否是自己的交易
-			if userPubkey.String() == botWallet.String() {
+		// 检查是否是自己的交易
+		if userPubkey.String() == botWallet.String() {
+			if tradeInfo.IsBuy {
+
 				var entryPrice float64
 				if tradeInfo.TokenAmount > 0 {
 					solAmountFloat := float64(tradeInfo.SolAmount) / 1e9
@@ -289,6 +290,11 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 				if ok {
 					time.Sleep(time.Duration(global.GetConfig().SellDelayTime) * time.Millisecond)
 					queue.SendTokenToSellChannel(assetInfo, entryPrice, "raydiumV4", "delay_sell", "延迟卖出")
+				}
+			} else {
+				_, ok := global.GetPendingHoldAsset(mintAddress)
+				if ok {
+					global.DelPendingHoldAssetWithAmount(mintAddress, tradeInfo.TokenAmount)
 				}
 			}
 		}

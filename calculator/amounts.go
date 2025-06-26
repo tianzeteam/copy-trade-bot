@@ -10,7 +10,6 @@ import (
 
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
-	"github.com/shopspring/decimal"
 )
 
 // AmountsCalculator 金额计算器
@@ -63,17 +62,18 @@ type BuyAmounts struct {
 // CalculateSellAmounts 计算卖出所需的金额参数
 func (c *AmountsCalculator) CalculateSellAmounts(ctx context.Context, bondingCurve solana.PublicKey, tokenAmount float64, virtualTokenReserves uint64, virtualSolReserves uint64, slippage float64) (*SellAmounts, error) {
 
+	// 转换为 float64 类型进行计算
+	virtualSolFloat := float64(virtualSolReserves) / 1e9
+	virtualTokenFloat := float64(virtualTokenReserves) / 1e6
+	
 	// 计算价格
-	virtualSol := decimal.NewFromInt(int64(virtualSolReserves)).Div(decimal.NewFromInt(1e9))
-	virtualToken := decimal.NewFromInt(int64(virtualTokenReserves)).Div(decimal.NewFromInt(1e6))
-	price := virtualSol.Div(virtualToken).Round(12)
-
+	priceFloat := virtualSolFloat / virtualTokenFloat
+	
 	// 计算token数量
 	tokenAmountWithDecimals := uint64(tokenAmount)
 
 	// 计算预期获得的SOL数量
-	expectedSol, _ := price.Float64()
-	solAmount := expectedSol * (tokenAmount / 1e6) // 将token数量转换为原始单位
+	solAmount := priceFloat * (tokenAmount / 1e6) // 将token数量转换为原始单位
 	solAmountWithDecimals := uint64(solAmount * 1e9)
 
 	// 计算最小获得数量（考虑滑点）
@@ -94,7 +94,7 @@ type SellAmounts struct {
 }
 
 // TokensForSol 计算SOL兑换代币的数量
-func (c *AmountsCalculator) CalculateAmmBuyAmounts(solAmount float64, baseReserve, quoteReserve uint64, slippage float64) (*SellAmounts, error) {
+func (c *AmountsCalculator) CalculateAmmBuyAmounts(solAmount float64, baseReserve, quoteReserve uint64, slippage float64) (*BuyAmounts, error) {
 	// 使用恒定乘积公式计算
 	// (x + Δx) * (y - Δy) = x * y
 	// 解出 Δy
@@ -119,15 +119,15 @@ func (c *AmountsCalculator) CalculateAmmBuyAmounts(solAmount float64, baseReserv
 	// 计算最小获得数量（考虑滑点）
 	minOut := uint64(float64(baseAmountOut.Uint64()) * (1 - slippage))
 
-	return &SellAmounts{
+	return &BuyAmounts{
 		TokenAmount: baseAmountOut.Uint64(),
 		SolAmount:   uint64(solAmount * 1e9),
-		MinOut:      minOut,
+		MaxCost:     minOut,
 	}, nil
 }
 
 // TokensForSol 计算SOL兑换代币的数量
-func (c *AmountsCalculator) CalculateRaydiumV4BuyAmounts(solAmount float64, prePrice float64, tokenDecimals uint64, slippage float64) (*SellAmounts, error) {
+func (c *AmountsCalculator) CalculateRaydiumV4BuyAmounts(solAmount float64, prePrice float64, tokenDecimals uint64, slippage float64) (*BuyAmounts, error) {
 	// 使用最近的交易价格预估实时买入数量
 	// (solAmount / prePrice) * (1-slippage)
 
@@ -162,10 +162,10 @@ func (c *AmountsCalculator) CalculateRaydiumV4BuyAmounts(solAmount float64, preP
 	logger.Infof("Raydium V4 Buy Calculation: SOL=%f, Price=%f, TokenDecimals=%d, Slippage=%f, ExpectedTokens=%f, MinTokens=%f",
 		solAmount, prePrice, tokenDecimals, slippage, expectedTokenAmountWithDecimals, minTokenAmountWithDecimals)
 
-	return &SellAmounts{
+	return &BuyAmounts{
 		TokenAmount: tokenAmountUint64,
 		SolAmount:   uint64(solAmountLamports),
-		MinOut:      minOutUint64,
+		MaxCost:     minOutUint64,
 	}, nil
 }
 

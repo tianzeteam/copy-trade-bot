@@ -244,6 +244,30 @@ func DelPendingHoldAsset(mintAddress string) {
 	delete(PendingHoldAsset, mintAddress)
 }
 
+// DelPendingHoldAsseWithAmount 根据指定数量减少持有资产，进行仓位管理
+// 如果减少后数量为0，则完全删除该资产；否则更新剩余数量
+func DelPendingHoldAssetWithAmount(mintAddress string, amount uint64) {
+	PendingHoldAssetLock.Lock()
+	defer PendingHoldAssetLock.Unlock()
+
+	asset, exists := PendingHoldAsset[mintAddress]
+	if !exists {
+		logger.Warnf("尝试减少不存在的持仓资产: %s", mintAddress)
+		return
+	}
+
+	// 如果要减少的数量大于等于当前持有量，则完全删除
+	if amount >= asset.Amount {
+		logger.Infof("完全删除持仓资产: %s, 原数量: %d", mintAddress, asset.Amount)
+		delete(PendingHoldAsset, mintAddress)
+		return
+	}
+
+	// 否则减少持有量
+	asset.Amount -= amount
+	logger.Infof("部分减少持仓资产: %s, 减少数量: %d, 剩余数量: %d", mintAddress, amount, asset.Amount)
+}
+
 // GetCreateInfo 获取指定代币的创建信息
 func GetCreateInfo(mintAddress string) *CreateEventInfo {
 	CreateInfoMapLock.RLock()
