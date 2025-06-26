@@ -345,7 +345,7 @@ func (c *AccountsCalculator) CalculateAmmAccounts(pool, baseMint, user solana.Pu
 	}
 
 	// 调试输出所有账户地址
-	logger.Infof("[DEBUG] CalculateAmmAccounts 结果:\n%s", ammAccounts)
+	logger.Debugf("[DEBUG] CalculateAmmAccounts 结果:\n%s", ammAccounts)
 
 	return ammAccounts, nil
 

@@ -31,7 +31,7 @@ var zeroSlotTipAccounts = []string{
 
 // SendTransactionZeroSlot 发送交易到 0Slot
 func SendTransactionZeroSlot(wallet *solana.Wallet, instructions []solana.Instruction, params *types.ZeroslotParams, blockhash solana.Hash) (string, error) {
-	logger.Infof("[0Slot] 开始发送交易: %s", time.Now().Format("2006-01-02 15:04:05.000"))
+	logger.Infof("[0Slot] 开始发送交易: %s", time.Now().Format("2006-01-02 15:04:05.000000"))
 
 	// 获取随机 tip 账户
 	tipAccount := getRandomZeroSlotTipAccount()
@@ -84,7 +84,7 @@ func SendTransactionZeroSlot(wallet *solana.Wallet, instructions []solana.Instru
 		return "", fmt.Errorf("failed to send transaction: %w", err)
 	}
 
-	logger.Infof("[0Slot] 交易发送完成: %s", time.Now().Format("2006-01-02 15:04:05.000"))
+	logger.Infof("[0Slot] 交易发送完成: %s", time.Now().Format("2006-01-02 15:04:05.000000"))
 	return txSig.String(), nil
 }
 

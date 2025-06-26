@@ -61,6 +61,7 @@ type AmmTradeEventInfo struct {
 	Creator      solana.PublicKey // 创建者地址
 	AmmPool      solana.PublicKey // AMM池地址
 	TimeStamp    int64            // 时间戳
+	SolReserve   uint64           // SOL储备
 	BaseReserve  uint64           // 基础代币储备
 	QuoteReserve uint64           // 报价代币储备
 	CurrentPrice float64          // 当前价格

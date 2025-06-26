@@ -21,7 +21,7 @@ import (
 // 全局AMM交易信息映射表已移至 global_maps.go
 
 // parseAmmTransaction 解析AMM交易事件
-func (b *Bot) parseAmmTransaction(logMessages []string, mintAddress string) *global.AmmTradeEventInfo {
+func (b *Bot) parseAmmTransaction(logMessages []string, mintAddress string, tradeDirection string) *global.AmmTradeEventInfo {
 	// 使用pumpamm包中的事件解析功能
 	events, err := pumpamm.DecodeEventsInLogs(logMessages)
 	if err != nil {
@@ -37,6 +37,9 @@ func (b *Bot) parseAmmTransaction(logMessages []string, mintAddress string) *glo
 			if buyEvent, ok := event.Data.(*pumpamm.BuyEventEventData); ok {
 
 				// 创建交易事件信息对象
+				_baseReserve := buyEvent.PoolBaseTokenReserves
+				_quoteReserve := buyEvent.PoolQuoteTokenReserves
+
 				tradeInfo := &global.AmmTradeEventInfo{
 					UserAddress:  buyEvent.User,
 					SolAmount:    buyEvent.QuoteAmountIn,
@@ -46,8 +49,9 @@ func (b *Bot) parseAmmTransaction(logMessages []string, mintAddress string) *glo
 					Creator:      buyEvent.CoinCreator,
 					AmmPool:      buyEvent.Pool,
 					TimeStamp:    buyEvent.Timestamp,
-					BaseReserve:  buyEvent.PoolBaseTokenReserves,
-					QuoteReserve: buyEvent.PoolQuoteTokenReserves,
+					SolReserve:   _quoteReserve,
+					BaseReserve:  _baseReserve,
+					QuoteReserve: _quoteReserve,
 					ReceivedAt:   time.Now(),
 					CoinCreator:  buyEvent.CoinCreator,
 				}
@@ -58,8 +62,8 @@ func (b *Bot) parseAmmTransaction(logMessages []string, mintAddress string) *glo
 				tokenDecimal := 1e6 // Token有6个小数位
 
 				// 转换为浮点数进行价格计算
-				solReserveFloat := float64(buyEvent.PoolBaseTokenReserves) / solDecimal
-				tokenReserveFloat := float64(buyEvent.PoolQuoteTokenReserves) / tokenDecimal
+				solReserveFloat := float64(_quoteReserve) / solDecimal
+				tokenReserveFloat := float64(_baseReserve) / tokenDecimal
 
 				// 计算当前价格 (SOL/TOKEN)
 				tradeInfo.CurrentPrice = solReserveFloat / tokenReserveFloat
@@ -86,8 +90,9 @@ func (b *Bot) parseAmmTransaction(logMessages []string, mintAddress string) *glo
 					MintAddress:  solana.MustPublicKeyFromBase58(mintAddress), // 需要从其他地方获取
 					AmmPool:      sellEvent.Pool,
 					TimeStamp:    sellEvent.Timestamp,
-					BaseReserve:  sellEvent.PoolBaseTokenReserves,  //sol储备
-					QuoteReserve: sellEvent.PoolQuoteTokenReserves, //token储备
+					SolReserve:   sellEvent.PoolQuoteTokenReserves,
+					BaseReserve:  sellEvent.PoolBaseTokenReserves,  //token储备
+					QuoteReserve: sellEvent.PoolQuoteTokenReserves, //sol储备
 					ReceivedAt:   time.Now(),
 					CoinCreator:  sellEvent.CoinCreator,
 				}
@@ -97,8 +102,8 @@ func (b *Bot) parseAmmTransaction(logMessages []string, mintAddress string) *glo
 				tokenDecimal := 1e6 // Token有6个小数位
 
 				// 转换为浮点数进行价格计算
-				tokenReserveFloat := float64(sellEvent.PoolQuoteTokenReserves) / tokenDecimal
-				solReserveFloat := float64(sellEvent.PoolBaseTokenReserves) / solDecimal
+				tokenReserveFloat := float64(sellEvent.PoolBaseTokenReserves) / tokenDecimal
+				solReserveFloat := float64(sellEvent.PoolQuoteTokenReserves) / solDecimal
 
 				// 计算当前价格 (SOL/TOKEN)
 				tradeInfo.CurrentPrice = solReserveFloat / tokenReserveFloat
@@ -138,6 +143,7 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 	_signature := base58.Encode(txn.Transaction.Transaction.Signatures[0])
 
 	var mintAddress string
+	var tradeDirection string
 	for _, instruction := range instructions {
 		// 安全检查：确保账户数据不为空
 		if len(instruction.Accounts) == 0 {
@@ -162,28 +168,32 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 
 			accountList := b.GetAccountList(out)
 			user := accountList[instruction.Accounts[1]]
-			mintAddress = accountList[instruction.Accounts[3]]
-			pool := accountList[instruction.Accounts[0]]
+
 			if mintAddress == solana.SolMint.String() {
 				continue
 			}
-			logger.Debug("匹配-------买入------------判别器")
+			mintAddress = accountList[instruction.Accounts[3]]
+			pool := accountList[instruction.Accounts[0]]
+			tradeDirection = "buy"
+			logger.Debugf("匹配-------买入------------判别器")
 
-			logger.Debug("user :%s ,mint :%s  pool %s", user, mintAddress, pool)
-			logger.Debug("_signature: ", _signature)
+			logger.Debugf("user :%s ,mint :%s  pool %s", user, mintAddress, pool)
+			logger.Debugf("_signature: ", _signature)
 		case pumpamm.Instruction_Sell:
 			accountList := b.GetAccountList(out)
 			user := accountList[instruction.Accounts[1]]
-			mintAddress = accountList[instruction.Accounts[3]]
-			pool := accountList[instruction.Accounts[0]]
+
 			if mintAddress == solana.SolMint.String() {
 				continue
 			}
-			logger.Debug("匹配-------卖出------------判别器")
+			mintAddress = accountList[instruction.Accounts[3]]
+			pool := accountList[instruction.Accounts[0]]
+			tradeDirection = "sell"
+			logger.Debugf("匹配-------卖出------------判别器")
 
-			logger.Debug("user :%s ,mint :%s  pool %s", user, mintAddress, pool)
-			logger.Debug("_signature: ", _signature)
-			logger.Debug("匹配--------卖出-------------判别器")
+			logger.Debugf("user :%s ,mint :%s  pool %s", user, mintAddress, pool)
+			logger.Debugf("_signature: ", _signature)
+			logger.Debugf("-------------------------------------------")
 		case pumpamm.CreateDiscriminator:
 			logger.Debug("匹配 Mint 判别器")
 		default:
@@ -196,7 +206,7 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 	}
 
 	// 处理AMM交易信息
-	tradeInfo := b.parseAmmTransaction(logMessages, mintAddress)
+	tradeInfo := b.parseAmmTransaction(logMessages, mintAddress, tradeDirection)
 	botWallet := b.privateKey.PublicKey()
 
 	if tradeInfo == nil {

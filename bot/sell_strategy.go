@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"sync"
+	"time"
 
 	"copytrade/global"
 	"copytrade/logger"
@@ -241,7 +242,7 @@ func (b *Bot) ExecuteSellStrategy(tokenInfo queue.TokenInfo, vTokenReserves, vSo
 // executeSellOrder 处理实际的pump 内盘卖出逻辑
 func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolReserves uint64) {
 	// 实际的卖出逻辑
-	logger.Infof("执行卖出订单: 代币=%s, 数量=%d", tokenInfo.Mint.String(), tokenInfo.Amount)
+	logger.Infof("执行卖出订单: 代币=%s, 数量=%d, time: %v", tokenInfo.Mint.String(), tokenInfo.Amount, time.Now().Format("2006-01-02 15:04:05.000000"))
 
 	// 先计算卖出金额
 	pumpAccounts, err := b.Trader.AccountsCalc.CalculatePumpAccounts(context.Background(), tokenInfo.Creator, tokenInfo.Mint, tokenInfo.Owner)
@@ -285,6 +286,13 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		ZeroslotParams: &types.ZeroslotParams{
+			Enable:    b.Config.Zeroslot.Enable,
+			RpcUrl:    b.Config.Zeroslot.RpcUrl,
+			BundleUrl: b.Config.Zeroslot.RpcUrl,
+			ApiKeys:   b.Config.Zeroslot.ApiKeys,
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
+		},
 		NextBlockParams: &types.NextBlockParams{
 			Enable:    b.Config.NextBlock.Enable,
 			BundleUrl: b.Config.NextBlock.RpcUrl,

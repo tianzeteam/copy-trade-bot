@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"math/big"
 	"net/http"
 	"time"
 
+	"copytrade/logger"
 	"copytrade/types"
 
 	"github.com/gagliardetto/solana-go"
@@ -49,7 +49,7 @@ func getRandomTemporalTipAccount() string {
 
 // SendTransactionTemporal 发送交易到 Temporal
 func SendTransactionTemporal(wallet *solana.Wallet, instructions []solana.Instruction, params *types.TemporalParams, blockhash solana.Hash) (string, error) {
-	log.Printf("[Temporal] 开始发送交易: %s", time.Now().Format("2006-01-02 15:04:05.000"))
+	logger.Infof("[Temporal] 开始发送交易: %s", time.Now().Format("2006-01-02 15:04:05.000000"))
 
 	// 获取随机 tip 账户
 	tipAccount := getRandomTemporalTipAccount()
@@ -142,6 +142,6 @@ func SendTransactionTemporal(wallet *solana.Wallet, instructions []solana.Instru
 		return "", fmt.Errorf("request failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
-	log.Printf("[Temporal] 交易发送完成: %s", time.Now().Format("2006-01-02 15:04:05.000"))
+	logger.Infof("[Temporal] 交易发送完成: %s", time.Now().Format("2006-01-02 15:04:05.000000"))
 	return tx.Signatures[0].String(), nil
 }

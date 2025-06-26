@@ -58,14 +58,10 @@ func NewTrader(endpoint string, privateKey solana.PrivateKey, config *utils.Conf
 // Buy 执行买入交易
 func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string, error) {
 
-	if t.Config.SimulateMode {
-		logger.Infof("模拟模式，不执行买入交易 %s", params.TradeParams.Accounts.Mint)
-		return "mock", fmt.Errorf("模拟模式，不执行买入交易")
-	}
 	logger.Infof("开始执行买入交易...")
 	logger.Infof("Mint地址: %s", params.TradeParams.Accounts.Mint)
 	logger.Infof("购买数量: %d", params.TradeParams.Amount)
-	logger.Infof("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
+	logger.Infof("构建指令时间: %v", time.Now().Format("2006-01-02 15:04:05.000000"))
 
 	// 构建交易指令
 	instructions := []solana.Instruction{}
@@ -128,6 +124,7 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 	resultChan := make(chan string, 4)
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
+	logger.Infof("构建指令时间结束: %v", time.Now().Format("2006-01-02 15:04:05.000000"))
 
 	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
 		logger.Infof("[0slot] 准备发送交易...")
@@ -167,7 +164,7 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 
 	// 检查各个模式是否启用并准备发送
 	if params.NextBlockParams != nil && params.NextBlockParams.Enable {
-		log.Printf("[NextBlock] 准备发送交易...")
+		logger.Infof("[NextBlock] 准备发送交易...")
 		go func() {
 			// 构建交易并发送到 NextBlock
 			sig, err := swqos.SendTransactionNextBlock(
@@ -184,7 +181,7 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		}()
 	}
 	if params.JitoParams != nil && params.JitoParams.Enable {
-		log.Printf("[Jito] 准备发送交易...")
+		logger.Infof("[Jito] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionJito(
 				t.Wallet,
@@ -200,7 +197,7 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		}()
 	}
 	if params.TemporalParams != nil && params.TemporalParams.Enable {
-		log.Printf("[Temporal] 准备发送交易...")
+		logger.Infof("[Temporal] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionTemporal(
 				t.Wallet,
@@ -916,7 +913,7 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 	logger.Infof("开始执行卖出交易...")
 
 	mintAddress := params.TradeParams.Accounts.Mint.String()
-	logger.Infof("Mint地址: %s ,卖出数量: %d, 最小获得: %d SOL, time: %v", mintAddress, params.TradeParams.Amount, params.TradeParams.Cost, time.Now().Format("2006-01-02 15:04:05.000"))
+	logger.Infof("Mint地址: %s ,卖出数量: %d, 最小获得: %d SOL, time: %v", mintAddress, params.TradeParams.Amount, params.TradeParams.Cost, time.Now().Format("2006-01-02 15:04:05.000000"))
 
 	// 检查是否可以卖出（5秒内同一个币最多卖出一次）
 	if !global.CanSellToken(mintAddress) {
@@ -1033,7 +1030,7 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 	}
 
 	if params.TemporalParams != nil && params.TemporalParams.Enable {
-		log.Printf("[Temporal] 准备发送交易...")
+		logger.Infof("[Temporal] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionTemporal(
 				t.Wallet,

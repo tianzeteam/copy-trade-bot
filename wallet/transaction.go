@@ -6,6 +6,7 @@ import (
 	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/raydium/layouts"
+	"time"
 
 	"copytrade/bot"
 	"copytrade/types"
@@ -60,8 +61,8 @@ func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo
 		return
 	}
 
-	logger.Infof("检测到监控钱包交易: 钱包=%s (%s), 代币=%s, 数量=%d",
-		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount)
+	logger.Infof("检测到监控钱包交易: 钱包=%s (%s), 代币=%s, 数量=%d, time: %v",
+		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
 
 	// 执行跟单交易
 	m.executeCopyTrade(tradeInfo, copyAddress)
@@ -91,8 +92,8 @@ func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *global.AmmRa
 		//不在跟卖池子大小范围内，忽略
 		return
 	}
-	logger.Infof("检测到监控钱包Raydium V4 交易: 钱包=%s (%s), 代币=%s, 数量=%d",
-		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount)
+	logger.Infof("检测到监控钱包Raydium V4 交易: 钱包=%s (%s), 代币=%s, 数量=%d, time: %v",
+		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
 
 	// 执行跟单交易
 
@@ -115,16 +116,17 @@ func (m *TransactionMonitor) ProcessAmmTransaction(tradeInfo *global.AmmTradeEve
 		// 不是我们监控的钱包，忽略
 		return
 	}
-	if float64(tradeInfo.SolAmount) < (global.Config.MinFollowTriggerAmount*1e9) || float64(tradeInfo.SolAmount) > (global.Config.MaxFollowTriggerAmount*1e9) {
+	if float64(tradeInfo.SolAmount) < (global.GetConfig().MinFollowTriggerAmount*1e9) || float64(tradeInfo.SolAmount) > (global.GetConfig().MaxFollowTriggerAmount*1e9) {
 		//不在跟卖金额范围内，忽略
 		return
 	}
-	if float64(tradeInfo.BaseReserve) < (global.Config.MinPoolSize*1e9) || float64(tradeInfo.BaseReserve) > (global.Config.MaxPoolSize*1e9) {
+	if float64(tradeInfo.SolReserve) < (global.GetConfig().MinPoolSize*1e9) || float64(tradeInfo.SolReserve) > (global.GetConfig().MaxPoolSize*1e9) {
 		//不在跟卖池子大小范围内，忽略
+		logger.Infof("不在跟卖池子大小范围内，忽略%s %d", tradeInfo.MintAddress, tradeInfo.SolReserve)
 		return
 	}
-	logger.Infof("检测到监控钱包AMM交易: 钱包=%s (%s), 代币=%s, 数量=%d",
-		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount)
+	logger.Infof("检测到监控钱包AMM交易: 钱包=%s (%s), 代币=%s, 数量=%d, time: %v",
+		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
 
 	// 执行跟单交易
 	m.executeAmmCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount)
@@ -227,6 +229,7 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 		ZeroslotParams: &types.ZeroslotParams{
 			Enable:    m.TradeBot.Config.Zeroslot.Enable,
 			RpcUrl:    m.TradeBot.Config.Zeroslot.RpcUrl,
+			BundleUrl: m.TradeBot.Config.Zeroslot.RpcUrl,
 			ApiKeys:   m.TradeBot.Config.Zeroslot.ApiKeys,
 			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
 		},
