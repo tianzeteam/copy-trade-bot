@@ -99,14 +99,14 @@ func (b *Bot) processRaydiumPoolUpdates(poolStreamClient *yellowstone_geyser.Str
 	for update := range poolStreamClient.Ch {
 		// Check if update is nil
 		if update == nil {
-			logger.Warn("Received nil update from Raydium pool stream")
+			logger.Debugf("Received nil update from Raydium pool stream")
 			continue
 		}
 
 		// Check if the update contains account data
 		accountUpdate := update.GetAccount()
 		if accountUpdate == nil {
-			logger.Warn("Received nil account data from Raydium pool stream")
+			logger.Debugf("Received nil account data from Raydium pool stream")
 			continue
 		}
 

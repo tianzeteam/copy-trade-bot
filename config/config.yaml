@@ -32,7 +32,7 @@ sell_slippage: 0.25
 buy_priority_fee: 0.0001
 buy_tip_fee: 0.001
 sell_priority_fee: 0.0001
-sell_tip_fee: 0.001
+sell_tip_fee: 0.0001
 logging:
     level: info
     format: text

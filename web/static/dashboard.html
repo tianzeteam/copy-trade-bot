@@ -19,7 +19,7 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link active" href="#">控制面板</a>
+                        <a class="nav-link active" href="#"></a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="#" id="walletManagementLink">钱包管理</a>
@@ -157,7 +157,7 @@
                     <div class="col-md-6">
                         <div class="card">
                             <div class="card-header">
-                                <h6 class="mb-0">池子大小范围</h6>
+                                <h6 class="mb-0"><i class="bi bi-water me-2"></i>池子大小范围</h6>
                             </div>
                             <div class="card-body">
                                 <div class="row">
@@ -181,7 +181,7 @@
                     <div class="col-md-6">
                         <div class="card">
                             <div class="card-header">
-                                <h6 class="mb-0">跟单金额范围</h6>
+                                <h6 class="mb-0"><i class="bi bi-cash-stack me-2"></i>跟单金额范围</h6>
                             </div>
                             <div class="card-body">
                                 <div class="row">
@@ -207,14 +207,14 @@
                     <div class="col-md-6">
                         <div class="card">
                             <div class="card-header">
-                                <h6 class="mb-0">买入设置</h6>
+                                <h6 class="mb-0"><i class="bi bi-cart-plus me-2 text-success"></i>买入设置</h6>
                             </div>
                             <div class="card-body">
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label for="buySlippage" class="form-label">买入滑点 (%)</label>
-                                            <input type="number" class="form-control" id="buySlippage" min="0" step="0.1">
+                                            <label for="buySlippage" class="form-label">买入滑点 (0-1)</label>
+                                            <input type="number" class="form-control" id="buySlippage" min="0" max="1" step="0.01">
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -245,14 +245,14 @@
                     <div class="col-md-6">
                         <div class="card">
                             <div class="card-header">
-                                <h6 class="mb-0">卖出设置</h6>
+                                <h6 class="mb-0"><i class="bi bi-cart-dash me-2 text-danger"></i>卖出设置</h6>
                             </div>
                             <div class="card-body">
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label for="sellSlippage" class="form-label">卖出滑点 (%)</label>
-                                            <input type="number" class="form-control" id="sellSlippage" min="0" step="0.1">
+                                            <label for="sellSlippage" class="form-label">卖出滑点 (0-1)</label>
+                                            <input type="number" class="form-control" id="sellSlippage" min="0" max="1" step="0.01">
                                         </div>
                                     </div>
                                     <div class="col-md-6">

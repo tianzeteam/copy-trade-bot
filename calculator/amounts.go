@@ -62,22 +62,60 @@ type BuyAmounts struct {
 // CalculateSellAmounts 计算卖出所需的金额参数
 func (c *AmountsCalculator) CalculateSellAmounts(ctx context.Context, bondingCurve solana.PublicKey, tokenAmount float64, virtualTokenReserves uint64, virtualSolReserves uint64, slippage float64) (*SellAmounts, error) {
 
-	// 转换为 float64 类型进行计算
-	virtualSolFloat := float64(virtualSolReserves) / 1e9
-	virtualTokenFloat := float64(virtualTokenReserves) / 1e6
-	
+	// 输入验证
+	if tokenAmount <= 0 {
+		return nil, fmt.Errorf("token amount must be positive")
+	}
+
+	if slippage < 0 || slippage >= 1 {
+		return nil, fmt.Errorf("slippage must be between 0 and 1")
+	}
+
+	// 转换为 big.Float 进行高精度计算
+	virtualSolFloat := new(big.Float).Quo(
+		new(big.Float).SetUint64(virtualSolReserves),
+		new(big.Float).SetFloat64(1e9),
+	)
+
+	virtualTokenFloat := new(big.Float).Quo(
+		new(big.Float).SetUint64(virtualTokenReserves),
+		new(big.Float).SetFloat64(1e6),
+	)
+
 	// 计算价格
-	priceFloat := virtualSolFloat / virtualTokenFloat
-	
+	priceFloat := new(big.Float).Quo(virtualSolFloat, virtualTokenFloat)
+
 	// 计算token数量
 	tokenAmountWithDecimals := uint64(tokenAmount)
+	if float64(tokenAmountWithDecimals) != tokenAmount {
+		logger.Warnf("Token amount precision loss: %f -> %d", tokenAmount, tokenAmountWithDecimals)
+	}
 
 	// 计算预期获得的SOL数量
-	solAmount := priceFloat * (tokenAmount / 1e6) // 将token数量转换为原始单位
-	solAmountWithDecimals := uint64(solAmount * 1e9)
+	tokenAmountNormalized := new(big.Float).Quo(
+		new(big.Float).SetFloat64(tokenAmount),
+		new(big.Float).SetFloat64(1e6),
+	)
+
+	solAmountFloat := new(big.Float).Mul(priceFloat, tokenAmountNormalized)
+
+	// 转换为 SOL 的最小单位 (lamports)
+	solAmountLamports := new(big.Float).Mul(solAmountFloat, new(big.Float).SetFloat64(1e9))
+
+	// 转换为 uint64，检查溢出
+	solAmountWithDecimals, accuracy := solAmountLamports.Uint64()
+	if accuracy != big.Exact {
+		return nil, fmt.Errorf("SOL amount calculation resulted in overflow or rounding")
+	}
 
 	// 计算最小获得数量（考虑滑点）
-	minOut := uint64(float64(solAmountWithDecimals) * (1 - slippage))
+	slippageFactor := new(big.Float).Sub(new(big.Float).SetFloat64(1.0), new(big.Float).SetFloat64(slippage))
+	minOutFloat := new(big.Float).Mul(new(big.Float).SetUint64(solAmountWithDecimals), slippageFactor)
+
+	minOut, accuracy := minOutFloat.Uint64()
+	if accuracy != big.Exact {
+		logger.Warnf("Min out calculation resulted in rounding, using floor value")
+	}
 
 	return &SellAmounts{
 		TokenAmount: tokenAmountWithDecimals,

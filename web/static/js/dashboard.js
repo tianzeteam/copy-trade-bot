@@ -84,6 +84,28 @@ function registerEventHandlers() {
     document.getElementById('saveTradeSettingsBtn').addEventListener('click', function() {
         saveTradeSettings();
     });
+    
+    // 滑点输入验证 - 买入滑点
+    const buySlippageInput = document.getElementById('buySlippage');
+    if (buySlippageInput) {
+        buySlippageInput.addEventListener('input', function() {
+            enforceSlippageRange(this);
+        });
+        buySlippageInput.addEventListener('blur', function() {
+            enforceSlippageRange(this, true);
+        });
+    }
+    
+    // 滑点输入验证 - 卖出滑点
+    const sellSlippageInput = document.getElementById('sellSlippage');
+    if (sellSlippageInput) {
+        sellSlippageInput.addEventListener('input', function() {
+            enforceSlippageRange(this);
+        });
+        sellSlippageInput.addEventListener('blur', function() {
+            enforceSlippageRange(this, true);
+        });
+    }
 }
 
 // 显示指定部分
@@ -392,6 +414,23 @@ function loadTradeSettings() {
 
 // 保存交易设置
 function saveTradeSettings() {
+    console.log('开始保存交易设置...');
+    
+    // 获取滑点值
+    const buySlippage = parseFloat(document.getElementById('buySlippage').value);
+    const sellSlippage = parseFloat(document.getElementById('sellSlippage').value);
+    
+    // 验证滑点值是否在0-1范围内
+    if (buySlippage < 0 || buySlippage > 1) {
+        showError('买入滑点必须在0-1范围内');
+        return;
+    }
+    
+    if (sellSlippage < 0 || sellSlippage > 1) {
+        showError('卖出滑点必须在0-1范围内');
+        return;
+    }
+    
     const settings = {
         pump_trade_enable: document.getElementById('pumpTradeEnable').checked,
         pump_amm_trade_enable: document.getElementById('pumpAmmTradeEnable').checked,
@@ -401,14 +440,16 @@ function saveTradeSettings() {
         max_pool_size: parseFloat(document.getElementById('maxPoolSize').value),
         min_follow_trigger_amount: parseFloat(document.getElementById('minFollowTriggerAmount').value),
         max_follow_trigger_amount: parseFloat(document.getElementById('maxFollowTriggerAmount').value),
-        buy_slippage: parseFloat(document.getElementById('buySlippage').value),
+        buy_slippage: buySlippage,
         buy_priority_fee: parseFloat(document.getElementById('buyPriorityFee').value),
         buy_tip_fee: parseFloat(document.getElementById('buyTipFee').value),
         buy_sol_amount: parseFloat(document.getElementById('buySolAmount').value),
-        sell_slippage: parseFloat(document.getElementById('sellSlippage').value),
+        sell_slippage: sellSlippage,
         sell_priority_fee: parseFloat(document.getElementById('sellPriorityFee').value),
         sell_tip_fee: parseFloat(document.getElementById('sellTipFee').value)
     };
+    
+    console.log('发送的设置数据:', settings);
     
     fetch('/api/trade-settings', {
         method: 'POST',
@@ -419,6 +460,7 @@ function saveTradeSettings() {
         body: JSON.stringify(settings)
     })
     .then(response => {
+        console.log('收到响应:', response.status, response.statusText);
         if (response.status === 401) {
             logout();
             return;
@@ -426,11 +468,17 @@ function saveTradeSettings() {
         return response.json();
     })
     .then(data => {
-        if (!data) return;
+        console.log('解析的响应数据:', data);
+        if (!data) {
+            console.log('没有数据返回');
+            return;
+        }
         
         if (data.status === 'success') {
+            console.log('准备显示成功提示');
             showSuccess('交易设置已保存');
         } else {
+            console.log('准备显示错误提示');
             showError('保存交易设置失败: ' + (data.error || '未知错误'));
         }
     })
@@ -452,26 +500,78 @@ function logout() {
 
 // 显示成功消息
 function showSuccess(message) {
-    const alert = document.getElementById('successAlert');
-    alert.textContent = message;
-    alert.classList.remove('d-none');
+    console.log('显示成功消息:', message);
     
-    // 3秒后隐藏
+    // 使用更简单的方式显示通知
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 end-0 m-3';
+    alertDiv.setAttribute('role', 'alert');
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        <i class="bi bi-check-circle me-2"></i> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // 3秒后自动移除
     setTimeout(() => {
-        alert.classList.add('d-none');
-    }, 3000);
+        alertDiv.remove();
+    }, 5000);
+    
+    try {
+        // 尝试使用 Bootstrap Toast
+        const toast = document.getElementById('successAlert');
+        if (toast) {
+            const successMessage = document.getElementById('successMessage');
+            if (successMessage) {
+                successMessage.innerHTML = `<i class="bi bi-check-circle me-2"></i> ${message}`;
+            }
+            
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+        }
+    } catch (error) {
+        console.error('显示 Toast 失败:', error);
+    }
 }
 
 // 显示错误提示
 function showError(message) {
-    const errorAlert = document.getElementById('errorAlert');
-    errorAlert.textContent = message;
-    errorAlert.classList.remove('d-none');
+    console.log('显示错误消息:', message);
     
-    // 3秒后自动隐藏
+    // 使用更简单的方式显示通知
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-danger alert-dismissible fade show position-fixed top-0 end-0 m-3';
+    alertDiv.setAttribute('role', 'alert');
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        <i class="bi bi-exclamation-triangle me-2"></i> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // 3秒后自动移除
     setTimeout(() => {
-        errorAlert.classList.add('d-none');
+        alertDiv.remove();
     }, 3000);
+    
+    try {
+        // 尝试使用 Bootstrap Toast
+        const toast = document.getElementById('errorAlert');
+        if (toast) {
+            const errorMessage = document.getElementById('errorMessage');
+            if (errorMessage) {
+                errorMessage.textContent = message;
+            }
+            
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+        }
+    } catch (error) {
+        console.error('显示 Toast 失败:', error);
+    }
 }
 
 // 验证 Solana 地址格式
@@ -479,4 +579,38 @@ function isValidSolanaAddress(address) {
     // Solana 地址是 32-44 个字符的 Base58 编码字符串
     const base58Regex = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
     return base58Regex.test(address);
+}
+
+// 强制滑点范围在0-1之间
+function enforceSlippageRange(input, showMessage = false) {
+    let value = parseFloat(input.value);
+    
+    // 如果不是数字，设置为0
+    if (isNaN(value)) {
+        input.value = "0";
+        return;
+    }
+    
+    // 如果小于0，设置为0
+    if (value < 0) {
+        input.value = "0";
+        if (showMessage) {
+            showError("滑点不能小于0");
+        }
+        return;
+    }
+    
+    // 如果大于1，设置为1
+    if (value > 1) {
+        input.value = "1";
+        if (showMessage) {
+            showError("滑点不能大于1");
+        }
+        return;
+    }
+    
+    // 保留两位小数
+    if (input.value.indexOf('.') !== -1 && input.value.split('.')[1].length > 2) {
+        input.value = value.toFixed(2);
+    }
 }
