@@ -309,7 +309,6 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		}
 	}
 	logger.Info("PumpAmm Buy: Idempotent模式创建并初始化WSOL账户...")
-	//userQuoteTokenAccount := params.TradeParams.Accounts.UserQuoteTokenAccount
 	// 创建WSOL账户指令
 	createWsolAccountInstruction := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
 		SetPayer(t.Wallet.PublicKey()).
@@ -317,12 +316,6 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		SetMint(WSOL).
 		Build()
 	// 初始化WSOL账户指令
-	/* 	initWsolAccountInstruction := token.NewInitializeAccountInstruction(
-		userQuoteTokenAccount,
-		WSOL,
-		t.Wallet.PublicKey(),
-		solana.SysVarRentPubkey,
-	).Build() */
 	instructions = append(instructions, createWsolAccountInstruction)
 
 	// 将SOL转入WSOL账户
