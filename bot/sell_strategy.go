@@ -421,6 +421,13 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		ZeroslotParams: &types.ZeroslotParams{
+			Enable:    b.Config.Zeroslot.Enable,
+			RpcUrl:    b.Config.Zeroslot.RpcUrl,
+			BundleUrl: b.Config.Zeroslot.RpcUrl,
+			ApiKeys:   b.Config.Zeroslot.ApiKeys,
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
+		},
 		NextBlockParams: &types.NextBlockParams{
 			Enable:    b.Config.NextBlock.Enable,
 			BundleUrl: b.Config.NextBlock.RpcUrl,

@@ -154,13 +154,14 @@ func (c *AmountsCalculator) CalculateAmmBuyAmounts(solAmount float64, baseReserv
 	// 计算 x - ((x * y) / (y + Δy))
 	baseAmountOut := new(big.Int).Sub(baseReserveBig, newBaseReserve)
 
-	// 计算最小获得数量（考虑滑点）
-	minOut := uint64(float64(baseAmountOut.Uint64()) * (1 - slippage))
+	// 计算最大花费（考虑滑点）
+	quoteAmountInFloat, _ := quoteAmountInBig.Float64()
+	maxCost := uint64(quoteAmountInFloat * (1 + slippage))
 
 	return &BuyAmounts{
 		TokenAmount: baseAmountOut.Uint64(),
 		SolAmount:   uint64(solAmount * 1e9),
-		MaxCost:     minOut,
+		MaxCost:     maxCost,
 	}, nil
 }
 

@@ -18,7 +18,7 @@ import (
 func (b *Bot) SubscribeToRaydiumPools(ctx context.Context, client *yellowstone_geyser.Client, quoteTokenMint solana.PublicKey) error {
 	// Create a new stream client for Raydium pools
 	streamName := fmt.Sprintf("raydium_pools_%s", quoteTokenMint.String())
-	if err := client.AddStreamClient(ctx, streamName, yellowstone_geyser_pb.CommitmentLevel_CONFIRMED); err != nil {
+	if err := client.AddStreamClient(ctx, streamName, yellowstone_geyser_pb.CommitmentLevel_PROCESSED); err != nil {
 		return fmt.Errorf("failed to add stream client for Raydium pools: %w", err)
 	}
 

@@ -6,6 +6,7 @@ import (
 
 // 系统账户常量
 var (
+	JUPITER_V6_PROGRAM_ID                = solana.MustPublicKeyFromBase58("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4")
 	RAYDIUM_V4_PROGRAM_ID                = solana.MustPublicKeyFromBase58("675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8")
 	RAYDIUM_AMM_ROUTEING                 = solana.MustPublicKeyFromBase58("routeUGWgWzqBWFcrCfv8tritsqukccJPu3q5GPP3xS")
 	PUMP_PROGRAM_ID                      = solana.MustPublicKeyFromBase58("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P")
@@ -21,7 +22,5 @@ var (
 	WSOL                                 = solana.MustPublicKeyFromBase58("So11111111111111111111111111111111111111112")
 
 	GLOBAL_CONFIG_ACCOUNT = solana.MustPublicKeyFromBase58("ADyA8hdefvWN2dbGGWFotbzWxrAvLW83WG6QCVXvJKqw") // 请替换为正确的地址
-	//EVENT_AUTHORITY_ACCOUNT = solana.MustPublicKeyFromBase58("GS4CU59F31iL7aR2Q8zVS8DRrcRnXX1yjQ66TqNVQnaR") // 请替换为正确的地址
-
-	RAYDIUM_AUTHORITY_v4 = "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1"
+	RAYDIUM_AUTHORITY_v4  = "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1"
 )

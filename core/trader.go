@@ -19,6 +19,8 @@ import (
 
 	"github.com/gagliardetto/solana-go"
 	associatedtokenaccount "github.com/gagliardetto/solana-go/programs/associated-token-account"
+	"github.com/gagliardetto/solana-go/programs/system"
+	"github.com/gagliardetto/solana-go/programs/token"
 	"github.com/gagliardetto/solana-go/rpc"
 )
 
@@ -162,6 +164,23 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		}()
 	}
 
+	if params.TemporalParams != nil && params.TemporalParams.Enable {
+		logger.Infof("[Temporal] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionTemporal(
+				t.Wallet,
+				instructions,
+				params.TemporalParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("temporal发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
 	// 检查各个模式是否启用并准备发送
 	if params.NextBlockParams != nil && params.NextBlockParams.Enable {
 		logger.Infof("[NextBlock] 准备发送交易...")
@@ -191,22 +210,6 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 			)
 			if err != nil {
 				errChan <- fmt.Errorf("jito发送失败: %w", err)
-				return
-			}
-			resultChan <- sig
-		}()
-	}
-	if params.TemporalParams != nil && params.TemporalParams.Enable {
-		logger.Infof("[Temporal] 准备发送交易...")
-		go func() {
-			sig, err := swqos.SendTransactionTemporal(
-				t.Wallet,
-				instructions,
-				params.TemporalParams,
-				params.TradeParams.Blockhash,
-			)
-			if err != nil {
-				errChan <- fmt.Errorf("temporal发送失败: %w", err)
 				return
 			}
 			resultChan <- sig
@@ -270,13 +273,9 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 // pump Amm Buy 执行买入交易
 func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (string, error) {
 
-	if t.Config.SimulateMode {
-		logger.Infof("模拟模式，不执行买入交易 %s", params.TradeParams.Accounts.Mint)
-		return "mock", fmt.Errorf("模拟模式，不执行买入交易")
-	}
 	logger.Infof("开始执行Pump Amm买入交易...")
 	logger.Infof("Mint地址: %s", params.TradeParams.Accounts.Mint)
-	logger.Infof("购买数量: %d", params.TradeParams.Amount)
+	logger.Infof("购买数量: %d,最大支付金额: %.6f", params.TradeParams.Amount, float64(params.TradeParams.Cost)/1e9)
 	logger.Infof("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
 
 	// 构建交易指令
@@ -287,7 +286,6 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 
 	// 添加优先级费用指令
 	instructions = append(instructions, createSetComputeUnitPriceInstruction(params.TradeParams.FeeConfig.PriorityFee))
-
 	if t.Config.SkipATACheck {
 		// 快速模式：直接添加创建ATA指令
 		logger.Infof("快速模式：跳过ATA检查，直接创建ATA账户")
@@ -310,6 +308,36 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 			instructions = append(instructions, createATAIx)
 		}
 	}
+	logger.Info("PumpAmm Buy: Idempotent模式创建并初始化WSOL账户...")
+	//userQuoteTokenAccount := params.TradeParams.Accounts.UserQuoteTokenAccount
+	// 创建WSOL账户指令
+	createWsolAccountInstruction := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
+		SetPayer(t.Wallet.PublicKey()).
+		SetWallet(t.Wallet.PublicKey()).
+		SetMint(WSOL).
+		Build()
+	// 初始化WSOL账户指令
+	/* 	initWsolAccountInstruction := token.NewInitializeAccountInstruction(
+		userQuoteTokenAccount,
+		WSOL,
+		t.Wallet.PublicKey(),
+		solana.SysVarRentPubkey,
+	).Build() */
+	instructions = append(instructions, createWsolAccountInstruction)
+
+	// 将SOL转入WSOL账户
+	transferIx := system.NewTransferInstruction(
+		params.TradeParams.Cost,
+		t.Wallet.PublicKey(),
+		params.TradeParams.Accounts.UserQuoteTokenAccount,
+	).Build()
+	instructions = append(instructions, transferIx)
+
+	// 同步WSOL余额
+	syncNativeIx := token.NewSyncNativeInstruction(
+		params.TradeParams.Accounts.UserQuoteTokenAccount,
+	).Build()
+	instructions = append(instructions, syncNativeIx)
 
 	buyInstruction := pumpamm.NewBuyInstructionBuilder().
 		SetPoolAccount(params.TradeParams.Accounts.Pool).
@@ -334,6 +362,15 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		SetMaxQuoteAmountIn(params.TradeParams.Cost)
 
 	instructions = append(instructions, buyInstruction.Build())
+
+	// 关闭WSOL账户
+	closeWsolAccountInstruction := token.NewCloseAccountInstruction(
+		params.TradeParams.Accounts.UserQuoteTokenAccount, // 要关闭的账户
+		t.Wallet.PublicKey(),                              // 接收剩余SOL的地址
+		t.Wallet.PublicKey(),                              // 关闭账户的所有者
+		[]solana.PublicKey{},
+	).Build()
+	instructions = append(instructions, closeWsolAccountInstruction)
 
 	// 创建通道
 	resultChan := make(chan string, 4)
@@ -1130,8 +1167,8 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 	logger.Infof("开始执行 AMM 卖出交易...")
 
 	mintAddress := params.TradeParams.Accounts.Mint.String()
-	logger.Infof("Mint地址: %s, 卖出数量: %d, 最小获得: %d SOL, time: %v",
-		mintAddress, params.TradeParams.Amount, params.TradeParams.Cost, time.Now().Format("2006-01-02 15:04:05.000"))
+	logger.Infof("Mint地址: %s, 卖出数量: %d, 最小获得: %.6f SOL, time: %v",
+		mintAddress, params.TradeParams.Amount, float64(params.TradeParams.Cost)/1e9, time.Now().Format("2006-01-02 15:04:05.000000"))
 
 	// 检查是否可以卖出（5秒内同一个币最多卖出一次）
 	if !global.CanSellToken(mintAddress) {
@@ -1147,59 +1184,25 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 
 	// 添加优先级费用指令
 	instructions = append(instructions, createSetComputeUnitPriceInstruction(params.TradeParams.FeeConfig.PriorityFee))
-	/* 	// 为WSOL账户生成种子
-	   	logger.Info("AmmSell: Generating seed for WSOL account...")
-	   	randomBytes := make([]byte, 24)
-	   	_, err := rand.Read(randomBytes)
-	   	if err != nil {
-	   		logger.Errorf("AmmSell生成随机种子失败: %v", err)
-	   		return "", fmt.Errorf("failed to generate random bytes: %v", err)
-	   	}
-	   	seed := base64.URLEncoding.EncodeToString(randomBytes)
+	// 检查WSOL账户是否已存在
+	userQuoteTokenAccount := params.TradeParams.Accounts.UserQuoteTokenAccount
 
-	   	//@TODO 创建WSOL账户地址（with seed）
-	   	wsolTokenAccount, err := solana.CreateWithSeed(
-	   		t.Wallet.PublicKey(),
-	   		seed,
-	   		solana.TokenProgramID,
-	   	)
-	   	if err != nil {
-	   		logger.Errorf("AmmSell创建WSOL账户失败: %v", err)
-	   		return "", fmt.Errorf("failed to create WSOL account with seed: %v", err)
-	   	}
+	logger.Info("AmmSell: Idempotent模式创建并初始化WSOL账户...")
+	// 创建WSOL账户指令
+	createWsolAccountInstruction := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
+		SetPayer(t.Wallet.PublicKey()).
+		SetWallet(t.Wallet.PublicKey()).
+		SetMint(WSOL).
+		Build()
+		/* 	// 初始化WSOL账户指令
+		   	initWsolAccountInstruction := token.NewInitializeAccountInstruction(
+		   		userQuoteTokenAccount,
+		   		WSOL,
+		   		t.Wallet.PublicKey(),
+		   		solana.SysVarRentPubkey,
+		   	).Build() */
+	instructions = append(instructions, createWsolAccountInstruction)
 
-	   	// 检查WSOL账户是否已存在
-	   	accountInfo, err := t.Client.GetAccountInfo(ctx, wsolTokenAccount)
-	   	if err != nil {
-	   		logger.Errorf("AmmSell检查WSOL账户存在失败: %v", err)
-	   		return "", fmt.Errorf("error checking WSOL account existence: %v", err)
-	   	}
-
-	   	if accountInfo.Value == nil {
-	   		logger.Info("AmmSell: WSOL账户不存在，创建并初始化...")
-	   		// 创建WSOL账户指令
-	   		createWsolAccountInstruction := system.NewCreateAccountWithSeedInstruction(
-	   			t.Wallet.PublicKey(),
-	   			seed,
-	   			balanceNeeded,
-	   			ACCOUNT_SPACE,
-	   			solana.TokenProgramID,
-	   			t.Wallet.PublicKey(),
-	   			t.Wallet.PublicKey(),
-	   			wsolTokenAccount,
-	   		).Build()
-	   		// 初始化WSOL账户指令
-	   		initWsolAccountInstruction := token.NewInitializeAccountInstruction(
-	   			wsolTokenAccount,
-	   			WSOL,
-	   			t.Wallet.PublicKey(),
-	   			solana.SysVarRentPubkey,
-	   		).Build()
-	   		instructions = append(instructions, createWsolAccountInstruction, initWsolAccountInstruction)
-	   	} else {
-	   		logger.Info("WSOL账户已存在，跳过创建和初始化步骤")
-	   	} */
-	// 构建Sell指令
 	sellInstruction := pumpamm.NewSellInstructionBuilder().
 		SetGlobalConfigAccount(GLOBAL_CONFIG_ACCOUNT).
 		SetProtocolFeeRecipientAccount(PROTOCOL_FEE_RECIPIENT).
@@ -1212,7 +1215,7 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 		SetAssociatedTokenProgramAccount(associatedtokenaccount.ProgramID).
 		SetUserAccount(params.TradeParams.Accounts.User).
 		SetUserBaseTokenAccountAccount(params.TradeParams.Accounts.UserBaseTokenAccount).
-		SetUserQuoteTokenAccountAccount(params.TradeParams.Accounts.UserQuoteTokenAccount).
+		SetUserQuoteTokenAccountAccount(userQuoteTokenAccount).
 		SetBaseTokenProgramAccount(solana.TokenProgramID).
 		SetQuoteTokenProgramAccount(solana.TokenProgramID).
 		SetSystemProgramAccount(solana.SystemProgramID).
@@ -1237,7 +1240,7 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 	timeout := time.After(30 * time.Second)
 
 	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
-		logger.Debugf("[0slot] 准备发送交易...")
+		logger.Infof("[0slot] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionZeroSlot(
 				t.Wallet,

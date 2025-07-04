@@ -19,7 +19,7 @@ import (
 func (b *Bot) SubscribeToOpenBookMarkets(ctx context.Context, client *yellowstone_geyser.Client, quoteTokenMint solana.PublicKey) error {
 	// Create a new stream client for OpenBook market accounts
 	streamName := fmt.Sprintf("openbook_markets_%s", quoteTokenMint.String())
-	if err := client.AddStreamClient(ctx, streamName, yellowstone_geyser_pb.CommitmentLevel_CONFIRMED); err != nil {
+	if err := client.AddStreamClient(ctx, streamName, yellowstone_geyser_pb.CommitmentLevel_PROCESSED); err != nil {
 		return fmt.Errorf("failed to add stream client for OpenBook markets: %w", err)
 	}
 

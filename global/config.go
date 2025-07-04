@@ -63,7 +63,7 @@ func UpdateConfig(newConfig GlobalConfig) {
 }
 
 // UpdateConfigField 更新全局配置的单个字段
-func UpdateConfigField(key string, value interface{}) {
+func UpdateConfigField(key string, value any) {
 	configMutex.Lock()
 	defer configMutex.Unlock()
 
@@ -251,7 +251,7 @@ func InitConfig(config map[string]any) {
 }
 
 // getBoolValue 从配置中获取布尔值，如果不存在则使用默认值
-func getBoolValue(config map[string]interface{}, key string, defaultValue bool) bool {
+func getBoolValue(config map[string]any, key string, defaultValue bool) bool {
 	if val, ok := config[key]; ok {
 		if boolVal, ok := val.(bool); ok {
 			return boolVal
@@ -261,7 +261,7 @@ func getBoolValue(config map[string]interface{}, key string, defaultValue bool) 
 }
 
 // getFloat64Value 从配置中获取浮点值，如果不存在则使用默认值
-func getFloat64Value(config map[string]interface{}, key string, defaultValue float64) float64 {
+func getFloat64Value(config map[string]any, key string, defaultValue float64) float64 {
 	if val, ok := config[key]; ok {
 		switch v := val.(type) {
 		case float64:

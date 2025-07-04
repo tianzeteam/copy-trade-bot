@@ -59,7 +59,7 @@ func (b *Bot) fetchBalanceNeeded() error {
 	balanceNeeded, err := b.rpcClient.GetMinimumBalanceForRentExemption(
 		context.Background(),
 		uint64(165),
-		rpc.CommitmentFinalized,
+		rpc.CommitmentProcessed,
 	)
 	if err != nil {
 		return err

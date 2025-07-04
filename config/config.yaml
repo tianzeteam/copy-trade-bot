@@ -2,8 +2,8 @@ create_nonce_account: false
 nonce_account_pubkey: GgTBxk6r1jyi6QUiUCP7ufvonufBDRS6D3RoRUFnZ7go
 simulate_mode: false
 private_key: 4a98pEQpEcYAWRYZ4XTrhnBpDvUT1xc2qvgLPmgt2TjKcATid8rcoLAHZqfug3C9NTwNU2fAYTaWapuPVcyZnpv
-grpc_url: https://solana-yellowstone-grpc.publicnode.com:443
-rpc_url: https://mainnet.helius-rpc.com/?api-key=dc537a21-36c2-4a5f-bcf8-90ae704fbbfc
+grpc_url: https://64.130.52.234:29898
+rpc_url: https://64.130.52.234:28899
 buy_sol_amount: 0.0001
 sell_mode: delay_sell
 sell_delay_time: 12000
@@ -28,7 +28,7 @@ max_follow_trigger_amount: 105
 min_pool_size: 0.1
 max_pool_size: 500
 buy_slippage: 0.25
-sell_slippage: 0.25
+sell_slippage: 1
 buy_priority_fee: 0.0001
 buy_tip_fee: 0.001
 sell_priority_fee: 0.0001
@@ -56,7 +56,7 @@ nextblock:
 temporal:
     buy_tip: 0.001
     sell_tip: 0.001
-    enable: true
+    enable: false
     rpc_url: http://ams2.nozomi.temporal.xyz/
     api_keys:
         - 164b242f-5eea-4b8c-9edf-ad99ef6faaca

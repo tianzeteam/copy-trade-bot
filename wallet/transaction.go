@@ -48,7 +48,7 @@ func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo
 
 	// 检查是否是我们监控的钱包
 	walletSettings := m.WalletMonitor.GetWallet(copyAddress)
-	if walletSettings == nil {
+	if walletSettings == nil || !walletSettings.Enabled {
 		// 不是我们监控的钱包，忽略
 		return
 	}
@@ -80,7 +80,7 @@ func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *global.AmmRa
 
 	// 检查是否是我们监控的钱包
 	walletSettings := m.WalletMonitor.GetWallet(copyAddress)
-	if walletSettings == nil {
+	if walletSettings == nil || !walletSettings.Enabled {
 		// 不是我们监控的钱包，忽略
 		return
 	}
@@ -112,8 +112,8 @@ func (m *TransactionMonitor) ProcessAmmTransaction(tradeInfo *global.AmmTradeEve
 
 	// 检查是否是我们监控的钱包
 	walletSettings := m.WalletMonitor.GetWallet(copyAddress)
-	if walletSettings == nil {
-		// 不是我们监控的钱包，忽略
+	if walletSettings == nil || !walletSettings.Enabled {
+		// 不是我们监控的钱包，或者钱包未启用，忽略
 		return
 	}
 	if float64(tradeInfo.SolAmount) < (global.GetConfig().MinFollowTriggerAmount*1e9) || float64(tradeInfo.SolAmount) > (global.GetConfig().MaxFollowTriggerAmount*1e9) {
@@ -122,7 +122,7 @@ func (m *TransactionMonitor) ProcessAmmTransaction(tradeInfo *global.AmmTradeEve
 	}
 	if float64(tradeInfo.SolReserve) < (global.GetConfig().MinPoolSize*1e9) || float64(tradeInfo.SolReserve) > (global.GetConfig().MaxPoolSize*1e9) {
 		//不在跟卖池子大小范围内，忽略
-		logger.Infof("不在跟卖池子大小范围内，忽略%s %d", tradeInfo.MintAddress, tradeInfo.SolReserve)
+		logger.Infof("不在跟卖池子大小范围内，忽略%s %.2f", tradeInfo.MintAddress, float64(tradeInfo.SolReserve)/1e9)
 		return
 	}
 	logger.Infof("检测到监控钱包AMM交易: 钱包=%s (%s), 代币=%s, 数量=%d, time: %v",

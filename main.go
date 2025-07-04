@@ -164,7 +164,7 @@ func main() {
 		"pump_trade_enable":     config.PumpTradeEnable,    // PumpFun交易启用
 		"pump_amm_trade_enable": config.PumpAmmTradeEnable, // PumpAMM交易禁用
 		"raydium_trade_enable":  config.RaydiumTradeEnable, // Raydium交易禁用
-		"sell_delay_time":       config.SellDelayTime,
+		"sell_delay_time":       config.SellDelayTime,      // 延迟卖出时间
 		// 交易触发和池子大小参数
 		"min_follow_trigger_amount": config.MinFollowTriggerAmount,
 		"max_follow_trigger_amount": config.MaxFollowTriggerAmount,
@@ -172,6 +172,7 @@ func main() {
 		"max_pool_size":             config.MaxPoolSize,
 
 		// 交易参数
+		"buy_sol_amount": config.BuySolAmount,
 		"max_buy_amount": config.BuySolAmount,
 		"min_buy_amount": config.BuySolAmount * 0.5, // 默认为买入金额的一半
 		// 默认止盈50%
@@ -204,7 +205,7 @@ func main() {
 	// 启动Web服务器（在单独的goroutine中运行）
 	go web.StartServer(configPath)
 
-	if err = client.AddStreamClient(ctx, "mint_stream", yellowstone_geyser_pb.CommitmentLevel_CONFIRMED); err != nil {
+	if err = client.AddStreamClient(ctx, "mint_stream", yellowstone_geyser_pb.CommitmentLevel_PROCESSED); err != nil {
 		logger.Fatalf("添加流客户端失败: %v", err)
 		return
 	}
@@ -286,7 +287,7 @@ func main() {
 
 			if slices.Contains(accountsAddress, core.RAYDIUM_V4_PROGRAM_ID.String()) {
 				if !global.GetConfig().RaydiumTradeEnable {
-					logger.Infof("raydium trade is disabled")
+					logger.Debugf("raydium trade is disabled")
 					continue
 				}
 				raydiumV4TradeInfo := tradeBot.RaydiumV4Parse(out, client, ctx)
@@ -321,7 +322,7 @@ func main() {
 	tradeBot.SubscribeToRaydiumPools(ctx, client, solana.SolMint)
 
 	//-----------------------------  监听交易钱包账户变化 --------------------------------------------
-	if err = client.AddStreamClient(ctx, "accounts_stream", yellowstone_geyser_pb.CommitmentLevel_CONFIRMED); err != nil {
+	if err = client.AddStreamClient(ctx, "accounts_stream", yellowstone_geyser_pb.CommitmentLevel_PROCESSED); err != nil {
 		logger.Fatalf("添加账户流客户端失败: %v", err)
 	}
 
