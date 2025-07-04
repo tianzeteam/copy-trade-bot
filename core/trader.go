@@ -1187,13 +1187,7 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 		SetWallet(t.Wallet.PublicKey()).
 		SetMint(WSOL).
 		Build()
-		/* 	// 初始化WSOL账户指令
-		   	initWsolAccountInstruction := token.NewInitializeAccountInstruction(
-		   		userQuoteTokenAccount,
-		   		WSOL,
-		   		t.Wallet.PublicKey(),
-		   		solana.SysVarRentPubkey,
-		   	).Build() */
+
 	instructions = append(instructions, createWsolAccountInstruction)
 
 	sellInstruction := pumpamm.NewSellInstructionBuilder().
@@ -1226,6 +1220,14 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 	}
 
 	instructions = append(instructions, ix)
+	// 关闭WSOL账户
+	closeWsolAccountInstruction := token.NewCloseAccountInstruction(
+		userQuoteTokenAccount, // 要关闭的账户
+		t.Wallet.PublicKey(),  // 接收剩余SOL的地址
+		t.Wallet.PublicKey(),  // 关闭账户的所有者
+		[]solana.PublicKey{},
+	).Build()
+	instructions = append(instructions, closeWsolAccountInstruction)
 
 	// 创建通道
 	resultChan := make(chan string, 4)
