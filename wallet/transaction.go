@@ -113,6 +113,7 @@ func (m *TransactionMonitor) ProcessAmmTransaction(tradeInfo *global.AmmTradeEve
 	// 检查是否是我们监控的钱包
 	walletSettings := m.WalletMonitor.GetWallet(copyAddress)
 	if walletSettings == nil || !walletSettings.Enabled {
+		logger.Debugf("不监控钱包%s", copyAddress.String())
 		// 不是我们监控的钱包，或者钱包未启用，忽略
 		return
 	}

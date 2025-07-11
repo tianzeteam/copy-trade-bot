@@ -94,7 +94,7 @@ func (c *WalletController) GetAllWallets(ctx *gin.Context) {
 			TakeProfitPct: w.TakeProfitPct,
 			StopLossPct:   w.StopLossPct,
 			ExitTimeSec:   w.ExitTimeSec,
-			Enabled:       true, // 从Redis获取的钱包都是已启用的
+			Enabled:       w.Enabled, // 从Redis获取的钱包都是已启用的
 			Timestamp:     time.Now().Unix(),
 		})
 	}
@@ -130,7 +130,7 @@ func (c *WalletController) GetWallet(ctx *gin.Context) {
 		TakeProfitPct: w.TakeProfitPct,
 		StopLossPct:   w.StopLossPct,
 		ExitTimeSec:   w.ExitTimeSec,
-		Enabled:       true,
+		Enabled:       w.Enabled,
 		Timestamp:     time.Now().Unix(),
 	}
 

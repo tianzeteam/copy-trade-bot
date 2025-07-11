@@ -9,7 +9,6 @@ import (
 	"copytrade/logger"
 	"copytrade/queue"
 	"copytrade/raydium"
-	goyser "copytrade/yellowstone_geyser"
 	yellowstone_geyser_pb "copytrade/yellowstone_geyser/pb"
 
 	"github.com/gagliardetto/solana-go"
@@ -134,7 +133,7 @@ func (b *Bot) createTradeInfo(
 }
 
 // RaydiumV4Parse 解析Raydium pool V4交易日志
-func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client *goyser.Client, ctx context.Context) *global.AmmRaydiumV4TradeInfo {
+func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx context.Context) *global.AmmRaydiumV4TradeInfo {
 	if out.GetTransaction() == nil {
 		return nil
 	}
@@ -286,11 +285,13 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, client 
 					tradeInfo.TokenAmount,
 					tradeInfo.Decimal,
 				)
-				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
-				if ok {
-					time.Sleep(time.Duration(global.GetConfig().SellDelayTime) * time.Millisecond)
-					queue.SendTokenToSellChannel(assetInfo, entryPrice, "raydiumV4", "delay_sell", "延迟卖出")
-				}
+				go func() {
+					assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+					if ok {
+						time.Sleep(time.Duration(global.GetConfig().SellDelayTime) * time.Millisecond)
+						queue.SendTokenToSellChannel(assetInfo, entryPrice, "raydiumV4", "delay_sell", "延迟卖出")
+					}
+				}()
 			} else {
 				_, ok := global.GetPendingHoldAsset(mintAddress)
 				if ok {

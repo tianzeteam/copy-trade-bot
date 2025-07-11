@@ -224,7 +224,7 @@ func main() {
 	if err = mintStreamClient.SubscribeTransaction("transaction_stream", &yellowstone_geyser_pb.SubscribeRequestFilterTransactions{
 		Vote:           &isVote,
 		Failed:         &isFailed,
-		AccountInclude: []string{core.PUMP_PROGRAM_ID.String(), core.AMM_PROGRAM_ID.String(), core.RAYDIUM_V4_PROGRAM_ID.String()},
+		AccountInclude: []string{core.PUMP_PROGRAM_ID.String(), core.AMM_PROGRAM_ID.String(), core.RAYDIUM_V4_PROGRAM_ID.String(), core.PHOTON_ROUTER_PROGRAM_ID.String(), core.OKX_ROUTER_V2_PROGRAM_ID.String()},
 	}); err != nil {
 		logger.Fatalf("订阅交易失败: %v", err)
 		return
@@ -247,18 +247,42 @@ func main() {
 			}
 
 			accountKeys := out.GetTransaction().Transaction.Transaction.Message.AccountKeys
+
+			innerInstructions := out.GetTransaction().Transaction.Meta.InnerInstructions
+
 			accountsAddress := make([]string, len(accountKeys))
 			for i, key := range accountKeys {
 				accountsAddress[i] = base58.Encode(key)
 
 			}
+			var innerProgramID string = "nativeProgramID"
+			var currentInstruction *yellowstone_geyser_pb.InnerInstruction
 
-			if slices.Contains(accountsAddress, core.PUMP_PROGRAM_ID.String()) {
+			for _, innerInstruction := range innerInstructions {
+
+				programIndex := innerInstruction.Instructions[0].ProgramIdIndex
+				if programIndex >= uint32(len(accountKeys)) {
+					logger.Debugf("programIndex >= uint32(len(accountKeys))")
+					continue
+				}
+				innerProgramID = base58.Encode(accountKeys[programIndex])
+				if innerProgramID == core.PUMP_PROGRAM_ID.String() || innerProgramID == core.AMM_PROGRAM_ID.String() || innerProgramID == core.RAYDIUM_V4_PROGRAM_ID.String() {
+					currentInstruction = innerInstruction.Instructions[0]
+					break
+				}
+			}
+
+			if slices.Contains(accountsAddress, core.PUMP_PROGRAM_ID.String()) || innerProgramID == core.PUMP_PROGRAM_ID.String() {
 				if !global.GetConfig().PumpTradeEnable {
 					logger.Debugf("pump trade is disabled")
 					continue
 				}
-				tradeInfo := tradeBot.PumpParse(out, client, ctx)
+				var tradeInfo *global.TradeEventInfo
+				if innerProgramID == core.PUMP_PROGRAM_ID.String() {
+					tradeInfo = tradeBot.PhotonRouterPumpParse(out, currentInstruction, ctx)
+				} else {
+					tradeInfo = tradeBot.PumpParse(out, ctx)
+				}
 				if tradeInfo != nil && transactionMonitor != nil {
 					go transactionMonitor.ProcessTransaction(tradeInfo)
 					go walletMonitor.CheckExitConditions("pumpfun", tradeInfo.MintAddress, tradeInfo.CurrentPrice)
@@ -268,16 +292,32 @@ func main() {
 
 			}
 
-			if slices.Contains(accountsAddress, core.AMM_PROGRAM_ID.String()) {
+			if slices.Contains(accountsAddress, core.AMM_PROGRAM_ID.String()) || innerProgramID == core.AMM_PROGRAM_ID.String() {
 				// 处理AMM交易信息
 				if !global.GetConfig().PumpAmmTradeEnable {
 					logger.Debugf("pumpamm trade is disabled")
 					continue
 				}
-				ammTradeInfo := tradeBot.PumpAmmParse(out, client, ctx)
+
+				var ammTradeInfo *global.AmmTradeEventInfo
+
+				if innerProgramID == core.AMM_PROGRAM_ID.String() {
+
+					ammTradeInfo = tradeBot.PhotonRouterAmmParse(out, currentInstruction, ctx)
+				} else {
+					ammTradeInfo = tradeBot.PumpAmmParse(out, ctx)
+				}
+
+				if ammTradeInfo != nil && ammTradeInfo.Router == "externalRouter" {
+					_signature := base58.Encode(out.GetTransaction().Transaction.Transaction.Signatures[0])
+					logger.Debugf(" AMM: _signature: %s", _signature)
+					logger.Debugf("router: %s, isbuy: %v, mintAddress: %s, userAddress: %s, solAmount: %d, tokenAmount: %d, currentPrice: %.8f", ammTradeInfo.Router, ammTradeInfo.IsBuy, ammTradeInfo.MintAddress.String(), ammTradeInfo.UserAddress.String(), ammTradeInfo.SolAmount, ammTradeInfo.TokenAmount, ammTradeInfo.CurrentPrice)
+
+				}
 
 				// 处理钱包监控AMM交易
 				if ammTradeInfo != nil && transactionMonitor != nil {
+
 					go transactionMonitor.ProcessAmmTransaction(ammTradeInfo)
 					go walletMonitor.CheckExitConditions("pumpamm", ammTradeInfo.MintAddress.String(), ammTradeInfo.CurrentPrice)
 					continue
@@ -290,7 +330,7 @@ func main() {
 					logger.Debugf("raydium trade is disabled")
 					continue
 				}
-				raydiumV4TradeInfo := tradeBot.RaydiumV4Parse(out, client, ctx)
+				raydiumV4TradeInfo := tradeBot.RaydiumV4Parse(out, ctx)
 
 				// 处理钱包监控AMM交易
 				if raydiumV4TradeInfo != nil && transactionMonitor != nil {
@@ -298,13 +338,13 @@ func main() {
 					marketLayout := global.GetOpenBookMarketState(marketId.String())
 					if marketLayout == nil {
 						logger.Warnf(" marketLayout dont exist %s", marketId.String())
-						return
+						continue
 					}
 					poolId := raydiumV4TradeInfo.AmmPool
 					poolLayout := global.GetRaydiumPoolLayout(poolId.String())
 					if poolLayout == nil {
 						logger.Warnf(" poolLayout dont exist %s", poolId.String())
-						return
+						continue
 					}
 					go transactionMonitor.ProcessRaydiumV4Transaction(raydiumV4TradeInfo, marketLayout, poolLayout)
 					go walletMonitor.CheckExitConditions("raydiumV4", raydiumV4TradeInfo.MintAddress.String(), raydiumV4TradeInfo.CurrentPrice)
@@ -471,7 +511,7 @@ func main() {
 // startPingService 启动一个定时ping服务，保持与服务器的连接活跃
 func startPingService(streamClient *goyser.StreamClient) {
 	go func() {
-		ticker := time.NewTicker(time.Second * 10)
+		ticker := time.NewTicker(time.Second * 15)
 		defer ticker.Stop()
 		for range ticker.C {
 			lastPingTime := time.Now()
@@ -480,10 +520,10 @@ func startPingService(streamClient *goyser.StreamClient) {
 			})
 			if err != nil {
 				logger.Errorf("发送 ping 失败: %v", err)
-				return
+				continue
 			}
 
-			logger.Debugf("发送 ping - 时间:%v", lastPingTime.Format("15:04:05.000"))
+			logger.Infof("发送 ping - 时间:%v", lastPingTime.Format("15:04:05.000"))
 		}
 	}()
 }

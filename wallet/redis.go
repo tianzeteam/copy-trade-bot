@@ -71,9 +71,9 @@ func (s *RedisWalletService) GetAllWallets(ctx context.Context) ([]*WalletSettin
 		}
 
 		// 只返回启用的钱包
-		if !walletConfig.Enabled {
+		/* 		if !walletConfig.Enabled {
 			continue
-		}
+		} */
 
 		// 创建钱包设置
 		walletSettings, err := CreateWalletSettings(walletConfig)

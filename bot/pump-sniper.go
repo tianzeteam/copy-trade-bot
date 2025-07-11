@@ -209,7 +209,7 @@ func (b *Bot) PumpSell(tokenInfo queue.TokenInfo, virtualTokenReserves, virtualS
 }
 
 // PumpParse 使用pipeline模式处理交易事件
-func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *goyser.Client, ctx context.Context) *global.TradeEventInfo {
+func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx context.Context) *global.TradeEventInfo {
 	if out.GetTransaction() == nil {
 		return nil
 	}
@@ -274,11 +274,14 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *goys
 						tradeEvent.TokenAmount,
 						6,
 					)
-					assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
-					if ok {
-						time.Sleep(time.Duration(global.GetConfig().SellDelayTime) * time.Millisecond)
-						queue.SendTokenToSellChannel(assetInfo, entryPrice, "pumpfun", "delay_sell", "延迟卖出")
-					}
+					go func() {
+						assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+						if ok {
+							time.Sleep(time.Duration(global.GetConfig().SellDelayTime) * time.Millisecond)
+							queue.SendTokenToSellChannel(assetInfo, entryPrice, "pumpfun", "delay_sell", "延迟卖出")
+						}
+					}()
+
 					//买入记录处理
 
 				} else {

@@ -203,6 +203,8 @@ function loadWalletDetails(address) {
         document.getElementById('takeProfitPct').value = wallet.take_profit_pct;
         document.getElementById('stopLossPct').value = wallet.stop_loss_pct;
         document.getElementById('exitTimeSec').value = wallet.exit_time_sec;
+        console.info(wallet.address)
+        console.info(wallet.enabled)
         document.getElementById('walletEnabled').checked = wallet.enabled;
         
         // 显示钱包详情

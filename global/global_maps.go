@@ -70,6 +70,7 @@ type AmmTradeEventInfo struct {
 	TxHash       string           // 交易哈希
 	Slot         uint64           // 区块槽位
 	CoinCreator  solana.PublicKey
+	Router       string
 }
 
 // Raydium V4 存储AMM交易事件信息

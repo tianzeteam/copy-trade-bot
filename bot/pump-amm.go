@@ -7,7 +7,6 @@ import (
 	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/queue"
-	goyser "copytrade/yellowstone_geyser"
 	yellowstone_geyser_pb "copytrade/yellowstone_geyser/pb"
 
 	"github.com/gagliardetto/solana-go"
@@ -123,7 +122,7 @@ func (b *Bot) parseAmmTransaction(logMessages []string, mintAddress string, trad
 }
 
 // PumpAmmParse 解析PumpAMM交易日志
-func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *goyser.Client, ctx context.Context) *global.AmmTradeEventInfo {
+func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx context.Context) *global.AmmTradeEventInfo {
 	if out.GetTransaction() == nil {
 		return nil
 	}
@@ -146,8 +145,8 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 	var tradeDirection string
 	for _, instruction := range instructions {
 		// 安全检查：确保账户数据不为空
-		if len(instruction.Accounts) == 0 {
-			logger.Debug("跳过空账户指令")
+		if len(instruction.Accounts) < 15 {
+			logger.Debug("跳过空账户指令或者交易信息不完整")
 			continue
 		}
 
@@ -168,11 +167,12 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 
 			accountList := b.GetAccountList(out)
 			user := accountList[instruction.Accounts[1]]
+			mintAddress = accountList[instruction.Accounts[3]]
 
 			if mintAddress == solana.SolMint.String() {
-				continue
+				return nil
 			}
-			mintAddress = accountList[instruction.Accounts[3]]
+
 			pool := accountList[instruction.Accounts[0]]
 			tradeDirection = "buy"
 			logger.Debugf("匹配-------买入------------判别器")
@@ -182,11 +182,10 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 		case pumpamm.Instruction_Sell:
 			accountList := b.GetAccountList(out)
 			user := accountList[instruction.Accounts[1]]
-
-			if mintAddress == solana.SolMint.String() {
-				continue
-			}
 			mintAddress = accountList[instruction.Accounts[3]]
+			if mintAddress == solana.SolMint.String() {
+				return nil
+			}
 			pool := accountList[instruction.Accounts[0]]
 			tradeDirection = "sell"
 			logger.Debugf("匹配-------卖出------------判别器")
@@ -207,11 +206,14 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 
 	// 处理AMM交易信息
 	tradeInfo := b.parseAmmTransaction(logMessages, mintAddress, tradeDirection)
+
 	botWallet := b.privateKey.PublicKey()
 
 	if tradeInfo == nil {
 		return nil
 	}
+	//@TODO
+	tradeInfo.Router = "naiveRouter"
 	global.SetAmmTradeInfo(mintAddress, tradeInfo)
 	logger.Debugf("AMM交易信息: 用户=%s, SOL=%d, 代币=%d, 是否买入=%v, 价格=%.8f",
 		tradeInfo.UserAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.IsBuy, tradeInfo.CurrentPrice)
@@ -232,7 +234,7 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 				entryPrice = 0
 			}
 
-			logger.Infof("买入交易: SOL=%d (%.4f), 代币=%d (%.2f), 价格=%.8f",
+			logger.Debugf("买入交易: SOL=%d (%.4f), 代币=%d (%.2f), 价格=%.8f",
 				tradeInfo.SolAmount, float64(tradeInfo.SolAmount)/SolDecimals,
 				tradeInfo.TokenAmount, float64(tradeInfo.TokenAmount)/TokenDecimals,
 				entryPrice)
@@ -245,11 +247,13 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, client *g
 				tradeInfo.TokenAmount,
 				6,
 			)
-			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
-			if ok {
-				time.Sleep(time.Duration(global.GetConfig().SellDelayTime) * time.Millisecond)
-				queue.SendTokenToSellChannel(assetInfo, entryPrice, "pumpamm", "delay_sell", "延迟卖出")
-			}
+			go func() {
+				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+				if ok {
+					time.Sleep(time.Duration(global.GetConfig().SellDelayTime) * time.Millisecond)
+					queue.SendTokenToSellChannel(assetInfo, entryPrice, "pumpamm", "delay_sell", "延迟卖出")
+				}
+			}()
 		} else {
 			_, ok := global.GetPendingHoldAsset(mintAddress)
 			if ok {
