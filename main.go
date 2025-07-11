@@ -246,26 +246,27 @@ func main() {
 				continue
 			}
 
-			accountKeys := out.GetTransaction().Transaction.Transaction.Message.AccountKeys
+			//accountKeys := out.GetTransaction().Transaction.Transaction.Message.AccountKeys
 
 			innerInstructions := out.GetTransaction().Transaction.Meta.InnerInstructions
 
-			accountsAddress := make([]string, len(accountKeys))
+			/* accountsAddress := make([]string, len(accountKeys))
 			for i, key := range accountKeys {
 				accountsAddress[i] = base58.Encode(key)
 
-			}
+			} */
+			accountsAddress := tradeBot.GetAccountList(out)
 			var innerProgramID string = "nativeProgramID"
 			var currentInstruction *yellowstone_geyser_pb.InnerInstruction
 
 			for _, innerInstruction := range innerInstructions {
 
 				programIndex := innerInstruction.Instructions[0].ProgramIdIndex
-				if programIndex >= uint32(len(accountKeys)) {
+				if programIndex >= uint32(len(accountsAddress)) {
 					logger.Debugf("programIndex >= uint32(len(accountKeys))")
 					continue
 				}
-				innerProgramID = base58.Encode(accountKeys[programIndex])
+				innerProgramID = accountsAddress[programIndex]
 				if innerProgramID == core.PUMP_PROGRAM_ID.String() || innerProgramID == core.AMM_PROGRAM_ID.String() || innerProgramID == core.RAYDIUM_V4_PROGRAM_ID.String() {
 					currentInstruction = innerInstruction.Instructions[0]
 					break
@@ -298,21 +299,11 @@ func main() {
 					logger.Debugf("pumpamm trade is disabled")
 					continue
 				}
-
 				var ammTradeInfo *global.AmmTradeEventInfo
-
 				if innerProgramID == core.AMM_PROGRAM_ID.String() {
-
 					ammTradeInfo = tradeBot.PhotonRouterAmmParse(out, currentInstruction, ctx)
 				} else {
 					ammTradeInfo = tradeBot.PumpAmmParse(out, ctx)
-				}
-
-				if ammTradeInfo != nil && ammTradeInfo.Router == "externalRouter" {
-					_signature := base58.Encode(out.GetTransaction().Transaction.Transaction.Signatures[0])
-					logger.Debugf(" AMM: _signature: %s", _signature)
-					logger.Debugf("router: %s, isbuy: %v, mintAddress: %s, userAddress: %s, solAmount: %d, tokenAmount: %d, currentPrice: %.8f", ammTradeInfo.Router, ammTradeInfo.IsBuy, ammTradeInfo.MintAddress.String(), ammTradeInfo.UserAddress.String(), ammTradeInfo.SolAmount, ammTradeInfo.TokenAmount, ammTradeInfo.CurrentPrice)
-
 				}
 
 				// 处理钱包监控AMM交易
@@ -320,8 +311,9 @@ func main() {
 
 					go transactionMonitor.ProcessAmmTransaction(ammTradeInfo)
 					go walletMonitor.CheckExitConditions("pumpamm", ammTradeInfo.MintAddress.String(), ammTradeInfo.CurrentPrice)
-					continue
+
 				}
+				continue
 
 			}
 

@@ -162,7 +162,7 @@ func (b *Bot) PhotonRouterPumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 		mintAddress = accountList[currentInstruction.Accounts[3]]
 
 		if mintAddress == solana.SolMint.String() {
-			logger.Infof("跳过 SOL 交易 %s", _signature)
+			logger.Debugf("跳过 SOL 交易 %s", _signature)
 			return nil
 		}
 
@@ -176,7 +176,7 @@ func (b *Bot) PhotonRouterPumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 		//user := accountList[currentInstruction.Accounts[1]]
 		mintAddress = accountList[currentInstruction.Accounts[3]]
 		if mintAddress == solana.SolMint.String() {
-			logger.Infof("跳过 SOL 交易 %s", _signature)
+			logger.Debugf("跳过 SOL 交易 %s", _signature)
 			return nil
 		}
 		//pool := accountList[currentInstruction.Accounts[0]]
@@ -316,7 +316,7 @@ func (b *Bot) PhotonRouterAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, c
 		mintAddress = accountList[currentInstruction.Accounts[3]]
 
 		if mintAddress == solana.SolMint.String() {
-			logger.Infof("跳过 SOL 交易 %s", _signature)
+			logger.Debugf("跳过 SOL 交易 %s", _signature)
 			return nil
 		}
 
@@ -330,7 +330,7 @@ func (b *Bot) PhotonRouterAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, c
 		//user := accountList[currentInstruction.Accounts[1]]
 		mintAddress = accountList[currentInstruction.Accounts[3]]
 		if mintAddress == solana.SolMint.String() {
-			logger.Infof("跳过 SOL 交易 %s", _signature)
+			logger.Debugf("跳过 SOL 交易 %s", _signature)
 			return nil
 		}
 		//pool := accountList[currentInstruction.Accounts[0]]
