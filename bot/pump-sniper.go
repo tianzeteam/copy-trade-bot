@@ -263,24 +263,19 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx context.
 			if tradeEvent.User.String() == botWallet.String() {
 				if tradeEvent.IsBuy {
 
-					entryPrice := (float64(tradeEvent.VirtualSolReserves) / SolDecimals) / (float64(tradeEvent.VirtualTokenReserves) / TokenDecimals)
-
 					// 设置入场价格
 					global.SetTradeAssetOnce(
 						mintAddress,
 						tradeEvent.Creator,
 						botWallet.String(),
-						entryPrice,
+						currentPrice,
 						tradeEvent.TokenAmount,
 						6,
 					)
-					go func() {
-						assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
-						if ok {
-							time.Sleep(time.Duration(global.GetConfig().SellDelayTime) * time.Millisecond)
-							queue.SendTokenToSellChannel(assetInfo, entryPrice, "pumpfun", "delay_sell", "延迟卖出")
-						}
-					}()
+					assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+					if ok {
+						go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, currentPrice, "pumpfun", "delay_sell", "延迟卖出")
+					}
 
 					//买入记录处理
 

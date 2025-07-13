@@ -200,8 +200,8 @@ func (m *WalletMonitor) CheckExitConditions(platform, mintAddress string, curren
 			return false, "", nil
 		}
 	}
-	assetInfo, exists := global.GetPendingHoldAsset(mintAddress)
-	if !exists {
+	assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+	if !ok {
 		logger.Debugf("读取买入资产信息发生异常 ：%s", mintAddress)
 		return false, "读取买入资产信息发生异常", nil
 	}
@@ -218,14 +218,14 @@ func (m *WalletMonitor) CheckExitConditions(platform, mintAddress string, curren
 	// 检查止盈条件
 	if priceChangePct >= float64(tradeRecord.Settings.TakeProfitPct) {
 		logger.Infof("止盈条件被触发 :%s ,价格波动：%.8f%% ,止盈设置：%d%%", mintAddress, priceChangePct, tradeRecord.Settings.TakeProfitPct)
-		queue.SendTokenToSellChannel(assetInfo, currentPrice, platform, tradeRecord.Settings.Name, "stop_profit")
+		go queue.SendTokenToSellChannel(0, assetInfo, currentPrice, platform, tradeRecord.Settings.Name, "stop_profit")
 		return true, "止盈触发", tradeRecord
 	}
 
 	// 检查止损条件
 	if priceChangePct <= -float64(tradeRecord.Settings.StopLossPct) {
 		logger.Infof("止损条件被触发 :%s ,价格波动：%.8f%% ,止损设置：%d%%", mintAddress, priceChangePct, tradeRecord.Settings.StopLossPct)
-		queue.SendTokenToSellChannel(assetInfo, currentPrice, platform, tradeRecord.Settings.Name, "stop_loss")
+		go queue.SendTokenToSellChannel(0, assetInfo, currentPrice, platform, tradeRecord.Settings.Name, "stop_loss")
 		return true, "止损触发", tradeRecord
 	}
 

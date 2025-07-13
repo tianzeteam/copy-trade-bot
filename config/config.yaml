@@ -23,6 +23,7 @@ skip_ata_check: true
 pump_trade_enable: true
 pump_amm_trade_enable: true
 raydium_trade_enable: true
+repeat_trade_enable: false
 min_follow_trigger_amount: 0.0001
 max_follow_trigger_amount: 105
 min_pool_size: 0.1

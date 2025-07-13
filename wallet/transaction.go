@@ -137,7 +137,7 @@ func (m *TransactionMonitor) ProcessAmmTransaction(tradeInfo *global.AmmTradeEve
 func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, copyAddress solana.PublicKey) {
 	// 检查是否已经交易过该代币
 	m.WalletMonitor.Mux.RLock()
-	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress]; exists {
+	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress]; exists && !global.GetConfig().RepeatTradeEnable {
 		logger.Infof("跳过重复交易: %s", tradeInfo.MintAddress)
 		m.WalletMonitor.Mux.RUnlock()
 		return
@@ -264,7 +264,7 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEventInfo, originalWallet solana.PublicKey, originalAmount uint64) {
 	// 检查是否已经交易过该代币
 	m.WalletMonitor.Mux.RLock()
-	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress.String()]; exists {
+	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress.String()]; exists && !global.GetConfig().RepeatTradeEnable {
 		logger.Infof("跳过重复交易: %s", tradeInfo.MintAddress)
 		m.WalletMonitor.Mux.RUnlock()
 		return
@@ -365,7 +365,7 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *global.AmmRaydiumV4TradeInfo, marketLayout *global.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4, originalWallet solana.PublicKey, originalAmount uint64) {
 	// 检查是否已经交易过该代币
 	m.WalletMonitor.Mux.RLock()
-	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress.String()]; exists {
+	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress.String()]; exists && !global.GetConfig().RepeatTradeEnable {
 		logger.Infof("跳过重复交易: %s", tradeInfo.MintAddress)
 		m.WalletMonitor.Mux.RUnlock()
 		return

@@ -164,6 +164,7 @@ func main() {
 		"pump_trade_enable":     config.PumpTradeEnable,    // PumpFun交易启用
 		"pump_amm_trade_enable": config.PumpAmmTradeEnable, // PumpAMM交易禁用
 		"raydium_trade_enable":  config.RaydiumTradeEnable, // Raydium交易禁用
+		"repeat_trade_enable":   config.RepeatTradeEnable,  // 重复交易禁用
 		"sell_delay_time":       config.SellDelayTime,      // 延迟卖出时间
 		// 交易触发和池子大小参数
 		"min_follow_trigger_amount": config.MinFollowTriggerAmount,
@@ -246,15 +247,8 @@ func main() {
 				continue
 			}
 
-			//accountKeys := out.GetTransaction().Transaction.Transaction.Message.AccountKeys
-
 			innerInstructions := out.GetTransaction().Transaction.Meta.InnerInstructions
 
-			/* accountsAddress := make([]string, len(accountKeys))
-			for i, key := range accountKeys {
-				accountsAddress[i] = base58.Encode(key)
-
-			} */
 			accountsAddress := tradeBot.GetAccountList(out)
 			var innerProgramID string = "nativeProgramID"
 			var currentInstruction *yellowstone_geyser_pb.InnerInstruction
@@ -267,7 +261,7 @@ func main() {
 					continue
 				}
 				innerProgramID = accountsAddress[programIndex]
-				if innerProgramID == core.PUMP_PROGRAM_ID.String() || innerProgramID == core.AMM_PROGRAM_ID.String() || innerProgramID == core.RAYDIUM_V4_PROGRAM_ID.String() {
+				if innerProgramID == core.PUMP_PROGRAM_ID.String() || innerProgramID == core.AMM_PROGRAM_ID.String() || innerProgramID == core.RAYDIUM_V4_PROGRAM_ID.String() || innerProgramID == core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String() {
 					currentInstruction = innerInstruction.Instructions[0]
 					break
 				}
@@ -344,6 +338,26 @@ func main() {
 				}
 
 			}
+			/*
+				if slices.Contains(accountsAddress, core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String()) || innerProgramID == core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String() {
+					if !global.GetConfig().PumpTradeEnable {
+						logger.Debugf("pump trade is disabled")
+						continue
+					}
+					var tradeInfo *global.AmmRaydiumV4TradeInfo
+					if innerProgramID == core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String() {
+						tradeInfo = tradeBot.RaydiumLaunchpadParse(out, ctx)
+					} else {
+						tradeInfo = tradeBot.RaydiumLaunchpadParse(out, ctx)
+					}
+					if tradeInfo != nil && transactionMonitor != nil {
+						go transactionMonitor.ProcessLaunchpadTransaction(tradeInfo)
+						go walletMonitor.CheckExitConditions("launchpad", tradeInfo.MintAddress, tradeInfo.CurrentPrice)
+						continue
+
+					}
+
+				} */
 
 		}
 	}()
@@ -484,8 +498,8 @@ func main() {
 							waitSellTime := int64(exitTimeSec) + nowTime
 
 							logger.Infof("将在 %d 秒后卖出代币 %s ,卖出时间: %s", exitTimeSec, _mint.String(), time.Unix(waitSellTime, 0).Format("2006-01-02 15:04:05"))
-							time.Sleep(time.Duration(exitTimeSec) * time.Second)
-							queue.SendTokenToSellChannel(assetInfo, currentPrice, platform, strategyName, "due_to_exit")
+
+							queue.SendTokenToSellChannel(exitTimeSec*1000, assetInfo, currentPrice, platform, strategyName, "due_to_exit")
 
 						} else {
 							logger.Warnf("代币 %s 已经在卖出周期中，跳过重复卖出", _mint.String())

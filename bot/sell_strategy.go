@@ -557,3 +557,103 @@ func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 	// 调用交易接口执行卖出
 	b.Trader.RaydiumV4Sell(context.Background(), orderParams)
 }
+
+// executeSellOrder 处理实际的Raydium Launchpad 内盘卖出逻辑
+func (b *Bot) ExecuteRaydiumLaunchpadSellOrder(tokenInfo queue.TokenInfo) {
+	// 实际的卖出逻辑
+	logger.Infof("执行卖出订单: 代币=%s, 数量=%d", tokenInfo.Mint.String(), tokenInfo.Amount)
+
+	// 从全局缓存中获取Raydium V4交易信息
+	tradeInfo := global.GetAmmRaydiuV4TradeInfo(tokenInfo.Mint.String())
+	if tradeInfo == nil {
+		logger.Errorf("找不到代币 %s 的Raydium V4交易信息", tokenInfo.Mint.String())
+		return
+	}
+
+	// 从全局缓存中获取市场状态
+	marketState := global.GetOpenBookMarketState(tradeInfo.MarketId.String())
+	if marketState == nil {
+		logger.Errorf("找不到市场 %s 的状态信息", tradeInfo.MarketId.String())
+		return
+	}
+
+	// 从全局缓存中获取池状态
+	poolLayout := global.GetRaydiumPoolLayout(tradeInfo.AmmPool.String())
+	if poolLayout == nil {
+		logger.Errorf("找不到池 %s 的状态信息", tradeInfo.AmmPool.String())
+		return
+	}
+
+	// 计算账户信息
+	raydiumV4Accounts, err := b.Trader.AccountsCalc.CalculateV4Accounts(
+		tokenInfo.Owner,
+		tradeInfo,
+		marketState,
+		poolLayout,
+	)
+	if err != nil {
+		logger.Errorf("计算卖出金额失败: %v", err)
+		return
+	}
+
+	// 计算卖出金额
+	amounts, err := b.Trader.AmountsCalc.CalculateRaydiumV4SellAmounts(
+
+		float64(tokenInfo.Amount),
+		tradeInfo.CurrentPrice,
+		poolLayout.BaseDecimal,
+		global.GetConfig().SellSlippage,
+	)
+	if err != nil {
+		logger.Errorf("计算卖出金额失败: %v", err)
+		return
+	}
+	//构建交易基础参数
+	tradeParams := types.TradeParams{
+		Accounts: types.TradeAccounts{
+			User:              b.privateKey.PublicKey(),
+			Mint:              raydiumV4Accounts.BaseMint,
+			BaseMint:          raydiumV4Accounts.BaseMint,
+			QuoteMint:         raydiumV4Accounts.QuoteMint,
+			RaydiumV4Accounts: raydiumV4Accounts,
+		},
+		Amount:    amounts.TokenAmount,
+		Cost:      amounts.MinOut,
+		Blockhash: *b.Blockhash,
+		FeeConfig: types.FeeConfig{
+			Slippage:    global.GetConfig().SellSlippage,
+			PriorityFee: uint64(global.GetConfig().SellPriorityFee * 1e9),
+		},
+	}
+
+	// 构建完整的订单参数
+	orderParams := types.OrderParams{
+		TradeParams: tradeParams,
+		NextBlockParams: &types.NextBlockParams{
+			Enable:    b.Config.NextBlock.Enable,
+			BundleUrl: b.Config.NextBlock.RpcUrl,
+			ApiKey:    b.Config.NextBlock.ApiKeys[0],
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
+		},
+		JitoParams: &types.JitoParams{
+			Enable:    b.Config.Jito.Enable,
+			BundleUrl: b.Config.Jito.RpcUrl,
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
+		},
+		TemporalParams: &types.TemporalParams{
+			Enable:    b.Config.Temporal.Enable,
+			BundleUrl: b.Config.Temporal.RpcUrl,
+			ApiKey:    b.Config.Temporal.ApiKeys[0],
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
+		},
+		BloXrouteParams: &types.BloXrouteParams{
+			Enable:    b.Config.BloXroute.Enable,
+			RpcUrl:    b.Config.BloXroute.RpcUrl,
+			ApiKeys:   b.Config.BloXroute.ApiKeys,
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
+		},
+	}
+
+	// 调用交易接口执行卖出
+	b.Trader.RaydiumV4Sell(context.Background(), orderParams)
+}

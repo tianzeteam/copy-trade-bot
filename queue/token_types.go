@@ -37,7 +37,7 @@ var (
 
 // sendTokenToSellChannel 创建 TokenInfo 并将其发送到 WaitingSellChan
 // 它还记录了尝试发送和结果。
-func SendTokenToSellChannel(assetInfo *global.MyBuyMap, currentPrice float64, platform, strategyName string,reason string) {
+func SendTokenToSellChannel(delayTime int, assetInfo *global.MyBuyMap, currentPrice float64, platform, strategyName string, reason string) {
 	tokenInfo := TokenInfo{
 		Mint:         solana.MustPublicKeyFromBase58(assetInfo.MintAddress),
 		Owner:        solana.MustPublicKeyFromBase58(assetInfo.UserAddress),
@@ -52,7 +52,8 @@ func SendTokenToSellChannel(assetInfo *global.MyBuyMap, currentPrice float64, pl
 	}
 
 	logger.Infof("[%s] 准备发送代币到卖出通道: Mint=%s, 余额=%d, 入场价=%.8f, 策略=%s,触发原因=%s",
-		assetInfo.UserAddress, tokenInfo.Mint, tokenInfo.Amount, assetInfo.EntryPrice, strategyName,reason)
+		assetInfo.UserAddress, tokenInfo.Mint, tokenInfo.Amount, assetInfo.EntryPrice, strategyName, reason)
+	time.Sleep(time.Duration(delayTime) * time.Millisecond)
 
 	// 尝试发送到通道，使用select避免阻塞
 	select {

@@ -102,7 +102,7 @@ func (s *WebServer) RegisterRoutes() {
 
 	// 处理登录页面请求
 	s.Router.StaticFile("/login", filepath.Join(staticDir, "login.html"))
-	
+
 	// 处理根路径请求，重定向到登录页面
 	s.Router.GET("/", func(c *gin.Context) {
 		c.Redirect(http.StatusFound, "/login")
@@ -110,7 +110,7 @@ func (s *WebServer) RegisterRoutes() {
 
 	// 处理仪表盘页面请求
 	s.Router.StaticFile("/dashboard", filepath.Join(staticDir, "dashboard.html"))
-	
+
 	// 注册认证路由
 	RegisterAuthRoutes(s.Router)
 
@@ -207,6 +207,7 @@ func (s *WebServer) handleGetTradeSettings(ctx *gin.Context) {
 		"pump_trade_enable":         config.PumpTradeEnable,
 		"pump_amm_trade_enable":     config.PumpAmmTradeEnable,
 		"raydium_trade_enable":      config.RaydiumTradeEnable,
+		"repeat_trade_enable":       config.RepeatTradeEnable,
 		"sell_delay_time":           config.SellDelayTime,
 		"min_pool_size":             config.MinPoolSize,
 		"max_pool_size":             config.MaxPoolSize,
@@ -232,6 +233,7 @@ func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
 		PumpTradeEnable    bool `json:"pump_trade_enable"`
 		PumpAmmTradeEnable bool `json:"pump_amm_trade_enable"`
 		RaydiumTradeEnable bool `json:"raydium_trade_enable"`
+		RepeatTradeEnable  bool `json:"repeat_trade_enable"`
 		SellDelayTime      int  `json:"sell_delay_time"`
 
 		MinPoolSize            float64 `json:"min_pool_size"`
@@ -259,6 +261,7 @@ func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
 		"pump_trade_enable":         updates.PumpTradeEnable,
 		"pump_amm_trade_enable":     updates.PumpAmmTradeEnable,
 		"raydium_trade_enable":      updates.RaydiumTradeEnable,
+		"repeat_trade_enable":       updates.RepeatTradeEnable,
 		"sell_delay_time":           updates.SellDelayTime,
 		"min_pool_size":             updates.MinPoolSize,
 		"max_pool_size":             updates.MaxPoolSize,
@@ -294,6 +297,7 @@ func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
 	config.PumpTradeEnable = updates.PumpTradeEnable
 	config.PumpAmmTradeEnable = updates.PumpAmmTradeEnable
 	config.RaydiumTradeEnable = updates.RaydiumTradeEnable
+	config.RepeatTradeEnable = updates.RepeatTradeEnable
 	config.SellDelayTime = updates.SellDelayTime
 	config.MinPoolSize = updates.MinPoolSize
 	config.MaxPoolSize = updates.MaxPoolSize

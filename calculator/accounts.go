@@ -24,6 +24,9 @@ var (
 	RAYDIUM_V4_PROGRAM_ID = solana.MustPublicKeyFromBase58("675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8")
 
 	OPENBOOK_MARKET_PROGRAM_ID = solana.MustPublicKeyFromBase58("srmqPvymJeFKQ4zGQed1GFppgkRHL9kaELCbyksJtPX")
+
+	// RAYDIUM_LAUNCHPAD_PROGRAM_ID is the program ID for the Raydium Launchpad
+	RAYDIUM_LAUNCHPAD_PROGRAM_ID = solana.MustPublicKeyFromBase58("LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj")
 )
 
 // AccountsCalculator 账户计算器
@@ -349,4 +352,110 @@ func (c *AccountsCalculator) CalculateAmmAccounts(pool, baseMint, user solana.Pu
 
 	return ammAccounts, nil
 
+}
+
+// RaydiumLaunchpadAccounts stores all the necessary accounts for interacting with the Raydium Launchpad.
+type RaydiumLaunchpadAccounts struct {
+	Payer                 solana.PublicKey
+	Authority             solana.PublicKey
+	GlobalConfig          solana.PublicKey // NOTE: This needs to be fetched or provided
+	PlatformConfig        solana.PublicKey // NOTE: This needs to be fetched or provided
+	PoolState             solana.PublicKey
+	UserBaseTokenAccount  solana.PublicKey
+	UserQuoteTokenAccount solana.PublicKey
+	BaseVault             solana.PublicKey
+	QuoteVault            solana.PublicKey
+	BaseTokenMint         solana.PublicKey
+	QuoteTokenMint        solana.PublicKey
+	BaseTokenProgram      solana.PublicKey
+	QuoteTokenProgram     solana.PublicKey
+	EventAuthority        solana.PublicKey
+	Program               solana.PublicKey
+}
+
+func (c *AccountsCalculator) CalculateLaunchpadAccounts(user solana.PublicKey, baseMint, quoteMint solana.PublicKey) (*RaydiumLaunchpadAccounts, error) {
+
+	authority, _, err := solana.FindProgramAddress(
+		[][]byte{
+			{118, 97, 117, 108, 116, 95, 97, 117, 116, 104, 95, 115, 101, 101, 100}, // "vault_auth_seed"
+		},
+		RAYDIUM_LAUNCHPAD_PROGRAM_ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find authority PDA: %w", err)
+	}
+
+	poolState, _, err := solana.FindProgramAddress(
+		[][]byte{
+			{112, 111, 111, 108}, // "pool"
+			baseMint.Bytes(),
+			quoteMint.Bytes(),
+		},
+		RAYDIUM_LAUNCHPAD_PROGRAM_ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find pool state PDA: %w", err)
+	}
+
+	userBaseTokenAccount, _, err := solana.FindAssociatedTokenAddress(user, baseMint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find user base token account: %w", err)
+	}
+
+	userQuoteTokenAccount, _, err := solana.FindAssociatedTokenAddress(user, quoteMint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find user quote token account: %w", err)
+	}
+
+	baseVault, _, err := solana.FindProgramAddress(
+		[][]byte{
+			{112, 111, 111, 108, 95, 118, 97, 117, 108, 116}, // "pool_vault"
+			poolState.Bytes(),
+			baseMint.Bytes(),
+		},
+		RAYDIUM_LAUNCHPAD_PROGRAM_ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find base vault PDA: %w", err)
+	}
+
+	quoteVault, _, err := solana.FindProgramAddress(
+		[][]byte{
+			{112, 111, 111, 108, 95, 118, 97, 117, 108, 116}, // "pool_vault"
+			poolState.Bytes(),
+			quoteMint.Bytes(),
+		},
+		RAYDIUM_LAUNCHPAD_PROGRAM_ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find quote vault PDA: %w", err)
+	}
+
+	eventAuthority, _, err := solana.FindProgramAddress(
+		[][]byte{
+			{95, 95, 101, 118, 101, 110, 116, 95, 97, 117, 116, 104, 111, 114, 105, 116, 121}, // "__event_authority"
+		},
+		RAYDIUM_LAUNCHPAD_PROGRAM_ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find event authority PDA: %w", err)
+	}
+
+	return &RaydiumLaunchpadAccounts{
+		Payer:                 user,
+		Authority:             authority,
+		GlobalConfig:          solana.MustPublicKeyFromBase58("6s1xP3hpbAfFoNtUNF8mfHsjr2Bd97JxFJRWLbL6aHuX"), // This should be fetched from pool state
+		PlatformConfig:        solana.MustPublicKeyFromBase58("FfYek5vEz23cMkWsdJwG2oa6EphsvXSHrGpdALN4g6W1"), // This should be fetched from pool state
+		PoolState:             poolState,
+		UserBaseTokenAccount:  userBaseTokenAccount,
+		UserQuoteTokenAccount: userQuoteTokenAccount,
+		BaseVault:             baseVault,
+		QuoteVault:            quoteVault,
+		BaseTokenMint:         baseMint,
+		QuoteTokenMint:        quoteMint,
+		BaseTokenProgram:      solana.TokenProgramID,
+		QuoteTokenProgram:     solana.TokenProgramID,
+		EventAuthority:        eventAuthority,
+		Program:               RAYDIUM_LAUNCHPAD_PROGRAM_ID,
+	}, nil
 }

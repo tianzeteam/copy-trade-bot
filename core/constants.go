@@ -7,6 +7,7 @@ import (
 // 系统账户常量
 var (
 	OKX_ROUTER_V2_PROGRAM_ID             = solana.MustPublicKeyFromBase58("6m2CDdhRgxpH4WjvdzxAYbGxwdGUz5MziiL5jek2kBma")
+	RAYDIUM_LAUNCHPAD_PROGRAM_ID         = solana.MustPublicKeyFromBase58("LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj")
 	PHOTON_ROUTER_PROGRAM_ID             = solana.MustPublicKeyFromBase58("BSfD6SHZigAfDWSjzD5Q41jw8LmKwtmjskPH9XW1mrRW")
 	JUPITER_V6_PROGRAM_ID                = solana.MustPublicKeyFromBase58("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4")
 	RAYDIUM_V4_PROGRAM_ID                = solana.MustPublicKeyFromBase58("675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8")

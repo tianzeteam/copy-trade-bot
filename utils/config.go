@@ -52,6 +52,7 @@ type Config struct {
 	PumpTradeEnable        bool             `yaml:"pump_trade_enable"`
 	PumpAmmTradeEnable     bool             `yaml:"pump_amm_trade_enable"`
 	RaydiumTradeEnable     bool             `yaml:"raydium_trade_enable"`
+	RepeatTradeEnable      bool             `yaml:"repeat_trade_enable"`
 	MinFollowTriggerAmount float64          `yaml:"min_follow_trigger_amount"` // 最小触发买入数量
 	MaxFollowTriggerAmount float64          `yaml:"max_follow_trigger_amount"` // 最大触发买入数量
 	MinPoolSize            float64          `yaml:"min_pool_size"`             // 最小pool大小

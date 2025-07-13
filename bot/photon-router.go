@@ -249,13 +249,10 @@ func (b *Bot) PhotonRouterPumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 						tradeEvent.TokenAmount,
 						6,
 					)
-					go func() {
-						assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
-						if ok {
-							time.Sleep(time.Duration(global.GetConfig().SellDelayTime) * time.Millisecond)
-							queue.SendTokenToSellChannel(assetInfo, entryPrice, "pumpfun", "delay_sell", "延迟卖出")
-						}
-					}()
+					assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+					if ok {
+						go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, entryPrice, "pumpfun", "delay_sell", "延迟卖出")
+					}
 
 					//买入记录处理
 
@@ -393,8 +390,7 @@ func (b *Bot) PhotonRouterAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, c
 			)
 			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 			if ok {
-				time.Sleep(time.Duration(global.GetConfig().SellDelayTime) * time.Millisecond)
-				queue.SendTokenToSellChannel(assetInfo, entryPrice, "pumpamm", "delay_sell", "延迟卖出")
+				go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, entryPrice, "pumpamm", "delay_sell", "延迟卖出")
 			}
 		} else {
 			_, ok := global.GetPendingHoldAsset(mintAddress)
