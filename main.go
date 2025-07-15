@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"time"
@@ -73,6 +71,8 @@ func processWaitingSellTokens(tradeBot *bot.Bot) {
 
 			go tradeBot.ExecuteRaydiumV4SellOrder(tokenInfo)
 
+		} else if platform == "launchpad" {
+			go tradeBot.ExecuteRaydiumLaunchpadSellOrder(tokenInfo)
 		}
 
 	}
@@ -161,11 +161,12 @@ func main() {
 	// 初始化全局配置到内存中
 	configMap := map[string]any{
 		// 交易平台启用状态
-		"pump_trade_enable":     config.PumpTradeEnable,    // PumpFun交易启用
-		"pump_amm_trade_enable": config.PumpAmmTradeEnable, // PumpAMM交易禁用
-		"raydium_trade_enable":  config.RaydiumTradeEnable, // Raydium交易禁用
-		"repeat_trade_enable":   config.RepeatTradeEnable,  // 重复交易禁用
-		"sell_delay_time":       config.SellDelayTime,      // 延迟卖出时间
+		"pump_trade_enable":      config.PumpTradeEnable,      // PumpFun交易启用
+		"pump_amm_trade_enable":  config.PumpAmmTradeEnable,   // PumpAMM交易禁用
+		"raydium_trade_enable":   config.RaydiumTradeEnable,   // Raydium交易禁用
+		"launchpad_trade_enable": config.LaunchpadTradeEnable, // Launchpad交易禁用
+		"repeat_trade_enable":    config.RepeatTradeEnable,    // 重复交易禁用
+		"sell_delay_time":        config.SellDelayTime,        // 延迟卖出时间
 		// 交易触发和池子大小参数
 		"min_follow_trigger_amount": config.MinFollowTriggerAmount,
 		"max_follow_trigger_amount": config.MaxFollowTriggerAmount,
@@ -225,7 +226,7 @@ func main() {
 	if err = mintStreamClient.SubscribeTransaction("transaction_stream", &yellowstone_geyser_pb.SubscribeRequestFilterTransactions{
 		Vote:           &isVote,
 		Failed:         &isFailed,
-		AccountInclude: []string{core.PUMP_PROGRAM_ID.String(), core.AMM_PROGRAM_ID.String(), core.RAYDIUM_V4_PROGRAM_ID.String(), core.PHOTON_ROUTER_PROGRAM_ID.String(), core.OKX_ROUTER_V2_PROGRAM_ID.String()},
+		AccountInclude: []string{core.PUMP_PROGRAM_ID.String(), core.AMM_PROGRAM_ID.String(), core.RAYDIUM_V4_PROGRAM_ID.String(), core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String(), core.PHOTON_ROUTER_PROGRAM_ID.String(), core.OKX_ROUTER_V2_PROGRAM_ID.String()},
 	}); err != nil {
 		logger.Fatalf("订阅交易失败: %v", err)
 		return
@@ -255,15 +256,21 @@ func main() {
 
 			for _, innerInstruction := range innerInstructions {
 
-				programIndex := innerInstruction.Instructions[0].ProgramIdIndex
-				if programIndex >= uint32(len(accountsAddress)) {
-					logger.Debugf("programIndex >= uint32(len(accountKeys))")
-					continue
-				}
-				innerProgramID = accountsAddress[programIndex]
-				if innerProgramID == core.PUMP_PROGRAM_ID.String() || innerProgramID == core.AMM_PROGRAM_ID.String() || innerProgramID == core.RAYDIUM_V4_PROGRAM_ID.String() || innerProgramID == core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String() {
-					currentInstruction = innerInstruction.Instructions[0]
-					break
+				instructions := innerInstruction.Instructions
+
+				for _, instruction := range instructions {
+
+					programIndex := instruction.ProgramIdIndex
+
+					if programIndex >= uint32(len(accountsAddress)) {
+						logger.Debugf("programIndex >= uint32(len(accountKeys))")
+						continue
+					}
+					innerProgramID = accountsAddress[programIndex]
+					if innerProgramID == core.PUMP_PROGRAM_ID.String() || innerProgramID == core.AMM_PROGRAM_ID.String() || innerProgramID == core.RAYDIUM_V4_PROGRAM_ID.String() || innerProgramID == core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String() {
+						currentInstruction = instruction
+						break
+					}
 				}
 			}
 
@@ -338,26 +345,26 @@ func main() {
 				}
 
 			}
-			/*
-				if slices.Contains(accountsAddress, core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String()) || innerProgramID == core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String() {
-					if !global.GetConfig().PumpTradeEnable {
-						logger.Debugf("pump trade is disabled")
-						continue
-					}
-					var tradeInfo *global.AmmRaydiumV4TradeInfo
-					if innerProgramID == core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String() {
-						tradeInfo = tradeBot.RaydiumLaunchpadParse(out, ctx)
-					} else {
-						tradeInfo = tradeBot.RaydiumLaunchpadParse(out, ctx)
-					}
-					if tradeInfo != nil && transactionMonitor != nil {
-						go transactionMonitor.ProcessLaunchpadTransaction(tradeInfo)
-						go walletMonitor.CheckExitConditions("launchpad", tradeInfo.MintAddress, tradeInfo.CurrentPrice)
-						continue
 
-					}
+			if slices.Contains(accountsAddress, core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String()) || innerProgramID == core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String() {
+				if !global.GetConfig().LaunchpadTradeEnable {
+					logger.Infof("launchpad trade is disabled")
+					continue
+				}
+				var launchpadTradeInfo *global.LaunchpadTradeEventInfo
+				if innerProgramID == core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String() {
+					launchpadTradeInfo = tradeBot.WrapLaunchpadParse(out, currentInstruction, ctx)
+				} else {
+					launchpadTradeInfo = tradeBot.RaydiumLaunchpadParse(out, ctx)
+				}
+				if launchpadTradeInfo != nil && transactionMonitor != nil {
+					go transactionMonitor.ProcessLaunchpadTransaction(launchpadTradeInfo)
+					go walletMonitor.CheckExitConditions("launchpad", launchpadTradeInfo.MintAddress.String(), launchpadTradeInfo.CurrentPrice)
+					continue
 
-				} */
+				}
+
+			}
 
 		}
 	}()
@@ -441,7 +448,7 @@ func main() {
 				continue
 			}
 			// 如果有特定的数据结构需要解析，可以在这里添加解析逻辑
-			if owner == solana.TokenProgramID.String() && len(accountData) >= 165 {
+			/* if owner == solana.TokenProgramID.String() && len(accountData) >= 165 {
 				// SPL代币账户数据结构
 				_mint := solana.PublicKeyFromBytes(accountData[0:32])
 				_owner := solana.PublicKeyFromBytes(accountData[32:64])
@@ -507,7 +514,7 @@ func main() {
 					}
 				}
 
-			}
+			}*/
 		}
 	}()
 

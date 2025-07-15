@@ -11,6 +11,8 @@ import (
 	"copytrade/queue"
 	"copytrade/types"
 	"copytrade/utils"
+
+	"github.com/gagliardetto/solana-go"
 )
 
 // SellStrategy 定义代币卖出策略的接口
@@ -486,7 +488,7 @@ func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 
 	// 计算账户信息
 	raydiumV4Accounts, err := b.Trader.AccountsCalc.CalculateV4Accounts(
-		tokenInfo.Owner,
+		b.privateKey.PublicKey(),
 		tradeInfo,
 		marketState,
 		poolLayout,
@@ -529,6 +531,13 @@ func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		ZeroslotParams: &types.ZeroslotParams{
+			Enable:    b.Config.Zeroslot.Enable,
+			RpcUrl:    b.Config.Zeroslot.RpcUrl,
+			BundleUrl: b.Config.Zeroslot.RpcUrl,
+			ApiKeys:   b.Config.Zeroslot.ApiKeys,
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
+		},
 		NextBlockParams: &types.NextBlockParams{
 			Enable:    b.Config.NextBlock.Enable,
 			BundleUrl: b.Config.NextBlock.RpcUrl,
@@ -558,38 +567,23 @@ func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 	b.Trader.RaydiumV4Sell(context.Background(), orderParams)
 }
 
-// executeSellOrder 处理实际的Raydium Launchpad 内盘卖出逻辑
+// 处理实际的Raydium Launchpad 内盘卖出逻辑
 func (b *Bot) ExecuteRaydiumLaunchpadSellOrder(tokenInfo queue.TokenInfo) {
 	// 实际的卖出逻辑
 	logger.Infof("执行卖出订单: 代币=%s, 数量=%d", tokenInfo.Mint.String(), tokenInfo.Amount)
 
 	// 从全局缓存中获取Raydium V4交易信息
-	tradeInfo := global.GetAmmRaydiuV4TradeInfo(tokenInfo.Mint.String())
+	tradeInfo := global.GetLaunchpadTradeInfo(tokenInfo.Mint.String())
 	if tradeInfo == nil {
 		logger.Errorf("找不到代币 %s 的Raydium V4交易信息", tokenInfo.Mint.String())
 		return
 	}
 
-	// 从全局缓存中获取市场状态
-	marketState := global.GetOpenBookMarketState(tradeInfo.MarketId.String())
-	if marketState == nil {
-		logger.Errorf("找不到市场 %s 的状态信息", tradeInfo.MarketId.String())
-		return
-	}
-
-	// 从全局缓存中获取池状态
-	poolLayout := global.GetRaydiumPoolLayout(tradeInfo.AmmPool.String())
-	if poolLayout == nil {
-		logger.Errorf("找不到池 %s 的状态信息", tradeInfo.AmmPool.String())
-		return
-	}
-
 	// 计算账户信息
-	raydiumV4Accounts, err := b.Trader.AccountsCalc.CalculateV4Accounts(
-		tokenInfo.Owner,
-		tradeInfo,
-		marketState,
-		poolLayout,
+	raydiumLaunchpadAccounts, err := b.Trader.AccountsCalc.CalculateLaunchpadAccounts(
+		b.privateKey.PublicKey(),
+		tokenInfo.Mint,
+		solana.SolMint,
 	)
 	if err != nil {
 		logger.Errorf("计算卖出金额失败: %v", err)
@@ -601,7 +595,7 @@ func (b *Bot) ExecuteRaydiumLaunchpadSellOrder(tokenInfo queue.TokenInfo) {
 
 		float64(tokenInfo.Amount),
 		tradeInfo.CurrentPrice,
-		poolLayout.BaseDecimal,
+		6,
 		global.GetConfig().SellSlippage,
 	)
 	if err != nil {
@@ -612,10 +606,10 @@ func (b *Bot) ExecuteRaydiumLaunchpadSellOrder(tokenInfo queue.TokenInfo) {
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
 			User:              b.privateKey.PublicKey(),
-			Mint:              raydiumV4Accounts.BaseMint,
-			BaseMint:          raydiumV4Accounts.BaseMint,
-			QuoteMint:         raydiumV4Accounts.QuoteMint,
-			RaydiumV4Accounts: raydiumV4Accounts,
+			Mint:              raydiumLaunchpadAccounts.BaseTokenMint,
+			BaseMint:          raydiumLaunchpadAccounts.BaseTokenMint,
+			QuoteMint:         raydiumLaunchpadAccounts.QuoteTokenMint,
+			LaunchpadAccounts: raydiumLaunchpadAccounts,
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MinOut,
@@ -629,6 +623,13 @@ func (b *Bot) ExecuteRaydiumLaunchpadSellOrder(tokenInfo queue.TokenInfo) {
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		ZeroslotParams: &types.ZeroslotParams{
+			Enable:    b.Config.Zeroslot.Enable,
+			RpcUrl:    b.Config.Zeroslot.RpcUrl,
+			BundleUrl: b.Config.Zeroslot.RpcUrl,
+			ApiKeys:   b.Config.Zeroslot.ApiKeys,
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
+		},
 		NextBlockParams: &types.NextBlockParams{
 			Enable:    b.Config.NextBlock.Enable,
 			BundleUrl: b.Config.NextBlock.RpcUrl,
@@ -655,5 +656,5 @@ func (b *Bot) ExecuteRaydiumLaunchpadSellOrder(tokenInfo queue.TokenInfo) {
 	}
 
 	// 调用交易接口执行卖出
-	b.Trader.RaydiumV4Sell(context.Background(), orderParams)
+	b.Trader.RaydiumLaunchpadSell(context.Background(), orderParams)
 }

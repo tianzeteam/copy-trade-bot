@@ -2,18 +2,15 @@ package utils
 
 import (
 	"os"
-	"path/filepath"
-	"runtime"
 )
 
 func GetRootDir() string {
-	// 使用os.Executable()获取当前运行的可执行文件路径
-	execPath, err := os.Executable()
+	// 使用os.Getwd()获取当前工作目录, 这在`go run`时更可靠
+	wd, err := os.Getwd()
 	if err != nil {
-		// 如果获取失败，回退到使用runtime.Caller
-		_, b, _, _ := runtime.Caller(0)
-		return filepath.Dir(b)
+		// 如果获取失败，可以记录一个错误或者panic
+		// 为了简单起见，我们回退到一个相对路径，但在实际应用中应更稳健地处理
+		return "."
 	}
-	// 返回可执行文件所在目录
-	return filepath.Dir(execPath)
+	return wd
 }

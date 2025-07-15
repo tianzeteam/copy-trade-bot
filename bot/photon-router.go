@@ -236,6 +236,7 @@ func (b *Bot) PhotonRouterPumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 
 			// 管道步骤3: 处理买入事件
 			if tradeEvent.User.String() == botWallet.String() {
+				logger.Infof("bot 钱包交易记录处理: %s, %v", mintAddress, tradeEvent.IsBuy)
 				if tradeEvent.IsBuy {
 
 					entryPrice := (float64(tradeEvent.VirtualSolReserves) / SolDecimals) / (float64(tradeEvent.VirtualTokenReserves) / TokenDecimals)
@@ -258,8 +259,9 @@ func (b *Bot) PhotonRouterPumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 
 				} else {
 					//卖出记录处理
-					_, ok := global.GetPendingHoldAsset(mintAddress)
+					assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 					if ok {
+						logger.Infof("bot 钱包卖出记录处理: %s, %v, %d, %d", mintAddress, ok, assetInfo.Amount, tradeEvent.TokenAmount)
 						global.DelPendingHoldAssetWithAmount(mintAddress, tradeEvent.TokenAmount)
 					}
 
@@ -342,7 +344,7 @@ func (b *Bot) PhotonRouterAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, c
 	}
 
 	if mintAddress == "" {
-		logger.Infof("未找到代币地址，跳过 %s", _signature)
+		logger.Debugf("未找到代币地址，跳过 %s", _signature)
 		return nil
 	}
 
@@ -351,7 +353,7 @@ func (b *Bot) PhotonRouterAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, c
 	botWallet := b.privateKey.PublicKey()
 
 	if tradeInfo == nil {
-		logger.Infof("未找到交易信息，跳过 %s", _signature)
+		logger.Debugf("未找到交易信息，跳过 %s", _signature)
 		return nil
 	}
 	tradeInfo.Router = "externalRouter"
@@ -393,8 +395,9 @@ func (b *Bot) PhotonRouterAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, c
 				go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, entryPrice, "pumpamm", "delay_sell", "延迟卖出")
 			}
 		} else {
-			_, ok := global.GetPendingHoldAsset(mintAddress)
+			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 			if ok {
+				logger.Infof("bot 钱包卖出记录处理: %s, %v, %d, %d", mintAddress, ok, assetInfo.Amount, tradeInfo.TokenAmount)
 				global.DelPendingHoldAssetWithAmount(mintAddress, tradeInfo.TokenAmount)
 			}
 		}

@@ -220,30 +220,16 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx conte
 
 	userPubkey := tradeInfo.UserAddress
 	if userPubkey.String() == botWallet.String() {
+		logger.Infof("bot 钱包交易记录处理: %s, %v", mintAddress, tradeInfo.IsBuy)
 		if tradeInfo.IsBuy {
 			// 检查是否是自己的交易
 
-			// 安全地计算入场价格
-			var entryPrice float64
-			if tradeInfo.TokenAmount > 0 {
-				solAmountFloat := float64(tradeInfo.SolAmount) / SolDecimals
-				tokenAmountFloat := float64(tradeInfo.TokenAmount) / TokenDecimals
-				entryPrice = solAmountFloat / tokenAmountFloat
-			} else {
-				logger.Warnf("计算入场价格时发现代币数量为零: %d", tradeInfo.TokenAmount)
-				entryPrice = 0
-			}
-
-			logger.Debugf("买入交易: SOL=%d (%.4f), 代币=%d (%.2f), 价格=%.8f",
-				tradeInfo.SolAmount, float64(tradeInfo.SolAmount)/SolDecimals,
-				tradeInfo.TokenAmount, float64(tradeInfo.TokenAmount)/TokenDecimals,
-				entryPrice)
 			// 设置入场价格
 			global.SetTradeAssetOnce(
 				mintAddress,
 				tradeInfo.Creator,
 				botWallet.String(),
-				entryPrice,
+				tradeInfo.CurrentPrice,
 				tradeInfo.TokenAmount,
 				6,
 			)
@@ -251,12 +237,13 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx conte
 			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 			if ok {
 
-				go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, entryPrice, "pumpamm", "delay_sell", "延迟卖出")
+				go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, tradeInfo.CurrentPrice, "pumpamm", "delay_sell", "延迟卖出")
 			}
 
 		} else {
-			_, ok := global.GetPendingHoldAsset(mintAddress)
+			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 			if ok {
+				logger.Infof("bot 钱包卖出记录处理: %s, %v, %d, %d", mintAddress, ok, assetInfo.Amount, tradeInfo.TokenAmount)
 				global.DelPendingHoldAssetWithAmount(mintAddress, tradeInfo.TokenAmount)
 			}
 		}

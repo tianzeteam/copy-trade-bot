@@ -98,6 +98,22 @@ type AmmRaydiumV4TradeInfo struct {
 	SolReserve   uint64 // SOL储备量
 }
 
+// LaunchpadTradeEventInfo 存储Launchpad交易事件信息
+type LaunchpadTradeEventInfo struct {
+	UserAddress  solana.PublicKey // 用户地址
+	SolAmount    uint64           // Sol数量
+	TokenAmount  uint64           // Token数量
+	IsBuy        bool             // 是否买入
+	MintAddress  solana.PublicKey // Mint地址
+	PoolState    solana.PublicKey // 池状态地址
+	SolReserve   uint64           // SOL储备
+	BaseReserve  uint64           // 基础代币储备
+	QuoteReserve uint64           // 报价代币储备
+	ReceivedAt   time.Time        // 接收时间
+	CurrentPrice float64          // 当前价格
+	Router       string
+}
+
 // AmmPoolInfo 存储AMM池信息
 type AmmPoolInfo struct {
 	AmmPool               solana.PublicKey // AMM池地址
@@ -196,6 +212,10 @@ var (
 	// RaydiumPoolLayouts 存储Raydium池布局信息，键为池地址
 	RaydiumPoolLayouts     = make(map[string]*layouts.LIQUIDITY_STATE_LAYOUT_V4)
 	RaydiumPoolLayoutsLock = &sync.RWMutex{} // 用于保护映射表的读写锁
+
+	// LaunchpadTradeEventMap 存储Launchpad交易事件信息，键为池地址
+	LaunchpadTradeEventMap     = make(map[string]*LaunchpadTradeEventInfo)
+	LaunchpadTradeEventMapLock = &sync.RWMutex{} // 用于保护映射表的读写锁
 
 	// 代币卖出时间间隔限制，默认10秒
 	SellIntervalLimit = 10 * time.Second
@@ -317,6 +337,20 @@ func SetRaydiumV4TradeInfo(mintAddress string, info *AmmRaydiumV4TradeInfo) {
 	AmmRaydiumV4TradeMapLock.Lock()
 	defer AmmRaydiumV4TradeMapLock.Unlock()
 	AmmRaydiumV4TradeMap[mintAddress] = info
+}
+
+// SetLaunchpadTradeInfo 设置指定代币的Launchpad交易信息
+func SetLaunchpadTradeInfo(mintAddress string, info *LaunchpadTradeEventInfo) {
+	LaunchpadTradeEventMapLock.Lock()
+	defer LaunchpadTradeEventMapLock.Unlock()
+	LaunchpadTradeEventMap[mintAddress] = info
+}
+
+// GetLaunchpadTradeInfo 获取指定代币的Launchpad交易信息
+func GetLaunchpadTradeInfo(mintAddress string) *LaunchpadTradeEventInfo {
+	LaunchpadTradeEventMapLock.RLock()
+	defer LaunchpadTradeEventMapLock.RUnlock()
+	return LaunchpadTradeEventMap[mintAddress]
 }
 
 // GetAmmRaydiuV4TradeInfo 获取指定代币的AMM交易信息

@@ -207,6 +207,7 @@ func (s *WebServer) handleGetTradeSettings(ctx *gin.Context) {
 		"pump_trade_enable":         config.PumpTradeEnable,
 		"pump_amm_trade_enable":     config.PumpAmmTradeEnable,
 		"raydium_trade_enable":      config.RaydiumTradeEnable,
+		"launchpad_trade_enable":    config.LaunchpadTradeEnable,
 		"repeat_trade_enable":       config.RepeatTradeEnable,
 		"sell_delay_time":           config.SellDelayTime,
 		"min_pool_size":             config.MinPoolSize,
@@ -230,11 +231,12 @@ func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
 
 	// 交易设置请求体
 	type TradeSettingsRequest struct {
-		PumpTradeEnable    bool `json:"pump_trade_enable"`
-		PumpAmmTradeEnable bool `json:"pump_amm_trade_enable"`
-		RaydiumTradeEnable bool `json:"raydium_trade_enable"`
-		RepeatTradeEnable  bool `json:"repeat_trade_enable"`
-		SellDelayTime      int  `json:"sell_delay_time"`
+		PumpTradeEnable      bool `json:"pump_trade_enable"`
+		PumpAmmTradeEnable   bool `json:"pump_amm_trade_enable"`
+		RaydiumTradeEnable   bool `json:"raydium_trade_enable"`
+		LaunchpadTradeEnable bool `json:"launchpad_trade_enable"`
+		RepeatTradeEnable    bool `json:"repeat_trade_enable"`
+		SellDelayTime        int  `json:"sell_delay_time"`
 
 		MinPoolSize            float64 `json:"min_pool_size"`
 		MaxPoolSize            float64 `json:"max_pool_size"`
@@ -261,6 +263,7 @@ func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
 		"pump_trade_enable":         updates.PumpTradeEnable,
 		"pump_amm_trade_enable":     updates.PumpAmmTradeEnable,
 		"raydium_trade_enable":      updates.RaydiumTradeEnable,
+		"launchpad_trade_enable":    updates.LaunchpadTradeEnable,
 		"repeat_trade_enable":       updates.RepeatTradeEnable,
 		"sell_delay_time":           updates.SellDelayTime,
 		"min_pool_size":             updates.MinPoolSize,
@@ -297,6 +300,7 @@ func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
 	config.PumpTradeEnable = updates.PumpTradeEnable
 	config.PumpAmmTradeEnable = updates.PumpAmmTradeEnable
 	config.RaydiumTradeEnable = updates.RaydiumTradeEnable
+	config.LaunchpadTradeEnable = updates.LaunchpadTradeEnable
 	config.RepeatTradeEnable = updates.RepeatTradeEnable
 	config.SellDelayTime = updates.SellDelayTime
 	config.MinPoolSize = updates.MinPoolSize

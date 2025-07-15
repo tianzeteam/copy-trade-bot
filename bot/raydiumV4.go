@@ -261,6 +261,7 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx con
 		userPubkey := tradeInfo.UserAddress
 		// 检查是否是自己的交易
 		if userPubkey.String() == botWallet.String() {
+			logger.Infof("bot 钱包交易记录处理: %s, %v", mintAddress, tradeInfo.IsBuy)
 			if tradeInfo.IsBuy {
 
 				var entryPrice float64
@@ -290,8 +291,9 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx con
 					go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, entryPrice, "raydiumV4", "delay_sell", "延迟卖出")
 				}
 			} else {
-				_, ok := global.GetPendingHoldAsset(mintAddress)
+				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 				if ok {
+					logger.Infof("bot 钱包卖出记录处理: %s, %v, %d, %d", mintAddress, ok, assetInfo.Amount, tradeInfo.TokenAmount)
 					global.DelPendingHoldAssetWithAmount(mintAddress, tradeInfo.TokenAmount)
 				}
 			}

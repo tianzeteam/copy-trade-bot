@@ -261,6 +261,7 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx context.
 
 			// 管道步骤3: 处理买入事件
 			if tradeEvent.User.String() == botWallet.String() {
+				logger.Infof("bot 钱包交易记录处理: %s, %v", mintAddress, tradeEvent.IsBuy)
 				if tradeEvent.IsBuy {
 
 					// 设置入场价格
@@ -281,8 +282,11 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx context.
 
 				} else {
 					//卖出记录处理
-					_, ok := global.GetPendingHoldAsset(mintAddress)
+					assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+
+					logger.Infof("bot 钱包卖出记录处理: %s, %v", mintAddress, ok)
 					if ok {
+						logger.Infof("bot 钱包卖出记录处理: %s, %d, %d", mintAddress, assetInfo.Amount, tradeEvent.TokenAmount)
 						global.DelPendingHoldAssetWithAmount(mintAddress, tradeEvent.TokenAmount)
 					}
 

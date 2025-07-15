@@ -51,7 +51,7 @@ func SendTokenToSellChannel(delayTime int, assetInfo *global.MyBuyMap, currentPr
 		StrategyName: strategyName,
 	}
 
-	logger.Infof("[%s] 准备发送代币到卖出通道: Mint=%s, 余额=%d, 入场价=%.8f, 策略=%s,触发原因=%s",
+	logger.Debugf("[%s] 准备发送代币到卖出通道: Mint=%s, 余额=%d, 入场价=%.8f, 策略=%s,触发原因=%s",
 		assetInfo.UserAddress, tokenInfo.Mint, tokenInfo.Amount, assetInfo.EntryPrice, strategyName, reason)
 	time.Sleep(time.Duration(delayTime) * time.Millisecond)
 

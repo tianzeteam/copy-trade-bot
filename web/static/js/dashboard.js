@@ -395,6 +395,7 @@ function loadTradeSettings() {
         document.getElementById('pumpTradeEnable').checked = settings.pump_trade_enable;
         document.getElementById('pumpAmmTradeEnable').checked = settings.pump_amm_trade_enable;
         document.getElementById('raydiumTradeEnable').checked = settings.raydium_trade_enable;
+        document.getElementById('launchpadTradeEnable').checked = settings.launchpad_trade_enable;
         document.getElementById('repeatTradeEnable').checked = settings.repeat_trade_enable;
         document.getElementById('sellDelayTime').value = settings.sell_delay_time;
         document.getElementById('minPoolSize').value = settings.min_pool_size;
@@ -438,6 +439,7 @@ function saveTradeSettings() {
         pump_trade_enable: document.getElementById('pumpTradeEnable').checked,
         pump_amm_trade_enable: document.getElementById('pumpAmmTradeEnable').checked,
         raydium_trade_enable: document.getElementById('raydiumTradeEnable').checked,
+        launchpad_trade_enable: document.getElementById('launchpadTradeEnable').checked,
         repeat_trade_enable: document.getElementById('repeatTradeEnable').checked,
         sell_delay_time: parseInt(document.getElementById('sellDelayTime').value),
         min_pool_size: parseFloat(document.getElementById('minPoolSize').value),

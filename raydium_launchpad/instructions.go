@@ -5,6 +5,7 @@ package raydium_launchpad
 import (
 	"bytes"
 	"fmt"
+
 	ag_spew "github.com/davecgh/go-spew/spew"
 	ag_binary "github.com/gagliardetto/binary"
 	ag_solanago "github.com/gagliardetto/solana-go"
@@ -12,7 +13,7 @@ import (
 	ag_treeout "github.com/gagliardetto/treeout"
 )
 
-var ProgramID ag_solanago.PublicKey
+var ProgramID ag_solanago.PublicKey = ag_solanago.MustPublicKeyFromBase58("LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj")
 
 func SetProgramID(PublicKey ag_solanago.PublicKey) {
 	ProgramID = PublicKey
@@ -35,7 +36,8 @@ var (
 	// * `amount_in` - Amount of quote token to purchase
 	// * `minimum_amount_out` - Minimum amount of base token to receive (slippage protection)
 	// * `share_fee_rate` - Fee rate for the share
-	//
+	//BUY_EXECT_IN_DISCRIMINATOR: [u8; 8] = [250, 234, 13, 123, 213, 156, 19, 236];
+
 	Instruction_BuyExactIn = ag_binary.TypeID([8]byte{250, 234, 13, 123, 213, 156, 19, 236})
 
 	// Use quote tokens to purchase the given amount of base tokens.
