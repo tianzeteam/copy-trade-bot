@@ -467,6 +467,9 @@ func (m *TransactionMonitor) ProcessLaunchpadTransaction(tradeInfo *global.Launc
 	// 检查是否是我们监控的钱包
 	walletSettings := m.WalletMonitor.GetWallet(copyAddress)
 	if walletSettings == nil || !walletSettings.Enabled {
+
+		logger.Debugf("Launchpad 交易: 聪明钱包=%s, 代币=%s,Sol金额=%d, Token数量=%d, SolReserve=%d, time: %v",
+			copyAddress.String(), tradeInfo.MintAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.SolReserve, time.Now().Format("2006-01-02 15:04:05.000000"))
 		// 不是我们监控的钱包，忽略
 		return
 	}
@@ -505,7 +508,6 @@ func (m *TransactionMonitor) executeLaunchpadCopyTrade(tradeInfo *global.Launchp
 	//
 	launchpadAccounts, err := m.TradeBot.Trader.AccountsCalc.CalculateLaunchpadAccounts(
 		m.BotWallet,
-
 		tradeInfo.MintAddress,
 		solana.SolMint,
 	)

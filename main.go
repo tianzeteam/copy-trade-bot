@@ -351,12 +351,14 @@ func main() {
 					logger.Infof("launchpad trade is disabled")
 					continue
 				}
+				//logger.Infof("outer 11111交易签名: %s ,%s", _signature, innerProgramID)
 				var launchpadTradeInfo *global.LaunchpadTradeEventInfo
-				if innerProgramID == core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String() {
+
+				launchpadTradeInfo = tradeBot.RaydiumLaunchpadParse(out, ctx)
+				if launchpadTradeInfo == nil && innerProgramID == core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String() {
 					launchpadTradeInfo = tradeBot.WrapLaunchpadParse(out, currentInstruction, ctx)
-				} else {
-					launchpadTradeInfo = tradeBot.RaydiumLaunchpadParse(out, ctx)
 				}
+
 				if launchpadTradeInfo != nil && transactionMonitor != nil {
 					go transactionMonitor.ProcessLaunchpadTransaction(launchpadTradeInfo)
 					go walletMonitor.CheckExitConditions("launchpad", launchpadTradeInfo.MintAddress.String(), launchpadTradeInfo.CurrentPrice)

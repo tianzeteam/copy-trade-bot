@@ -63,3 +63,52 @@ func TestFindCreatorVaultPDA(t *testing.T) {
 	// expectedPDA := solana.MustPublicKeyFromBase58("expected_pda_address_here")
 	// assert.Equal(t, expectedPDA, creatorVaultPda, "Creator vault PDA should match expected value")
 }
+
+// TestCalculateLaunchpadAccounts tests the CalculateLaunchpadAccounts function
+func TestCalculateLaunchpadAccounts(t *testing.T) {
+	// Setup
+	accountsCalc := calculator.NewAccountsCalculator("https://mainnet.helius-rpc.com/?api-key=fc8353eb-13cb-423e-8d36-49e2b26d3a78")
+
+	// Test data
+	user := solana.MustPublicKeyFromBase58("AwiFZDp7ee2QPbwUbGcpDSQ8hWz4a2qsNfqa13noY1EL")
+	baseMint := solana.MustPublicKeyFromBase58("6XaLsZGcBN9nfHzsxGX5KL25bYbFn5n8NiCLSzRAbonk")
+	quoteMint := solana.MustPublicKeyFromBase58("So11111111111111111111111111111111111111112") // WSOL
+
+	// Call the function
+	launchpadAccounts, err := accountsCalc.CalculateLaunchpadAccounts(user, baseMint, quoteMint)
+
+	// Assertions
+	assert.NoError(t, err)
+	assert.NotNil(t, launchpadAccounts)
+
+	// Verify some of the derived accounts
+	RAYDIUM_LAUNCHPAD_PROGRAM_ID := solana.MustPublicKeyFromBase58("LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj")
+
+	// Expected PoolState
+	expectedPoolState, _, _ := solana.FindProgramAddress(
+		[][]byte{
+			[]byte("pool"),
+			baseMint.Bytes(),
+			quoteMint.Bytes(),
+		},
+		RAYDIUM_LAUNCHPAD_PROGRAM_ID,
+	)
+	assert.Equal(t, expectedPoolState, launchpadAccounts.PoolState, "PoolState should match expected value")
+
+	// Expected UserBaseTokenAccount
+	expectedUserBaseTokenAccount, _, _ := solana.FindAssociatedTokenAddress(user, baseMint)
+	assert.Equal(t, expectedUserBaseTokenAccount, launchpadAccounts.UserBaseTokenAccount, "UserBaseTokenAccount should match expected value")
+
+	// Expected BaseVault
+	expectedBaseVault, _, _ := solana.FindProgramAddress(
+		[][]byte{
+			[]byte("pool_vault"),
+			launchpadAccounts.PoolState.Bytes(),
+			baseMint.Bytes(),
+		},
+		RAYDIUM_LAUNCHPAD_PROGRAM_ID,
+	)
+	assert.Equal(t, expectedBaseVault, launchpadAccounts.BaseVault, "BaseVault should match expected value")
+
+	t.Logf("Calculated Launchpad Accounts: %+v", launchpadAccounts)
+}

@@ -163,10 +163,6 @@ func (b *Bot) WrapLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 		userAddress = accountList[currentInstruction.Accounts[PayerIdx]] // #18 - User Source Owner
 		mintAddress = accountList[currentInstruction.Accounts[BaseMintIdx]]
 
-		if userAddress == "AwiFZDp7ee2QPbwUbGcpDSQ8hWz4a2qsNfqa13noY1EL" {
-			logger.Infof(" wrap  _signature: %s ,userAddress: %s, mintAddress: %s", _signature, userAddress, mintAddress)
-		}
-
 		if mintAddress == solana.SolMint.String() {
 			logger.Debugf("跳过 SOL 交易 %s", _signature)
 			return nil
@@ -201,6 +197,7 @@ func (b *Bot) WrapLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 	// 处理AMM交易信息
 	userPubkey := solana.MustPublicKeyFromBase58(userAddress)
 	innerInstructions := out.GetTransaction().Transaction.Meta.InnerInstructions
+
 	tradeInfo := b.parseLaunchpadTransaction(accountList, innerInstructions, mintAddress, userPubkey, isBuy, _signature)
 	botWallet := b.privateKey.PublicKey()
 
@@ -210,7 +207,7 @@ func (b *Bot) WrapLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 	}
 	tradeInfo.Router = "externalRouter"
 	global.SetLaunchpadTradeInfo(mintAddress, tradeInfo)
-	logger.Infof("$$$$$$ externalRouter Launchpad $$$$$$$$$ 交易信息: mint=%s, 用户=%s, SOL=%d, 代币=%d, 是否买入=%v, 价格=%.8f, signature=%s",
+	logger.Debugf("$$$$$$ externalRouter Launchpad $$$$$$$$$ 交易信息: mint=%s, 用户=%s, SOL=%d, 代币=%d, 是否买入=%v, 价格=%.8f, signature=%s",
 		mintAddress, tradeInfo.UserAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.IsBuy, tradeInfo.CurrentPrice, _signature)
 
 	if userPubkey.String() == botWallet.String() {
@@ -297,9 +294,6 @@ func (b *Bot) RaydiumLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 			userAddress = accountList[accounts[PayerIdx]] // #18 - User Source Owner
 			mintAddress = accountList[accounts[BaseMintIdx]]
 
-			if userAddress == "AwiFZDp7ee2QPbwUbGcpDSQ8hWz4a2qsNfqa13noY1EL" {
-				logger.Infof(" naive  _signature: %s ,userAddress: %s, mintAddress: %s", _signature, userAddress, mintAddress)
-			}
 			// Get balance changes
 			//solChange := GetSwapBalances(txn, BaseVault, QuoteVault, accountList)
 			//logger.Infof("mintAddress: %s, solAmount: %.8f, solReserve: %.8f", mintAddress, solChange.SolChangeAmount, solChange.SolReserve)
@@ -329,6 +323,7 @@ func (b *Bot) RaydiumLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 	// 处理AMM交易信息
 	userPk := solana.MustPublicKeyFromBase58(userAddress)
 	innerInstructions := out.GetTransaction().Transaction.Meta.InnerInstructions
+
 	tradeInfo = b.parseLaunchpadTransaction(accountList, innerInstructions, mintAddress, userPk, isBuy, _signature)
 
 	// 处理AMM交易信息
@@ -336,7 +331,7 @@ func (b *Bot) RaydiumLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 
 	if tradeInfo != nil {
 		global.SetLaunchpadTradeInfo(mintAddress, tradeInfo)
-		logger.Infof(" ********Naive Launchpad*******交易信息: 用户=%s, SOL=%d, 代币=%d, 是否买入=%v, 价格=%.8f, signature=%s",
+		logger.Debugf(" ********Naive Launchpad*******交易信息: 用户=%s, SOL=%d, 代币=%d, 是否买入=%v, 价格=%.8f, signature=%s",
 			tradeInfo.UserAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.IsBuy, tradeInfo.CurrentPrice, _signature)
 
 		userPubkey := tradeInfo.UserAddress
