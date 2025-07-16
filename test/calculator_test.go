@@ -7,6 +7,7 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/stretchr/testify/assert"
 
+	"copytrade/IDL/generated/raydium_cp_swap"
 	"copytrade/calculator"
 )
 
@@ -131,4 +132,28 @@ func TestCalculateRaydiumCPMMAccounts(t *testing.T) {
 	assert.NotNil(t, cpmmAccounts)
 
 	t.Logf("Calculated Raydium CPMM Accounts: %+v", cpmmAccounts)
+}
+
+func TestParseCpmmTransaction(t *testing.T) {
+	// Setup
+
+	events, err := raydium_cp_swap.DecodeEventsInLogs([]string{"Program data: QMbN6CYIceIyagseqAZdpzjB83V/qL6/dVNoJq6VuGvJsAzzVbr5zzDOjnLVEQAAczPHwIkBAAAAt8jYAQAAAGZUqCgAAAAAAAAAAAAAAAAAAAAAAAAAAAE="})
+	if err != nil {
+		t.Errorf("解析 Universal Raydium CPMM事件失败: %v", err)
+		return
+	}
+	t.Logf("解析到 Universal Raydium CPMM 事件: %+v", events)
+
+	for _, event := range events {
+		switch event.Name {
+		case "SwapEvent":
+			if tradeEvent, ok := event.Data.(*raydium_cp_swap.SwapEventEventData); ok {
+				t.Logf("解析到 Universal Raydium CPMM 交易事件: %+v", tradeEvent)
+			}
+		case "LpChangeEvent":
+			if poolCreateEvent, ok := event.Data.(*raydium_cp_swap.LpChangeEventEventData); ok {
+				t.Logf("解析到 Universal Raydium CPMM 池创建事件: %+v", poolCreateEvent)
+			}
+		}
+	}
 }

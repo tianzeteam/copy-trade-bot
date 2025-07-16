@@ -2,14 +2,13 @@ package bot
 
 import (
 	"context"
-	"encoding/base64"
+	"strings"
 	"time"
 
 	"github.com/gagliardetto/solana-go"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/mr-tron/base58"
 
-	"copytrade/core"
 	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/queue"
@@ -35,30 +34,9 @@ type CpmmSwapData struct {
 }
 
 // parseLaunchpadTransaction 解析AMM交易事件
-func (b *Bot) parseUniversalCpmmTransaction(accountList []string, innerInstructions []*yellowstone_geyser_pb.InnerInstructions, mintAddress string, userAddress solana.PublicKey, isBuy bool, _signature string) *global.CPMMTradeEventInfo {
-	var eventBinaries [][]byte
-	var err error
-	for _, parsedIx := range innerInstructions {
-		for _, ix := range parsedIx.Instructions {
-			if accountList[ix.ProgramIdIndex] != core.RAYDIUM_CPMM_PROGRAM_ID.String() {
-				continue
-			}
+func (b *Bot) parseUniversalCpmmTransaction(logMessages []string, mintAddress string, userAddress solana.PublicKey, isBuy bool, _signature string) *global.CPMMTradeEventInfo {
 
-			var ixData = ix.Data
-			if len(ixData) < 8 {
-				continue
-			}
-
-			eventBase64 := base64.StdEncoding.EncodeToString(ixData[8:])
-			var eventBinary []byte
-			if eventBinary, err = base64.StdEncoding.DecodeString(eventBase64); err != nil {
-				return nil
-			}
-			eventBinaries = append(eventBinaries, eventBinary)
-		}
-	}
-
-	events, err := raydium_cp_swap.ParseEvents(eventBinaries)
+	events, err := raydium_cp_swap.DecodeEventsInLogs(logMessages)
 	if err != nil {
 		logger.Errorf("解析 Universal Raydium CPMM事件失败: %v, signature=%s", err, _signature)
 		return nil
@@ -74,17 +52,19 @@ func (b *Bot) parseUniversalCpmmTransaction(accountList []string, innerInstructi
 			if tradeEvent, ok := event.Data.(*raydium_cp_swap.SwapEventEventData); ok {
 
 				// 创建交易事件信息对象
-				//baseInput := tradeEvent.BaseInput
+
 				_inputVaultBefore := tradeEvent.InputVaultBefore
 				_outputVaultBefore := tradeEvent.OutputVaultBefore
 				_inputAmount := tradeEvent.InputAmount
 				_outputAmount := tradeEvent.OutputAmount
+				_inputVaultAfter := _inputVaultBefore + _inputAmount
+				_outputVaultAfter := _outputVaultBefore + _outputAmount
 
-				solReserve := _inputVaultBefore + _inputAmount
-				tokenReserve := _outputVaultBefore + _outputAmount
+				solReserve := _inputVaultAfter
+				tokenReserve := _outputVaultAfter
 				if !isBuy {
-					solReserve = _outputVaultBefore + _outputAmount
-					tokenReserve = _inputVaultBefore + _inputAmount
+					solReserve = _outputVaultAfter
+					tokenReserve = _inputVaultAfter
 					_inputAmount = tradeEvent.OutputAmount
 					_outputAmount = tradeEvent.InputAmount
 				}
@@ -242,7 +222,7 @@ func (b *Bot) UniversalCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 			mintAddress = inputTokenAddress
 		}
 
-		logger.Infof("_signature: %s", _signature)
+		logger.Debugf("_signature: %s", _signature)
 		logger.Debugf("匹配-------买入------------判别器")
 		logger.Debugf("-------------------------------------------")
 	case raydium_cp_swap.Instruction_SwapBaseOutput:
@@ -261,7 +241,7 @@ func (b *Bot) UniversalCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 		//pool := accountList[currentInstruction.Accounts[0]]
 		logger.Debugf("匹配-------卖出------------判别器")
 
-		logger.Infof("_signature: %s", _signature)
+		logger.Debugf("_signature: %s", _signature)
 		logger.Debugf("-------------------------------------------")
 	default:
 		logger.Debug("未匹配判别器")
@@ -274,18 +254,32 @@ func (b *Bot) UniversalCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 
 	// 处理AMM交易信息
 	userPubkey := solana.MustPublicKeyFromBase58(userAddress)
-	innerInstructions := out.GetTransaction().Transaction.Meta.InnerInstructions
+	//innerInstructions := out.GetTransaction().Transaction.Meta.InnerInstructions
 
-	tradeInfo := b.parseUniversalCpmmTransaction(accountList, innerInstructions, mintAddress, userPubkey, isBuy, _signature)
+	searchTerm := "Program log: Instruction: SwapBaseInput"
+	index := -1
+
+	for i, line := range logMessages {
+		if strings.Contains(line, searchTerm) {
+			index = i
+			break
+		}
+	}
+	if index == -1 {
+		logger.Debugf(" UniversalCpmmParse 未找到交易信息，跳过 %s", _signature)
+		return nil
+	}
+	_logMessages := []string{logMessages[index+1]}
+	tradeInfo := b.parseCpmmTransaction(_logMessages, mintAddress, userPubkey, isBuy, _signature)
 	botWallet := b.privateKey.PublicKey()
 
 	if tradeInfo == nil {
-		logger.Debugf(" UniversalCpmmParse 未找到交易信息，跳过 %s", _signature)
+		logger.Infof(" UniversalCpmmParse 未找到交易信息，跳过 %s", _signature)
 		return nil
 	}
 	tradeInfo.Router = "externalRouter"
 	global.SetCpmmTradeInfo(mintAddress, tradeInfo)
-	logger.Infof("$$$$$$ externalRouter CPMM $$$$$$$$$ 交易信息: mint=%s, 用户=%s, SOL=%d, 代币=%d, 是否买入=%v, 价格=%.8f, signature=%s",
+	logger.Debugf("$$$$$$ externalRouter CPMM $$$$$$$$$ 交易信息: mint=%s, 用户=%s, SOL=%d, 代币=%d, 是否买入=%v, 价格=%.8f, signature=%s",
 		mintAddress, tradeInfo.UserAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.IsBuy, tradeInfo.CurrentPrice, _signature)
 
 	if userPubkey.String() == botWallet.String() {
