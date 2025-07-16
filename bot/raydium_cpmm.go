@@ -60,7 +60,7 @@ func (b *Bot) parseUniversalCpmmTransaction(accountList []string, innerInstructi
 
 	events, err := raydium_cp_swap.ParseEvents(eventBinaries)
 	if err != nil {
-		logger.Errorf("解析CPMM事件失败: %v, signature=%s", err, _signature)
+		logger.Errorf("解析 Universal Raydium CPMM事件失败: %v, signature=%s", err, _signature)
 		return nil
 	}
 
@@ -106,7 +106,7 @@ func (b *Bot) parseUniversalCpmmTransaction(accountList []string, innerInstructi
 
 				tradeInfo.CurrentPrice = numerator / denominator
 
-				logger.Debugf("解析到CPMM[ %s] 交易事件: 用户=%s, 代币=%s,sol金额=%d,token数量=%d, 价格=%.8f,sol储备=%d, signature=%s",
+				logger.Debugf("解析到Universal Raydium CPMM[ %s] 交易事件: 用户=%s, 代币=%s,sol金额=%d,token数量=%d, 价格=%.8f,sol储备=%d, signature=%s",
 					isBuy, tradeInfo.UserAddress, tradeInfo.MintAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.CurrentPrice, tradeInfo.SolReserve, _signature)
 
 				return tradeInfo
@@ -129,7 +129,7 @@ func (b *Bot) parseCpmmTransaction(logMessages []string, mintAddress string, use
 
 	events, err := raydium_cp_swap.DecodeEventsInLogs(logMessages)
 	if err != nil {
-		logger.Errorf("解析CPMM事件失败: %v, signature=%s", err, _signature)
+		logger.Errorf("解析Naive Raydium CPMM事件失败: %v, signature=%s", err, _signature)
 		return nil
 	}
 
@@ -148,12 +148,14 @@ func (b *Bot) parseCpmmTransaction(logMessages []string, mintAddress string, use
 				_outputVaultBefore := tradeEvent.OutputVaultBefore
 				_inputAmount := tradeEvent.InputAmount
 				_outputAmount := tradeEvent.OutputAmount
+				_inputVaultAfter := _inputVaultBefore + _inputAmount
+				_outputVaultAfter := _outputVaultBefore + _outputAmount
 
-				solReserve := _inputVaultBefore + _inputAmount
-				tokenReserve := _outputVaultBefore + _outputAmount
+				solReserve := _inputVaultAfter
+				tokenReserve := _outputVaultAfter
 				if !isBuy {
-					solReserve = _outputVaultBefore + _outputAmount
-					tokenReserve = _inputVaultBefore + _inputAmount
+					solReserve = _outputVaultAfter
+					tokenReserve = _inputVaultAfter
 					_inputAmount = tradeEvent.OutputAmount
 					_outputAmount = tradeEvent.InputAmount
 				}
@@ -175,7 +177,7 @@ func (b *Bot) parseCpmmTransaction(logMessages []string, mintAddress string, use
 
 				tradeInfo.CurrentPrice = numerator / denominator
 
-				logger.Debugf("解析到CPMM[ %s] 交易事件: 用户=%s, 代币=%s,sol金额=%d,token数量=%d, 价格=%.8f,sol储备=%d, signature=%s",
+				logger.Debugf("解析到Naive Raydium CPMM[ %s] 交易事件: 用户=%s, 代币=%s,sol金额=%d,token数量=%d, 价格=%.8f,sol储备=%d, signature=%s",
 					isBuy, tradeInfo.UserAddress, tradeInfo.MintAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.CurrentPrice, tradeInfo.SolReserve, _signature)
 
 				return tradeInfo
@@ -183,7 +185,7 @@ func (b *Bot) parseCpmmTransaction(logMessages []string, mintAddress string, use
 
 		case "LpChangeEvent":
 			if poolCreateEvent, ok := event.Data.(*raydium_cp_swap.LpChangeEventEventData); ok {
-				logger.Debugf("解析到CPMM池创建事件: pool changeType=%d, mint=%s, pool=%s",
+				logger.Debugf("解析到Naive Raydium CPMM池创建事件: pool changeType=%d, mint=%s, pool=%s",
 					poolCreateEvent.ChangeType, mintAddress, poolCreateEvent.PoolId.String())
 			}
 
@@ -278,7 +280,7 @@ func (b *Bot) UniversalCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 	botWallet := b.privateKey.PublicKey()
 
 	if tradeInfo == nil {
-		logger.Infof(" UniversalCpmmParse 未找到交易信息，跳过 %s", _signature)
+		logger.Debugf(" UniversalCpmmParse 未找到交易信息，跳过 %s", _signature)
 		return nil
 	}
 	tradeInfo.Router = "externalRouter"
