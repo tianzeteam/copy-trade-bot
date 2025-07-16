@@ -354,7 +354,7 @@ func (b *Bot) RaydiumLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 				)
 				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 				if ok {
-					go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, tradeInfo.CurrentPrice, "raydiumV4", "delay_sell", "延迟卖出")
+					go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, tradeInfo.CurrentPrice, "launchpad", "delay_sell", "延迟卖出")
 				}
 			} else {
 				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)

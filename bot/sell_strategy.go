@@ -658,3 +658,95 @@ func (b *Bot) ExecuteRaydiumLaunchpadSellOrder(tokenInfo queue.TokenInfo) {
 	// 调用交易接口执行卖出
 	b.Trader.RaydiumLaunchpadSell(context.Background(), orderParams)
 }
+
+func (b *Bot) ExecuteCpmmSellOrder(tokenInfo queue.TokenInfo) {
+	// 实际的卖出逻辑
+	logger.Infof("执行CPMM卖出订单: 代币=%s, 数量=%d", tokenInfo.Mint.String(), tokenInfo.Amount)
+
+	// 从全局缓存中获取CPMM交易信息
+	tradeInfo := global.GetCpmmTradeInfo(tokenInfo.Mint.String())
+	if tradeInfo == nil {
+		logger.Errorf("找不到代币 %s 的CPMM交易信息", tokenInfo.Mint.String())
+		return
+	}
+
+	// 计算账户信息
+	raydiumCpmmAccounts, err := b.Trader.AccountsCalc.CalculateRaydiumCPMMAccounts(
+		b.privateKey.PublicKey(),
+		tradeInfo.PoolState,
+		tokenInfo.Mint,
+		solana.SolMint,
+	)
+	if err != nil {
+		logger.Errorf("计算CPMM账户信息失败: %v", err)
+		return
+	}
+
+	// 计算卖出金额
+	amounts, err := b.Trader.AmountsCalc.CalculateRaydiumV4SellAmounts(
+
+		float64(tokenInfo.Amount),
+		tradeInfo.CurrentPrice,
+		6,
+		global.GetConfig().SellSlippage,
+	)
+	if err != nil {
+		logger.Errorf("计算CPMM金额失败: %v", err)
+		return
+	}
+	//构建交易基础参数
+	tradeParams := types.TradeParams{
+		Accounts: types.TradeAccounts{
+			User:                b.privateKey.PublicKey(),
+			Mint:                raydiumCpmmAccounts.InputTokenMint,
+			BaseMint:            raydiumCpmmAccounts.InputTokenMint,
+			QuoteMint:           raydiumCpmmAccounts.OutputTokenMint,
+			RaydiumCPMMAccounts: raydiumCpmmAccounts,
+		},
+		Amount:    amounts.TokenAmount,
+		Cost:      amounts.MinOut,
+		Blockhash: *b.Blockhash,
+		FeeConfig: types.FeeConfig{
+			Slippage:    global.GetConfig().SellSlippage,
+			PriorityFee: uint64(global.GetConfig().SellPriorityFee * 1e9),
+		},
+	}
+
+	// 构建完整的订单参数
+	orderParams := types.OrderParams{
+		TradeParams: tradeParams,
+		ZeroslotParams: &types.ZeroslotParams{
+			Enable:    b.Config.Zeroslot.Enable,
+			RpcUrl:    b.Config.Zeroslot.RpcUrl,
+			BundleUrl: b.Config.Zeroslot.RpcUrl,
+			ApiKeys:   b.Config.Zeroslot.ApiKeys,
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
+		},
+		NextBlockParams: &types.NextBlockParams{
+			Enable:    b.Config.NextBlock.Enable,
+			BundleUrl: b.Config.NextBlock.RpcUrl,
+			ApiKey:    b.Config.NextBlock.ApiKeys[0],
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
+		},
+		JitoParams: &types.JitoParams{
+			Enable:    b.Config.Jito.Enable,
+			BundleUrl: b.Config.Jito.RpcUrl,
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
+		},
+		TemporalParams: &types.TemporalParams{
+			Enable:    b.Config.Temporal.Enable,
+			BundleUrl: b.Config.Temporal.RpcUrl,
+			ApiKey:    b.Config.Temporal.ApiKeys[0],
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
+		},
+		BloXrouteParams: &types.BloXrouteParams{
+			Enable:    b.Config.BloXroute.Enable,
+			RpcUrl:    b.Config.BloXroute.RpcUrl,
+			ApiKeys:   b.Config.BloXroute.ApiKeys,
+			TipAmount: uint64(global.GetConfig().SellTipFee * 1e9),
+		},
+	}
+
+	// 调用交易接口执行卖出
+	b.Trader.RaydiumCPMMSell(context.Background(), orderParams)
+}

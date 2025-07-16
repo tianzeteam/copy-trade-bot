@@ -5,12 +5,13 @@ package raydium_cp_swap
 import (
 	"encoding/base64"
 	"fmt"
+	"reflect"
+	"strings"
+
 	ag_binary "github.com/gagliardetto/binary"
 	ag_solanago "github.com/gagliardetto/solana-go"
 	ag_rpc "github.com/gagliardetto/solana-go/rpc"
 	ag_base58 "github.com/mr-tron/base58"
-	"reflect"
-	"strings"
 )
 
 type LpChangeEventEventData struct {
@@ -391,6 +392,30 @@ func decodeEventsFromEmitCPI(InnerInstructions []ag_rpc.InnerInstruction, accoun
 				return
 			}
 			eventBinaries = append(eventBinaries, eventBinary)
+		}
+	}
+	return
+}
+
+func ParseEvents(base64Binaries [][]byte) (evts []*Event, err error) {
+	decoder := ag_binary.NewDecoderWithEncoding(nil, ag_binary.EncodingBorsh)
+
+	for _, eventBinary := range base64Binaries {
+		if len(eventBinary) < 8 {
+			continue
+		}
+		eventDiscriminator := ag_binary.TypeID(eventBinary[:8])
+		if eventType, ok := eventTypes[eventDiscriminator]; ok {
+			eventData := reflect.New(eventType).Interface().(EventData)
+			decoder.Reset(eventBinary)
+			if err = eventData.UnmarshalWithDecoder(decoder); err != nil {
+				err = fmt.Errorf("failed to unmarshal event %s: %w", eventType.String(), err)
+				return
+			}
+			evts = append(evts, &Event{
+				Name: eventNames[eventDiscriminator],
+				Data: eventData,
+			})
 		}
 	}
 	return

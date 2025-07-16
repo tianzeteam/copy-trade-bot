@@ -73,6 +73,8 @@ func processWaitingSellTokens(tradeBot *bot.Bot) {
 
 		} else if platform == "launchpad" {
 			go tradeBot.ExecuteRaydiumLaunchpadSellOrder(tokenInfo)
+		} else if platform == "cpmm" {
+			go tradeBot.ExecuteCpmmSellOrder(tokenInfo)
 		}
 
 	}
@@ -376,10 +378,10 @@ func main() {
 				//logger.Infof("outer 11111交易签名: %s ,%s", _signature, innerProgramID)
 				var cpmmTradeInfo *global.CPMMTradeEventInfo
 
-				if innerProgramID == core.RAYDIUM_CPMM_PROGRAM_ID.String() {
-					cpmmTradeInfo = tradeBot.WrapCpmmParse(out, currentInstruction, ctx)
-				} else {
-					cpmmTradeInfo = tradeBot.RaydiumCpmmParse(out, ctx)
+				cpmmTradeInfo = tradeBot.RaydiumCpmmParse(out, ctx)
+
+				if cpmmTradeInfo == nil && innerProgramID == core.RAYDIUM_CPMM_PROGRAM_ID.String() {
+					cpmmTradeInfo = tradeBot.UniversalCpmmParse(out, currentInstruction, ctx)
 				}
 
 				if cpmmTradeInfo != nil && transactionMonitor != nil {

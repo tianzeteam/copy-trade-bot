@@ -2065,3 +2065,197 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 		return "", fmt.Errorf("transaction timeout")
 	}
 }
+
+func (t *TraderImpl) RaydiumCPMMSell(ctx context.Context, params types.OrderParams) (string, error) {
+
+	mintAddress := params.TradeParams.Accounts.Mint.String()
+	logger.Infof("开始执行RaydiumCPMM卖出交易...")
+	logger.Infof("Mint地址: %s", mintAddress)
+	logger.Infof("卖出数量: %d", params.TradeParams.Amount)
+	logger.Infof("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
+
+	// 构建交易指令
+	instructions := []solana.Instruction{}
+
+	// 添加计算单元限制指令（通常设置为 200,000 units）
+	instructions = append(instructions, createSetComputeUnitLimitInstruction(200_000))
+
+	// 添加优先级费用指令
+	instructions = append(instructions, createSetComputeUnitPriceInstruction(params.TradeParams.FeeConfig.PriorityFee))
+
+	// 创建WSOL账户指令
+	createWsolAccountInstruction := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
+		SetPayer(t.Wallet.PublicKey()).
+		SetWallet(t.Wallet.PublicKey()).
+		SetMint(WSOL).
+		Build()
+
+	instructions = append(instructions, createWsolAccountInstruction)
+
+	// 构建sell指令
+	// 使用raydium_cpmmp包的正确指令
+	cpmmAccounts := params.TradeParams.Accounts.RaydiumCPMMAccounts
+	//@todo: 请检查 raydium_cpmmp 包的正确性,input 和output 的顺序
+	sellInstruction := raydium_cp_swap.NewSwapBaseInputInstructionBuilder().
+		SetPayerAccount(t.Wallet.PublicKey()).
+		SetAuthorityAccount(cpmmAccounts.Authority).
+		SetAmmConfigAccount(cpmmAccounts.AmmConfig).
+		SetPoolStateAccount(cpmmAccounts.PoolState).
+		SetInputTokenAccountAccount(cpmmAccounts.OutputTokenAccount).
+		SetOutputTokenAccountAccount(cpmmAccounts.InputTokenAccount).
+		SetInputVaultAccount(cpmmAccounts.OutputVault).
+		SetOutputVaultAccount(cpmmAccounts.InputVault).
+		SetInputTokenProgramAccount(solana.TokenProgramID).
+		SetOutputTokenProgramAccount(solana.TokenProgramID).
+		SetInputTokenMintAccount(cpmmAccounts.OutputTokenMint).
+		SetOutputTokenMintAccount(cpmmAccounts.InputTokenMint).
+		SetObservationStateAccount(cpmmAccounts.ObservationState).
+		SetAmountIn(params.TradeParams.Amount).
+		SetMinimumAmountOut(params.TradeParams.Cost)
+
+	instructions = append(instructions, sellInstruction.Build())
+
+	// 创建通道
+	resultChan := make(chan string, 4)
+	errChan := make(chan error, 4)
+	timeout := time.After(30 * time.Second)
+	// 检查各个模式是否启用并准备发送
+	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
+		logger.Debugf("[0slot] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionZeroSlot(
+				t.Wallet,
+				instructions,
+				params.ZeroslotParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("0slot发送失败: %s", err)
+				errChan <- fmt.Errorf("0slot发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	if params.BloXrouteParams != nil && params.BloXrouteParams.Enable {
+		logger.Infof("[BloXroute] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionBloXroute(
+				t.Wallet.PrivateKey,
+				instructions,
+				*params.BloXrouteParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("BloXroute发送失败: %s", err)
+				errChan <- fmt.Errorf("BloXroute发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	// 检查各个模式是否启用并准备发送
+	if params.NextBlockParams != nil && params.NextBlockParams.Enable {
+		logger.Infof("[NextBlock] 准备发送交易...")
+		go func() {
+			// 构建交易并发送到 NextBlock
+			sig, err := swqos.SendTransactionNextBlock(
+				t.Wallet,
+				instructions,
+				params.NextBlockParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("NextBlock发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.JitoParams != nil && params.JitoParams.Enable {
+		logger.Infof("[Jito] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionJito(
+				t.Wallet,
+				instructions,
+				params.JitoParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("jito发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.TemporalParams != nil && params.TemporalParams.Enable {
+		logger.Infof("[Temporal] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionTemporal(
+				t.Wallet,
+				instructions,
+				params.TemporalParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("temporal发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	if t.Config.Normal.Enable {
+		logger.Infof("[Normal] 准备发送交易...")
+		go func() {
+			// 构建交易
+			tx, err := solana.NewTransaction(
+				instructions,
+				params.TradeParams.Blockhash,
+				solana.TransactionPayer(t.Wallet.PublicKey()),
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("创建交易失败: %w", err)
+				return
+			}
+
+			// 签名交易
+			_, err = tx.Sign(
+				func(key solana.PublicKey) *solana.PrivateKey {
+					if key.Equals(t.Wallet.PublicKey()) {
+						return &t.Wallet.PrivateKey
+					}
+					return nil
+				},
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("签名交易失败: %w", err)
+				return
+			}
+
+			// 发送交易
+			sig, err := t.Client.SendTransaction(ctx, tx)
+			if err != nil {
+				errChan <- fmt.Errorf("发送交易失败: %w", err)
+				return
+			}
+
+			resultChan <- sig.String()
+		}()
+	}
+
+	// 等待结果
+	select {
+	case sig := <-resultChan:
+		logger.Infof("卖出交易已发送! 交易ID: %s", sig)
+		global.UpdateTokenSellTime(mintAddress)
+		return sig, nil
+	case err := <-errChan:
+		logger.Errorf("卖出交易已发送失败!: %v", err)
+		return "", err
+	case <-timeout:
+		return "", fmt.Errorf("transaction timeout")
+	}
+}
