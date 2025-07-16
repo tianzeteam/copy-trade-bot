@@ -50,8 +50,9 @@ type TradeAccounts struct {
 	CreatorVault              solana.PublicKey
 	CoinCreatorVaultAuthority solana.PublicKey
 
-	RaydiumV4Accounts *calculator.RaydiumV4Accounts
-	LaunchpadAccounts *calculator.RaydiumLaunchpadAccounts
+	RaydiumV4Accounts   *calculator.RaydiumV4Accounts
+	LaunchpadAccounts   *calculator.RaydiumLaunchpadAccounts
+	RaydiumCPMMAccounts *calculator.RaydiumCPMMAccounts
 }
 
 // FeeConfig 定义费用相关配置

@@ -3,13 +3,15 @@ package core
 import (
 	"context"
 
-	"copytrade/calculator"
+	//"copytrade/calculator"
 	//"copytrade/core"
+	"copytrade/calculator"
 	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/pump"
 	"copytrade/pumpamm"
 	"copytrade/raydium"
+	"copytrade/raydium_cp_swap"
 	"copytrade/raydium_launchpad"
 	"copytrade/swqos"
 	"copytrade/types"
@@ -1586,6 +1588,239 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 		// 更新代币卖出时间，防止短时间内重复卖出
 		logger.Errorf("AMM卖出交易发送失败!: %v", err)
 		global.UpdateTokenSellTime(mintAddress)
+		return "", err
+	case <-timeout:
+		return "", fmt.Errorf("transaction timeout")
+	}
+}
+
+// RaydiumCPMMBuy executes a buy transaction on the Raydium CPMM
+func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParams) (string, error) {
+
+	logger.Infof("Starting Raydium CPMM buy transaction...")
+	logger.Infof("Mint address: %s", params.TradeParams.Accounts.Mint)
+	logger.Infof("sol amount in: %d", params.TradeParams.Amount)
+	logger.Infof("min token out: %d", params.TradeParams.Cost)
+	logger.Infof("Time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
+
+	instructions := []solana.Instruction{}
+
+	// Add compute unit and priority fee instructions
+	instructions = append(instructions, createSetComputeUnitLimitInstruction(400_000))
+	instructions = append(instructions, createSetComputeUnitPriceInstruction(params.TradeParams.FeeConfig.PriorityFee))
+
+	// Create Associated Token Account if it doesn't exist
+	if t.Config.SkipATACheck {
+		logger.Infof("Fast mode: skipping ATA check, creating ATA directly.")
+		createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
+			SetPayer(t.Wallet.PublicKey()).
+			SetWallet(t.Wallet.PublicKey()).
+			SetMint(params.TradeParams.Accounts.Mint).
+			Build()
+		instructions = append(instructions, createATAIx)
+	} else {
+		account, err := t.Client.GetAccountInfo(ctx, params.TradeParams.Accounts.AssociatedTokenAccount)
+		if err != nil || account.Value == nil {
+			logger.Infof("ATA not found, creating new account...")
+			createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
+				SetPayer(t.Wallet.PublicKey()).
+				SetWallet(t.Wallet.PublicKey()).
+				SetMint(params.TradeParams.Accounts.Mint).
+				Build()
+			instructions = append(instructions, createATAIx)
+		}
+	}
+
+	// Setup WSOL account
+	createWsolAccountInstruction := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
+		SetPayer(t.Wallet.PublicKey()).
+		SetWallet(t.Wallet.PublicKey()).
+		SetMint(WSOL).
+		Build()
+	instructions = append(instructions, createWsolAccountInstruction)
+
+	transferIx := system.NewTransferInstruction(
+		params.TradeParams.Cost,
+		t.Wallet.PublicKey(),
+		params.TradeParams.Accounts.UserQuoteTokenAccount,
+	).Build()
+	instructions = append(instructions, transferIx)
+
+	syncNativeIx := token.NewSyncNativeInstruction(
+		params.TradeParams.Accounts.UserQuoteTokenAccount,
+	).Build()
+	instructions = append(instructions, syncNativeIx)
+
+	// Build the Raydium CPMM swap instruction
+	cpmmAccounts := params.TradeParams.Accounts.RaydiumCPMMAccounts
+	buyInstruction := raydium_cp_swap.NewSwapBaseInputInstructionBuilder().
+		SetPayerAccount(t.Wallet.PublicKey()).
+		SetAuthorityAccount(cpmmAccounts.Authority).
+		SetAmmConfigAccount(cpmmAccounts.AmmConfig).
+		SetPoolStateAccount(cpmmAccounts.PoolState).
+		SetInputTokenAccountAccount(cpmmAccounts.InputTokenAccount).
+		SetOutputTokenAccountAccount(cpmmAccounts.OutputTokenAccount).
+		SetInputVaultAccount(cpmmAccounts.InputVault).
+		SetOutputVaultAccount(cpmmAccounts.OutputVault).
+		SetInputTokenProgramAccount(solana.TokenProgramID).
+		SetOutputTokenProgramAccount(solana.TokenProgramID).
+		SetInputTokenMintAccount(cpmmAccounts.InputTokenMint).
+		SetOutputTokenMintAccount(cpmmAccounts.OutputTokenMint).
+		SetObservationStateAccount(cpmmAccounts.ObservationState).
+		SetAmountIn(params.TradeParams.Amount).
+		SetMinimumAmountOut(params.TradeParams.Cost).
+		Build()
+
+	instructions = append(instructions, buyInstruction)
+
+	// Close WSOL account
+	closeWsolAccountInstruction := token.NewCloseAccountInstruction(
+		params.TradeParams.Accounts.UserQuoteTokenAccount,
+		t.Wallet.PublicKey(),
+		t.Wallet.PublicKey(),
+		[]solana.PublicKey{},
+	).Build()
+	instructions = append(instructions, closeWsolAccountInstruction)
+
+	// Create and send transaction
+	resultChan := make(chan string, 4)
+	errChan := make(chan error, 4)
+	timeout := time.After(30 * time.Second)
+
+	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
+		logger.Infof("[0slot] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionZeroSlot(
+				t.Wallet,
+				instructions,
+				params.ZeroslotParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("0slot发送失败: %s", err)
+				errChan <- fmt.Errorf("0slot发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	if params.BloXrouteParams != nil && params.BloXrouteParams.Enable {
+		logger.Infof("[BloXroute] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionBloXroute(
+				t.Wallet.PrivateKey,
+				instructions,
+				*params.BloXrouteParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("BloXroute发送失败: %s", err)
+				errChan <- fmt.Errorf("BloXroute发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	// 检查各个模式是否启用并准备发送
+	if params.NextBlockParams != nil && params.NextBlockParams.Enable {
+		logger.Infof("[NextBlock] 准备发送交易...")
+		go func() {
+			// 构建交易并发送到 NextBlock
+			sig, err := swqos.SendTransactionNextBlock(
+				t.Wallet,
+				instructions,
+				params.NextBlockParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("NextBlock发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.JitoParams != nil && params.JitoParams.Enable {
+		logger.Infof("[Jito] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionJito(
+				t.Wallet,
+				instructions,
+				params.JitoParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("jito发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.TemporalParams != nil && params.TemporalParams.Enable {
+		logger.Infof("[Temporal] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionTemporal(
+				t.Wallet,
+				instructions,
+				params.TemporalParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("temporal发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	if t.Config.Normal.Enable {
+		logger.Infof("[Normal] 准备发送交易...")
+		go func() {
+			// 构建交易
+			tx, err := solana.NewTransaction(
+				instructions,
+				params.TradeParams.Blockhash,
+				solana.TransactionPayer(t.Wallet.PublicKey()),
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("创建交易失败: %w", err)
+				return
+			}
+
+			// 签名交易
+			_, err = tx.Sign(
+				func(key solana.PublicKey) *solana.PrivateKey {
+					if key.Equals(t.Wallet.PublicKey()) {
+						return &t.Wallet.PrivateKey
+					}
+					return nil
+				},
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("签名交易失败: %w", err)
+				return
+			}
+
+			// 发送交易
+			sig, err := t.Client.SendTransaction(ctx, tx)
+			if err != nil {
+				errChan <- fmt.Errorf("发送交易失败: %w", err)
+				return
+			}
+
+			resultChan <- sig.String()
+		}()
+	}
+
+	// 等待结果
+	select {
+	case sig := <-resultChan:
+		logger.Infof("买入交易已发送! 交易ID: %s", sig)
+
+		return sig, nil
+	case err := <-errChan:
+		logger.Errorf("买入交易已发送失败!: %v", err)
 		return "", err
 	case <-timeout:
 		return "", fmt.Errorf("transaction timeout")

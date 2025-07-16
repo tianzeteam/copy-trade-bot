@@ -580,3 +580,132 @@ func (m *TransactionMonitor) executeLaunchpadCopyTrade(tradeInfo *global.Launchp
 	// 然后记录机器人的跟单交易
 	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress.String(), originalWallet, m.BotWallet, tradeInfo.CurrentPrice)
 }
+
+// ProcessCpmmTransaction 处理CPMM交易事件
+func (m *TransactionMonitor) ProcessCpmmTransaction(tradeInfo *global.CPMMTradeEventInfo) {
+	// 只处理买入交易
+	if !tradeInfo.IsBuy {
+		return
+	}
+
+	// 获取聪明钱包地址
+	copyAddress := tradeInfo.UserAddress
+
+	// 检查是否是我们监控的钱包
+	walletSettings := m.WalletMonitor.GetWallet(copyAddress)
+	if walletSettings == nil || !walletSettings.Enabled {
+
+		logger.Debugf("CPMM 交易: 聪明钱包=%s, 代币=%s,Sol金额=%d, Token数量=%d, SolReserve=%d, time: %v",
+			copyAddress.String(), tradeInfo.MintAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.SolReserve, time.Now().Format("2006-01-02 15:04:05.000000"))
+		// 不是我们监控的钱包，忽略
+		return
+	}
+	if float64(tradeInfo.SolAmount) < (global.Config.MinFollowTriggerAmount*1e9) || float64(tradeInfo.SolAmount) > (global.Config.MaxFollowTriggerAmount*1e9) {
+		//不在跟卖金额范围内，忽略
+		return
+	}
+	if float64(tradeInfo.SolReserve) < (global.Config.MinPoolSize*1e9) || float64(tradeInfo.SolReserve) > (global.Config.MaxPoolSize*1e9) {
+		//不在跟卖池子大小范围内，忽略
+		return
+	}
+	logger.Infof("检测到监控钱包CPMM 交易: 钱包=%s (%s), 代币=%s, 数量=%d, time: %v",
+		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
+
+	// 执行跟单交易
+
+	m.executeCpmmCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount)
+}
+
+// executeCpmmCopyTrade
+func (m *TransactionMonitor) executeCpmmCopyTrade(tradeInfo *global.CPMMTradeEventInfo, originalWallet solana.PublicKey, originalAmount uint64) {
+	// 检查是否已经交易过该代币
+	m.WalletMonitor.Mux.RLock()
+	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress.String()]; exists && !global.GetConfig().RepeatTradeEnable {
+		logger.Infof("跳过重复交易: %s", tradeInfo.MintAddress)
+		m.WalletMonitor.Mux.RUnlock()
+		return
+	}
+	m.WalletMonitor.Mux.RUnlock()
+
+	// 发送买入请求
+	logger.Infof("执行RAYDIUM CPMM 跟单买入: 代币=%s, 金额=%f SOL", tradeInfo.MintAddress, m.BuySolAmount)
+
+	// 先记录原始交易者的交易
+	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress.String(), originalWallet, tradeInfo.CurrentPrice, originalAmount)
+	//
+	cpmmAccounts, err := m.TradeBot.Trader.AccountsCalc.CalculateRaydiumCPMMAccounts(
+		m.BotWallet,
+		tradeInfo.PoolState,
+		tradeInfo.MintAddress,
+
+		solana.SolMint,
+	)
+	if err != nil {
+		logger.Errorf("Failed to calculate accounts: %v", err)
+		return
+	}
+
+	// Calculate buy amounts
+	amounts, err := m.TradeBot.Trader.AmountsCalc.CalculateRaydiumLaunchpadBuyAmounts(
+		global.GetConfig().BuySolAmount,
+		tradeInfo.CurrentPrice,
+		6,
+		global.GetConfig().BuySlippage,
+	)
+
+	if err != nil {
+		logger.Errorf("Failed to calculate buy amounts: %v", err)
+		return
+	}
+
+	tradeParams := types.TradeParams{
+		Accounts: types.TradeAccounts{
+			User:                m.BotWallet,
+			Mint:                cpmmAccounts.InputTokenMint,
+			BaseMint:            cpmmAccounts.InputTokenMint,
+			QuoteMint:           cpmmAccounts.OutputTokenMint,
+			RaydiumCPMMAccounts: cpmmAccounts,
+		},
+		Amount:    amounts.SolAmount,
+		Cost:      amounts.MaxCost,
+		Blockhash: *m.TradeBot.Blockhash,
+		FeeConfig: types.FeeConfig{
+			Slippage:    global.GetConfig().BuySlippage,
+			PriorityFee: uint64(global.GetConfig().BuyPriorityFee * 1e9),
+		},
+	}
+
+	// 构建完整的订单参数
+	orderParams := types.OrderParams{
+		TradeParams: tradeParams,
+		ZeroslotParams: &types.ZeroslotParams{
+			Enable:    m.TradeBot.Config.Zeroslot.Enable,
+			RpcUrl:    m.TradeBot.Config.Zeroslot.RpcUrl,
+			ApiKeys:   m.TradeBot.Config.Zeroslot.ApiKeys,
+			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
+		},
+
+		JitoParams: &types.JitoParams{
+			Enable:    m.TradeBot.Config.Jito.Enable,
+			BundleUrl: m.TradeBot.Config.Jito.RpcUrl,
+			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
+		},
+		TemporalParams: &types.TemporalParams{
+			Enable:    m.TradeBot.Config.Temporal.Enable,
+			BundleUrl: m.TradeBot.Config.Temporal.RpcUrl,
+			ApiKey:    m.TradeBot.Config.Temporal.ApiKeys[0],
+			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
+		},
+		BloXrouteParams: &types.BloXrouteParams{
+			Enable:    m.TradeBot.Config.BloXroute.Enable,
+			RpcUrl:    m.TradeBot.Config.BloXroute.RpcUrl,
+			ApiKeys:   m.TradeBot.Config.BloXroute.ApiKeys,
+			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
+		},
+	}
+
+	// 调用通用的卖出方法
+	go m.TradeBot.Trader.RaydiumCPMMBuy(context.Background(), orderParams)
+	// 然后记录机器人的跟单交易
+	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress.String(), originalWallet, m.BotWallet, tradeInfo.CurrentPrice)
+}

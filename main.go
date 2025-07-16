@@ -267,7 +267,7 @@ func main() {
 						continue
 					}
 					innerProgramID = accountsAddress[programIndex]
-					if innerProgramID == core.PUMP_PROGRAM_ID.String() || innerProgramID == core.AMM_PROGRAM_ID.String() || innerProgramID == core.RAYDIUM_V4_PROGRAM_ID.String() || innerProgramID == core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String() {
+					if innerProgramID == core.PUMP_PROGRAM_ID.String() || innerProgramID == core.AMM_PROGRAM_ID.String() || innerProgramID == core.RAYDIUM_V4_PROGRAM_ID.String() || innerProgramID == core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String() || innerProgramID == core.RAYDIUM_CPMM_PROGRAM_ID.String() {
 						currentInstruction = instruction
 						break
 					}
@@ -362,6 +362,29 @@ func main() {
 				if launchpadTradeInfo != nil && transactionMonitor != nil {
 					go transactionMonitor.ProcessLaunchpadTransaction(launchpadTradeInfo)
 					go walletMonitor.CheckExitConditions("launchpad", launchpadTradeInfo.MintAddress.String(), launchpadTradeInfo.CurrentPrice)
+					continue
+
+				}
+
+			}
+
+			if slices.Contains(accountsAddress, core.RAYDIUM_CPMM_PROGRAM_ID.String()) || innerProgramID == core.RAYDIUM_CPMM_PROGRAM_ID.String() {
+				if !global.GetConfig().LaunchpadTradeEnable {
+					logger.Infof("cpmm trade is disabled")
+					continue
+				}
+				//logger.Infof("outer 11111交易签名: %s ,%s", _signature, innerProgramID)
+				var cpmmTradeInfo *global.CPMMTradeEventInfo
+
+				if innerProgramID == core.RAYDIUM_CPMM_PROGRAM_ID.String() {
+					cpmmTradeInfo = tradeBot.WrapCpmmParse(out, currentInstruction, ctx)
+				} else {
+					cpmmTradeInfo = tradeBot.RaydiumCpmmParse(out, ctx)
+				}
+
+				if cpmmTradeInfo != nil && transactionMonitor != nil {
+					go transactionMonitor.ProcessCpmmTransaction(cpmmTradeInfo)
+					go walletMonitor.CheckExitConditions("cpmm", cpmmTradeInfo.MintAddress.String(), cpmmTradeInfo.CurrentPrice)
 					continue
 
 				}

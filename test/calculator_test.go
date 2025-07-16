@@ -112,3 +112,23 @@ func TestCalculateLaunchpadAccounts(t *testing.T) {
 
 	t.Logf("Calculated Launchpad Accounts: %+v", launchpadAccounts)
 }
+
+func TestCalculateRaydiumCPMMAccounts(t *testing.T) {
+	// Setup
+	accountsCalc := calculator.NewAccountsCalculator("https://mainnet.helius-rpc.com/?api-key=fc8353eb-13cb-423e-8d36-49e2b26d3a78")
+
+	// Test data
+	user := solana.MustPublicKeyFromBase58("DdVyu9TUfwZzeYfUtVnLJz15dQXnrZJdTMAyj55Dj6eP")
+	pool := solana.MustPublicKeyFromBase58("FWzBQu58DedVoMbTybsDUNsCogQBsAvNCZNcj2NHmfrW")
+	baseMint := solana.MustPublicKeyFromBase58("Cv8fyBXphgaPAxFBxzhSPeTwaAU6juSX8ZwMozZobonk")
+	quoteMint := solana.MustPublicKeyFromBase58("So11111111111111111111111111111111111111112") // WSOL
+
+	// Call the method to test
+	cpmmAccounts, err := accountsCalc.CalculateRaydiumCPMMAccounts(user, pool, baseMint, quoteMint)
+
+	// Assertions
+	assert.NoError(t, err)
+	assert.NotNil(t, cpmmAccounts)
+
+	t.Logf("Calculated Raydium CPMM Accounts: %+v", cpmmAccounts)
+}

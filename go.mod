@@ -9,8 +9,9 @@ require (
 	github.com/bloXroute-Labs/solana-trader-proto v1.9.3-0.20250116185214-3fc218b89806
 	github.com/gagliardetto/gofuzz v1.2.2
 	github.com/gagliardetto/solana-go v1.12.0
+	github.com/golang-jwt/jwt/v4 v4.5.2
 	github.com/joho/godotenv v1.5.1
-	github.com/shopspring/decimal v1.4.0
+	github.com/near/borsh-go v0.3.2-0.20220516180422-1ff87d108454
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
 	google.golang.org/grpc v1.72.0
@@ -18,10 +19,7 @@ require (
 
 )
 
-require (
-	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
-	github.com/near/borsh-go v0.3.2-0.20220516180422-1ff87d108454 // indirect
-)
+require github.com/shopspring/decimal v1.4.0 // indirect
 
 require (
 	github.com/blocto/solana-go-sdk v1.30.0
@@ -80,7 +78,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/ratelimit v0.3.1 // indirect
 	go.uber.org/zap v1.27.0 // indirect
-	golang.org/x/crypto v0.39.0 // indirect
+	golang.org/x/crypto v0.39.0
 	golang.org/x/net v0.40.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/term v0.32.0 // indirect

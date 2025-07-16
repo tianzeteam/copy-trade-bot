@@ -27,6 +27,7 @@ var (
 
 	// RAYDIUM_LAUNCHPAD_PROGRAM_ID is the program ID for the Raydium Launchpad
 	RAYDIUM_LAUNCHPAD_PROGRAM_ID = solana.MustPublicKeyFromBase58("LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj")
+	RAYDIUM_CPMM_PROGRAM_ID      = solana.MustPublicKeyFromBase58("CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C")
 )
 
 // AccountsCalculator 账户计算器
@@ -457,5 +458,89 @@ func (c *AccountsCalculator) CalculateLaunchpadAccounts(user solana.PublicKey, b
 		QuoteTokenProgram:     solana.TokenProgramID,
 		EventAuthority:        eventAuthority,
 		Program:               RAYDIUM_LAUNCHPAD_PROGRAM_ID,
+	}, nil
+}
+
+// RaydiumCPMMAccounts stores all the necessary accounts for interacting with the Raydium CPMM.
+type RaydiumCPMMAccounts struct {
+	Payer              solana.PublicKey
+	Authority          solana.PublicKey
+	AmmConfig          solana.PublicKey
+	PoolState          solana.PublicKey
+	InputTokenAccount  solana.PublicKey
+	OutputTokenAccount solana.PublicKey
+	InputVault         solana.PublicKey
+	OutputVault        solana.PublicKey
+	ObservationState   solana.PublicKey
+	InputTokenMint     solana.PublicKey
+	OutputTokenMint    solana.PublicKey
+	InputTokenProgram  solana.PublicKey
+	OutputTokenProgram solana.PublicKey
+	Program            solana.PublicKey
+}
+
+// CalculateRaydiumCPMMAccounts 计算Raydium CPMM账户
+func (c *AccountsCalculator) CalculateRaydiumCPMMAccounts(user solana.PublicKey, pool, baseMint, quoteMint solana.PublicKey) (*RaydiumCPMMAccounts, error) {
+
+	inputTokenAccount, _, err := solana.FindAssociatedTokenAddress(user, baseMint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find user input token account: %w", err)
+	}
+
+	outputTokenAccount, _, err := solana.FindAssociatedTokenAddress(user, quoteMint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find user output token account: %w", err)
+	}
+
+	inputVault, _, err := solana.FindProgramAddress(
+		[][]byte{
+			[]byte("pool_vault"),
+			pool.Bytes(),
+			baseMint.Bytes(),
+		},
+		RAYDIUM_CPMM_PROGRAM_ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find input vault PDA: %w", err)
+	}
+
+	outputVault, _, err := solana.FindProgramAddress(
+		[][]byte{
+			[]byte("pool_vault"),
+			pool.Bytes(),
+			quoteMint.Bytes(),
+		},
+		RAYDIUM_CPMM_PROGRAM_ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find output vault PDA: %w", err)
+	}
+
+	observationState, _, err := solana.FindProgramAddress(
+		[][]byte{
+			[]byte("observation"),
+			pool.Bytes(),
+		},
+		RAYDIUM_CPMM_PROGRAM_ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find observation state PDA: %w", err)
+	}
+
+	return &RaydiumCPMMAccounts{
+		Payer:              user,
+		Authority:          solana.MustPublicKeyFromBase58("GpMZbSM2GgvTKHJirzeGfMFoaZ8UR2X7F4v8vHTvxFbL"),
+		AmmConfig:          solana.MustPublicKeyFromBase58("D4FPEruKEHrG5TenZ2mpDGEfu1iUvTiqBxvpU8HLBvC2"),
+		PoolState:          pool,
+		InputTokenAccount:  inputTokenAccount,
+		OutputTokenAccount: outputTokenAccount,
+		InputVault:         inputVault,
+		OutputVault:        outputVault,
+		ObservationState:   observationState,
+		InputTokenMint:     baseMint,
+		OutputTokenMint:    quoteMint,
+		InputTokenProgram:  solana.TokenProgramID,
+		OutputTokenProgram: solana.TokenProgramID,
+		Program:            RAYDIUM_CPMM_PROGRAM_ID,
 	}, nil
 }
