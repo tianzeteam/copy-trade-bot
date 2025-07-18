@@ -5,6 +5,7 @@ package raydium_cp_swap
 import (
 	"bytes"
 	"fmt"
+
 	ag_spew "github.com/davecgh/go-spew/spew"
 	ag_binary "github.com/gagliardetto/binary"
 	ag_solanago "github.com/gagliardetto/solana-go"
@@ -12,7 +13,7 @@ import (
 	ag_treeout "github.com/gagliardetto/treeout"
 )
 
-var ProgramID ag_solanago.PublicKey
+var ProgramID ag_solanago.PublicKey = ag_solanago.MustPublicKeyFromBase58("CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C")
 
 func SetProgramID(PublicKey ag_solanago.PublicKey) {
 	ProgramID = PublicKey

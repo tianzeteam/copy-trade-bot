@@ -242,7 +242,7 @@ func (b *Bot) PhotonRouterPumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 					entryPrice := (float64(tradeEvent.VirtualSolReserves) / SolDecimals) / (float64(tradeEvent.VirtualTokenReserves) / TokenDecimals)
 
 					// 设置入场价格
-					global.SetTradeAssetOnce(
+					global.SetTradeAsset(
 						mintAddress,
 						tradeEvent.Creator,
 						botWallet.String(),
@@ -382,7 +382,7 @@ func (b *Bot) PhotonRouterAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, c
 				tradeInfo.TokenAmount, float64(tradeInfo.TokenAmount)/TokenDecimals,
 				entryPrice)
 			// 设置入场价格
-			global.SetTradeAssetOnce(
+			global.SetTradeAsset(
 				mintAddress,
 				tradeInfo.Creator,
 				botWallet.String(),

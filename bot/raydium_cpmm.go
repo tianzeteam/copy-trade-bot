@@ -248,7 +248,7 @@ func (b *Bot) UniversalCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 	}
 
 	if mintAddress == "" {
-		logger.Infof(" UniversalCpmmParse 未找到代币地址，跳过 %s", _signature)
+		//logger.Infof(" UniversalCpmmParse 未找到代币地址，跳过 %s", _signature)
 		return nil
 	}
 
@@ -279,7 +279,7 @@ func (b *Bot) UniversalCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 	}
 	tradeInfo.Router = "externalRouter"
 	global.SetCpmmTradeInfo(mintAddress, tradeInfo)
-	logger.Debugf("$$$$$$ externalRouter CPMM $$$$$$$$$ 交易信息: mint=%s, 用户=%s, SOL=%d, 代币=%d, 是否买入=%v, 价格=%.8f, signature=%s",
+	logger.Debugf("externalRouter CPMM  交易信息: mint=%s, 用户=%s, SOL=%d, 代币=%d, 是否买入=%v, 价格=%.8f, signature=%s",
 		mintAddress, tradeInfo.UserAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.IsBuy, tradeInfo.CurrentPrice, _signature)
 
 	if userPubkey.String() == botWallet.String() {
@@ -291,7 +291,7 @@ func (b *Bot) UniversalCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 				tradeInfo.TokenAmount, float64(tradeInfo.TokenAmount)/TokenDecimals,
 				tradeInfo.CurrentPrice)
 			// 设置入场价格
-			global.SetTradeAssetOnce(
+			global.SetTradeAsset(
 				mintAddress,
 				solana.PublicKey{},
 				botWallet.String(),
@@ -397,6 +397,8 @@ func (b *Bot) RaydiumCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx c
 		}
 	}
 
+	logger.Debugf("RaydiumCpmmParse mintAddress: %s, _signature: %s", mintAddress, _signature)
+
 	if mintAddress == "" {
 		return nil
 
@@ -425,7 +427,7 @@ func (b *Bot) RaydiumCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx c
 					tradeInfo.SolAmount, tradeInfo.TokenAmount,
 					tradeInfo.CurrentPrice)
 				// 设置入场价格
-				global.SetTradeAssetOnce(
+				global.SetTradeAsset(
 					mintAddress,
 					solana.PublicKey{},
 					botWallet.String(),

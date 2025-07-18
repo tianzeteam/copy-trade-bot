@@ -225,7 +225,7 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx conte
 			// 检查是否是自己的交易
 
 			// 设置入场价格
-			global.SetTradeAssetOnce(
+			global.SetTradeAsset(
 				mintAddress,
 				tradeInfo.Creator,
 				botWallet.String(),

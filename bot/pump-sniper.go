@@ -265,7 +265,7 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx context.
 				if tradeEvent.IsBuy {
 
 					// 设置入场价格
-					global.SetTradeAssetOnce(
+					global.SetTradeAsset(
 						mintAddress,
 						tradeEvent.Creator,
 						botWallet.String(),

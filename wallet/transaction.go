@@ -519,6 +519,7 @@ func (m *TransactionMonitor) executeLaunchpadCopyTrade(tradeInfo *global.Launchp
 	// Calculate buy amounts
 	amounts, err := m.TradeBot.Trader.AmountsCalc.CalculateRaydiumLaunchpadBuyAmounts(
 		global.GetConfig().BuySolAmount,
+		global.GetConfig().BuyTipFee,
 		tradeInfo.CurrentPrice,
 		6,
 		global.GetConfig().BuySlippage,
@@ -537,9 +538,10 @@ func (m *TransactionMonitor) executeLaunchpadCopyTrade(tradeInfo *global.Launchp
 			QuoteMint:         launchpadAccounts.QuoteTokenMint,
 			LaunchpadAccounts: launchpadAccounts,
 		},
-		Amount:    amounts.SolAmount,
-		Cost:      amounts.MaxCost,
-		Blockhash: *m.TradeBot.Blockhash,
+		Amount:       amounts.SolAmount,
+		MaxSolAmount: amounts.MaxSolAmount,
+		Cost:         amounts.MaxCost,
+		Blockhash:    *m.TradeBot.Blockhash,
 		FeeConfig: types.FeeConfig{
 			Slippage:    global.GetConfig().BuySlippage,
 			PriorityFee: uint64(global.GetConfig().BuyPriorityFee * 1e9),
@@ -637,7 +639,6 @@ func (m *TransactionMonitor) executeCpmmCopyTrade(tradeInfo *global.CPMMTradeEve
 		m.BotWallet,
 		tradeInfo.PoolState,
 		tradeInfo.MintAddress,
-
 		solana.SolMint,
 	)
 	if err != nil {
@@ -646,8 +647,9 @@ func (m *TransactionMonitor) executeCpmmCopyTrade(tradeInfo *global.CPMMTradeEve
 	}
 
 	// Calculate buy amounts
-	amounts, err := m.TradeBot.Trader.AmountsCalc.CalculateRaydiumLaunchpadBuyAmounts(
+	amounts, err := m.TradeBot.Trader.AmountsCalc.CalculateRaydiumCPMMBuyAmounts(
 		global.GetConfig().BuySolAmount,
+		global.GetConfig().BuyTipFee,
 		tradeInfo.CurrentPrice,
 		6,
 		global.GetConfig().BuySlippage,
@@ -661,14 +663,15 @@ func (m *TransactionMonitor) executeCpmmCopyTrade(tradeInfo *global.CPMMTradeEve
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
 			User:                m.BotWallet,
-			Mint:                cpmmAccounts.InputTokenMint,
-			BaseMint:            cpmmAccounts.InputTokenMint,
-			QuoteMint:           cpmmAccounts.OutputTokenMint,
+			Mint:                cpmmAccounts.OutputTokenMint,
+			BaseMint:            cpmmAccounts.OutputTokenMint,
+			QuoteMint:           cpmmAccounts.InputTokenMint,
 			RaydiumCPMMAccounts: cpmmAccounts,
 		},
-		Amount:    amounts.SolAmount,
-		Cost:      amounts.MaxCost,
-		Blockhash: *m.TradeBot.Blockhash,
+		Amount:       amounts.SolAmount,
+		MaxSolAmount: amounts.MaxSolAmount,
+		Cost:         amounts.MaxCost,
+		Blockhash:    *m.TradeBot.Blockhash,
 		FeeConfig: types.FeeConfig{
 			Slippage:    global.GetConfig().BuySlippage,
 			PriorityFee: uint64(global.GetConfig().BuyPriorityFee * 1e9),

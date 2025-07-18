@@ -219,7 +219,7 @@ func (b *Bot) WrapLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 				tradeInfo.TokenAmount, float64(tradeInfo.TokenAmount)/TokenDecimals,
 				tradeInfo.CurrentPrice)
 			// 设置入场价格
-			global.SetTradeAssetOnce(
+			global.SetTradeAsset(
 				mintAddress,
 				solana.PublicKey{},
 				botWallet.String(),
@@ -344,7 +344,7 @@ func (b *Bot) RaydiumLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 					tradeInfo.SolAmount, tradeInfo.TokenAmount,
 					tradeInfo.CurrentPrice)
 				// 设置入场价格
-				global.SetTradeAssetOnce(
+				global.SetTradeAsset(
 					mintAddress,
 					solana.PublicKey{},
 					botWallet.String(),

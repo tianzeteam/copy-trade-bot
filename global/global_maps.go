@@ -481,18 +481,30 @@ func AddOrUpdatePendingAsset(mint solana.PublicKey, owner solana.PublicKey, amou
 	}
 }
 
-// SetTradeAssetOnce 仅在生命周期内第一次设置交易资产信息
-// 如果资产已存在，则不进行更新，确保在生命周期内只写入一次
-func SetTradeAssetOnce(mintAddress string, creator solana.PublicKey, userAddress string, entryPrice float64, amount uint64, decimal uint32) bool {
+// SetTradeAsset 设置交易资产信息，如果已存在则更新
+// 如果资产已存在，则累加数量并计算新的平均成本价
+func SetTradeAsset(mintAddress string, creator solana.PublicKey, userAddress string, _entryPrice float64, amount uint64, decimal uint32) bool {
 	PendingHoldAssetLock.Lock()
 	defer PendingHoldAssetLock.Unlock()
 
 	// 检查资产是否已存在
-	_, exists := PendingHoldAsset[mintAddress]
+	existingAsset, exists := PendingHoldAsset[mintAddress]
 	if exists {
 
-		logger.Warnf("代币 %s 的交易资产已存在，不进行更新", mintAddress)
-		return false
+		// 计算新的总成本和总数量
+		totalCost := existingAsset.EntryPrice*float64(existingAsset.Amount) + _entryPrice*float64(amount)
+		totalAmount := existingAsset.Amount + amount
+
+		// 更新资产信息
+		existingAsset.Amount = totalAmount
+		if totalAmount > 0 {
+			existingAsset.EntryPrice = totalCost / float64(totalAmount)
+		}
+		existingAsset.TimeStamp = time.Now().Unix()
+		existingAsset.SoldLevels = make(map[int]bool) // 重置卖出记录
+
+		logger.Infof("持仓资产更新： %s 再次买入, 新平均价格=%.8f, 新数量=%d", mintAddress, existingAsset.EntryPrice, existingAsset.Amount)
+		return true
 
 	}
 
@@ -502,12 +514,12 @@ func SetTradeAssetOnce(mintAddress string, creator solana.PublicKey, userAddress
 		UserAddress: userAddress,
 		MintAddress: mintAddress,
 		Creator:     creator,
-		EntryPrice:  entryPrice,
+		EntryPrice:  _entryPrice,
 		Amount:      amount,
 		SoldLevels:  make(map[int]bool),
 		TimeStamp:   time.Now().Unix(),
 	}
 
-	logger.Infof("持仓资产更新： %s 的交易资产, 价格=%.8f, 数量=%d", mintAddress, entryPrice, amount)
+	logger.Infof("持仓资产新增： %s 的交易资产, 价格=%.8f, 数量=%d", mintAddress, _entryPrice, amount)
 	return true
 }

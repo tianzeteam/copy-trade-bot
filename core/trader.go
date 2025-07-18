@@ -12,6 +12,7 @@ import (
 	"copytrade/pumpamm"
 	"copytrade/raydium"
 	"copytrade/raydium_cp_swap"
+
 	"copytrade/raydium_launchpad"
 	"copytrade/swqos"
 	"copytrade/types"
@@ -1606,10 +1607,11 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 	instructions := []solana.Instruction{}
 
 	// Add compute unit and priority fee instructions
-	instructions = append(instructions, createSetComputeUnitLimitInstruction(400_000))
+	instructions = append(instructions, createSetComputeUnitLimitInstruction(200_000))
 	instructions = append(instructions, createSetComputeUnitPriceInstruction(params.TradeParams.FeeConfig.PriorityFee))
 
 	// Create Associated Token Account if it doesn't exist
+	cpmmAccounts := params.TradeParams.Accounts.RaydiumCPMMAccounts
 	if t.Config.SkipATACheck {
 		logger.Infof("Fast mode: skipping ATA check, creating ATA directly.")
 		createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
@@ -1619,7 +1621,7 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 			Build()
 		instructions = append(instructions, createATAIx)
 	} else {
-		account, err := t.Client.GetAccountInfo(ctx, params.TradeParams.Accounts.AssociatedTokenAccount)
+		account, err := t.Client.GetAccountInfo(ctx, params.TradeParams.Accounts.RaydiumCPMMAccounts.OutputTokenAccount)
 		if err != nil || account.Value == nil {
 			logger.Infof("ATA not found, creating new account...")
 			createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
@@ -1640,19 +1642,19 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 	instructions = append(instructions, createWsolAccountInstruction)
 
 	transferIx := system.NewTransferInstruction(
-		params.TradeParams.Cost,
+		params.TradeParams.MaxSolAmount,
 		t.Wallet.PublicKey(),
-		params.TradeParams.Accounts.UserQuoteTokenAccount,
+		cpmmAccounts.InputTokenAccount,
 	).Build()
 	instructions = append(instructions, transferIx)
 
 	syncNativeIx := token.NewSyncNativeInstruction(
-		params.TradeParams.Accounts.UserQuoteTokenAccount,
+		cpmmAccounts.InputTokenAccount,
 	).Build()
 	instructions = append(instructions, syncNativeIx)
 
 	// Build the Raydium CPMM swap instruction
-	cpmmAccounts := params.TradeParams.Accounts.RaydiumCPMMAccounts
+	//logger.Infof("Building Raydium CPMM swap instruction...%+v", cpmmAccounts)
 	buyInstruction := raydium_cp_swap.NewSwapBaseInputInstructionBuilder().
 		SetPayerAccount(t.Wallet.PublicKey()).
 		SetAuthorityAccount(cpmmAccounts.Authority).
@@ -1675,7 +1677,7 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 
 	// Close WSOL account
 	closeWsolAccountInstruction := token.NewCloseAccountInstruction(
-		params.TradeParams.Accounts.UserQuoteTokenAccount,
+		cpmmAccounts.InputTokenAccount,
 		t.Wallet.PublicKey(),
 		t.Wallet.PublicKey(),
 		[]solana.PublicKey{},
@@ -1829,10 +1831,6 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 
 // RaydiumLaunchpadBuy executes a buy transaction on the Raydium Launchpad
 func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.OrderParams) (string, error) {
-	if t.Config.SimulateMode {
-		logger.Infof("Simulate mode: skipping buy transaction for %s", params.TradeParams.Accounts.Mint)
-		return "mock_tx_signature", nil
-	}
 
 	logger.Infof("Starting Raydium Launchpad buy transaction...")
 	logger.Infof("Mint address: %s", params.TradeParams.Accounts.Mint)
@@ -1846,6 +1844,7 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 	instructions = append(instructions, createSetComputeUnitLimitInstruction(400_000))
 	instructions = append(instructions, createSetComputeUnitPriceInstruction(params.TradeParams.FeeConfig.PriorityFee))
 
+	launchpadAccounts := params.TradeParams.Accounts.LaunchpadAccounts
 	// Create Associated Token Account if it doesn't exist
 	if t.Config.SkipATACheck {
 		logger.Infof("Fast mode: skipping ATA check, creating ATA directly.")
@@ -1856,7 +1855,7 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 			Build()
 		instructions = append(instructions, createATAIx)
 	} else {
-		account, err := t.Client.GetAccountInfo(ctx, params.TradeParams.Accounts.AssociatedTokenAccount)
+		account, err := t.Client.GetAccountInfo(ctx, launchpadAccounts.UserBaseTokenAccount)
 		if err != nil || account.Value == nil {
 			logger.Infof("ATA not found, creating new account...")
 			createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
@@ -1877,27 +1876,26 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 	instructions = append(instructions, createWsolAccountInstruction)
 
 	transferIx := system.NewTransferInstruction(
-		params.TradeParams.Cost,
+		params.TradeParams.MaxSolAmount,
 		t.Wallet.PublicKey(),
-		params.TradeParams.Accounts.UserQuoteTokenAccount,
+		launchpadAccounts.UserQuoteTokenAccount,
 	).Build()
 	instructions = append(instructions, transferIx)
 
 	syncNativeIx := token.NewSyncNativeInstruction(
-		params.TradeParams.Accounts.UserQuoteTokenAccount,
+		launchpadAccounts.UserQuoteTokenAccount,
 	).Build()
 	instructions = append(instructions, syncNativeIx)
 
 	// Build the Raydium Launchpad swap instruction
-	launchpadAccounts := params.TradeParams.Accounts.LaunchpadAccounts
 	buyInstruction := raydium_launchpad.NewBuyExactInInstructionBuilder().
 		SetPayerAccount(t.Wallet.PublicKey()).
 		SetAuthorityAccount(launchpadAccounts.Authority).
 		SetGlobalConfigAccount(launchpadAccounts.GlobalConfig).
 		SetPlatformConfigAccount(launchpadAccounts.PlatformConfig).
 		SetPoolStateAccount(launchpadAccounts.PoolState).
-		SetUserBaseTokenAccount(params.TradeParams.Accounts.UserBaseTokenAccount).
-		SetUserQuoteTokenAccount(params.TradeParams.Accounts.UserQuoteTokenAccount).
+		SetUserBaseTokenAccount(launchpadAccounts.UserBaseTokenAccount).
+		SetUserQuoteTokenAccount(launchpadAccounts.UserQuoteTokenAccount).
 		SetBaseVaultAccount(launchpadAccounts.BaseVault).
 		SetQuoteVaultAccount(launchpadAccounts.QuoteVault).
 		SetBaseTokenMintAccount(launchpadAccounts.BaseTokenMint).
@@ -1905,7 +1903,7 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 		SetBaseTokenProgramAccount(solana.TokenProgramID).
 		SetQuoteTokenProgramAccount(solana.TokenProgramID).
 		SetEventAuthorityAccount(launchpadAccounts.EventAuthority).
-		SetProgramAccount(raydium_launchpad.ProgramID).
+		SetProgramAccount(RAYDIUM_LAUNCHPAD_PROGRAM_ID).
 		SetAmountIn(params.TradeParams.Amount).
 		SetMinimumAmountOut(params.TradeParams.Cost).
 		Build()
@@ -1914,7 +1912,7 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 
 	// Close WSOL account
 	closeWsolAccountInstruction := token.NewCloseAccountInstruction(
-		params.TradeParams.Accounts.UserQuoteTokenAccount,
+		launchpadAccounts.UserQuoteTokenAccount,
 		t.Wallet.PublicKey(),
 		t.Wallet.PublicKey(),
 		[]solana.PublicKey{},

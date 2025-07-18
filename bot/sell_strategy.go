@@ -698,9 +698,9 @@ func (b *Bot) ExecuteCpmmSellOrder(tokenInfo queue.TokenInfo) {
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
 			User:                b.privateKey.PublicKey(),
-			Mint:                raydiumCpmmAccounts.InputTokenMint,
-			BaseMint:            raydiumCpmmAccounts.InputTokenMint,
-			QuoteMint:           raydiumCpmmAccounts.OutputTokenMint,
+			Mint:                raydiumCpmmAccounts.OutputTokenMint,
+			BaseMint:            raydiumCpmmAccounts.OutputTokenMint,
+			QuoteMint:           raydiumCpmmAccounts.InputTokenMint,
 			RaydiumCPMMAccounts: raydiumCpmmAccounts,
 		},
 		Amount:    amounts.TokenAmount,

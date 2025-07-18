@@ -17,7 +17,6 @@ import (
 // * `ctx`- The context of accounts
 // * `amount_in` -  input amount to transfer, output to DESTINATION is based on the exchange rate
 // * `minimum_amount_out` -  Minimum amount of output token, prevents excessive slippage
-//
 type SwapBaseInput struct {
 	AmountIn         *uint64
 	MinimumAmountOut *uint64

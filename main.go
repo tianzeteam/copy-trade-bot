@@ -228,7 +228,7 @@ func main() {
 	if err = mintStreamClient.SubscribeTransaction("transaction_stream", &yellowstone_geyser_pb.SubscribeRequestFilterTransactions{
 		Vote:           &isVote,
 		Failed:         &isFailed,
-		AccountInclude: []string{core.PUMP_PROGRAM_ID.String(), core.AMM_PROGRAM_ID.String(), core.RAYDIUM_V4_PROGRAM_ID.String(), core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String(), core.PHOTON_ROUTER_PROGRAM_ID.String(), core.OKX_ROUTER_V2_PROGRAM_ID.String()},
+		AccountInclude: []string{core.PUMP_PROGRAM_ID.String(), core.AMM_PROGRAM_ID.String(), core.RAYDIUM_V4_PROGRAM_ID.String(), core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String(), core.RAYDIUM_CPMM_PROGRAM_ID.String(), core.PHOTON_ROUTER_PROGRAM_ID.String(), core.OKX_ROUTER_V2_PROGRAM_ID.String()},
 	}); err != nil {
 		logger.Fatalf("订阅交易失败: %v", err)
 		return
@@ -255,6 +255,8 @@ func main() {
 			accountsAddress := tradeBot.GetAccountList(out)
 			var innerProgramID string = "nativeProgramID"
 			var currentInstruction *yellowstone_geyser_pb.InnerInstruction
+
+			//_signature := base58.Encode(out.GetTransaction().Transaction.Transaction.Signatures[0])
 
 			for _, innerInstruction := range innerInstructions {
 
@@ -303,10 +305,10 @@ func main() {
 					continue
 				}
 				var ammTradeInfo *global.AmmTradeEventInfo
-				if innerProgramID == core.AMM_PROGRAM_ID.String() {
+				ammTradeInfo = tradeBot.PumpAmmParse(out, ctx)
+
+				if ammTradeInfo == nil && innerProgramID == core.AMM_PROGRAM_ID.String() {
 					ammTradeInfo = tradeBot.PhotonRouterAmmParse(out, currentInstruction, ctx)
-				} else {
-					ammTradeInfo = tradeBot.PumpAmmParse(out, ctx)
 				}
 
 				// 处理钱包监控AMM交易
@@ -347,10 +349,9 @@ func main() {
 				}
 
 			}
-
 			if slices.Contains(accountsAddress, core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String()) || innerProgramID == core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String() {
 				if !global.GetConfig().LaunchpadTradeEnable {
-					logger.Infof("launchpad trade is disabled")
+					logger.Debugf("launchpad trade is disabled")
 					continue
 				}
 				//logger.Infof("outer 11111交易签名: %s ,%s", _signature, innerProgramID)
@@ -369,19 +370,17 @@ func main() {
 				}
 
 			}
-
 			if slices.Contains(accountsAddress, core.RAYDIUM_CPMM_PROGRAM_ID.String()) || innerProgramID == core.RAYDIUM_CPMM_PROGRAM_ID.String() {
 				if !global.GetConfig().LaunchpadTradeEnable {
-					logger.Infof("cpmm trade is disabled")
+					logger.Debugf("cpmm trade is disabled")
 					continue
 				}
-				//logger.Infof("outer 11111交易签名: %s ,%s", _signature, innerProgramID)
 				var cpmmTradeInfo *global.CPMMTradeEventInfo
 
-				cpmmTradeInfo = tradeBot.RaydiumCpmmParse(out, ctx)
-
-				if cpmmTradeInfo == nil && innerProgramID == core.RAYDIUM_CPMM_PROGRAM_ID.String() {
+				if innerProgramID == core.RAYDIUM_CPMM_PROGRAM_ID.String() {
 					cpmmTradeInfo = tradeBot.UniversalCpmmParse(out, currentInstruction, ctx)
+				} else {
+					cpmmTradeInfo = tradeBot.RaydiumCpmmParse(out, ctx)
 				}
 
 				if cpmmTradeInfo != nil && transactionMonitor != nil {

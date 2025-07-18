@@ -63,11 +63,12 @@ type FeeConfig struct {
 
 // TradeParams 定义所有交易模式共用的基础参数
 type TradeParams struct {
-	Accounts  TradeAccounts
-	Amount    uint64
-	Cost      uint64 // 买入时是最大花费，卖出时是最小获得
-	Blockhash solana.Hash
-	FeeConfig FeeConfig
+	Accounts     TradeAccounts
+	MaxSolAmount uint64
+	Amount       uint64
+	Cost         uint64 // 买入时是最大花费，卖出时是最小获得
+	Blockhash    solana.Hash
+	FeeConfig    FeeConfig
 }
 
 // ZeroslotParams 定义 Zeroslot 模式特有的参数

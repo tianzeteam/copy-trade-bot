@@ -482,12 +482,12 @@ type RaydiumCPMMAccounts struct {
 // CalculateRaydiumCPMMAccounts 计算Raydium CPMM账户
 func (c *AccountsCalculator) CalculateRaydiumCPMMAccounts(user solana.PublicKey, pool, baseMint, quoteMint solana.PublicKey) (*RaydiumCPMMAccounts, error) {
 
-	inputTokenAccount, _, err := solana.FindAssociatedTokenAddress(user, baseMint)
+	inputTokenAccount, _, err := solana.FindAssociatedTokenAddress(user, quoteMint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find user input token account: %w", err)
 	}
 
-	outputTokenAccount, _, err := solana.FindAssociatedTokenAddress(user, quoteMint)
+	outputTokenAccount, _, err := solana.FindAssociatedTokenAddress(user, baseMint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find user output token account: %w", err)
 	}
@@ -496,7 +496,7 @@ func (c *AccountsCalculator) CalculateRaydiumCPMMAccounts(user solana.PublicKey,
 		[][]byte{
 			[]byte("pool_vault"),
 			pool.Bytes(),
-			baseMint.Bytes(),
+			quoteMint.Bytes(),
 		},
 		RAYDIUM_CPMM_PROGRAM_ID,
 	)
@@ -508,7 +508,7 @@ func (c *AccountsCalculator) CalculateRaydiumCPMMAccounts(user solana.PublicKey,
 		[][]byte{
 			[]byte("pool_vault"),
 			pool.Bytes(),
-			quoteMint.Bytes(),
+			baseMint.Bytes(),
 		},
 		RAYDIUM_CPMM_PROGRAM_ID,
 	)
@@ -537,8 +537,8 @@ func (c *AccountsCalculator) CalculateRaydiumCPMMAccounts(user solana.PublicKey,
 		InputVault:         inputVault,
 		OutputVault:        outputVault,
 		ObservationState:   observationState,
-		InputTokenMint:     baseMint,
-		OutputTokenMint:    quoteMint,
+		InputTokenMint:     quoteMint,
+		OutputTokenMint:    baseMint,
 		InputTokenProgram:  solana.TokenProgramID,
 		OutputTokenProgram: solana.TokenProgramID,
 		Program:            RAYDIUM_CPMM_PROGRAM_ID,

@@ -140,7 +140,7 @@ func (m *WalletMonitor) RecordTrade(mintAddress string, copyAddress solana.Publi
 	m.TradeRecords[mintAddress] = tradeRecord
 	m.TradedTokens[mintAddress] = true
 
-	logger.Infof("记录原始交易: 代币=%s, 聪明钱包地址=%s, 入场价格=%.6f, 数量=%d, 止盈=%d%%, 止损=%d%%, 持仓时间=%d秒",
+	logger.Infof("记录原始交易: 代币=%s, 聪明钱包地址=%s, 入场价格=%.8f, 数量=%d, 止盈=%d%%, 止损=%d%%, 持仓时间=%d秒",
 		mintAddress, copyAddress.String(), entryPrice, originAmount,
 		walletSettings.TakeProfitPct, walletSettings.StopLossPct, walletSettings.ExitTimeSec)
 }
@@ -180,7 +180,7 @@ func (m *WalletMonitor) RecordBotTrade(mintAddress string, copyAddress, botAddre
 
 	m.BotTrades[mintAddress] = tradeRecord
 
-	logger.Infof("记录机器人跟单交易: 代币=%s, 机器人钱包=%s, 入场价格=%.6f, 止盈=%d%%, 止损=%d%%, 持仓时间=%d秒",
+	logger.Infof("记录机器人跟单交易: 代币=%s, 机器人钱包=%s, 入场价格=%.8f, 止盈=%d%%, 止损=%d%%, 持仓时间=%d秒",
 		mintAddress, botAddress.String(), entryPrice,
 		walletSettings.TakeProfitPct, walletSettings.StopLossPct, walletSettings.ExitTimeSec)
 }

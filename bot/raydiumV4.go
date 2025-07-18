@@ -278,7 +278,7 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx con
 					tradeInfo.SolAmount, tradeInfo.TokenAmount,
 					entryPrice)
 				// 设置入场价格
-				global.SetTradeAssetOnce(
+				global.SetTradeAsset(
 					mintAddress,
 					solana.PublicKey{},
 					botWallet.String(),
