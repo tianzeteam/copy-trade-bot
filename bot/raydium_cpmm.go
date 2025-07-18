@@ -21,9 +21,10 @@ const (
 
 	// Constants for account indices in Raydium V4 instructions
 	CpmmPayerIdx           = 0  // #1 - Payer
-	CpmmPoolStateIdx       = 3  // #2 - Pool State
-	CpmmInputTokenMintIdx  = 10 // #10 - Input Token Mint
-	CpmmOutputTokenMintIdx = 11 // #11 - Output Token Mint
+	AmmConfigIdx           = 2  // #3 - Amm Config
+	CpmmPoolStateIdx       = 3  // #4 - Pool State
+	CpmmInputTokenMintIdx  = 10 // #11 - Input Token Mint
+	CpmmOutputTokenMintIdx = 11 // #12 - Output Token Mint
 
 )
 
@@ -105,7 +106,7 @@ func (b *Bot) parseUniversalCpmmTransaction(logMessages []string, mintAddress st
 }
 
 // parseLaunchpadTransaction 解析AMM交易事件
-func (b *Bot) parseCpmmTransaction(logMessages []string, mintAddress string, userAddress solana.PublicKey, isBuy bool, _signature string) *global.CPMMTradeEventInfo {
+func (b *Bot) parseCpmmTransaction(logMessages []string, mintAddress string, userAddress solana.PublicKey, ammConfig string, isBuy bool, _signature string) *global.CPMMTradeEventInfo {
 
 	events, err := raydium_cp_swap.DecodeEventsInLogs(logMessages)
 	if err != nil {
@@ -141,6 +142,7 @@ func (b *Bot) parseCpmmTransaction(logMessages []string, mintAddress string, use
 				}
 
 				tradeInfo := &global.CPMMTradeEventInfo{
+					AmmConfig:    ammConfig,
 					UserAddress:  userAddress,
 					SolAmount:    _inputAmount,
 					TokenAmount:  _outputAmount,
@@ -192,7 +194,7 @@ func (b *Bot) UniversalCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 
 	_signature := base58.Encode(txn.Transaction.Transaction.Signatures[0])
 
-	var mintAddress, userAddress string
+	var mintAddress, userAddress, ammConfig string
 
 	// 安全检查：确保数据长度足够
 
@@ -211,6 +213,7 @@ func (b *Bot) UniversalCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 	switch discriminator {
 	case raydium_cp_swap.Instruction_SwapBaseInput:
 		userAddress = accountList[currentInstruction.Accounts[CpmmPayerIdx]] // #18 - User Source Owner
+		ammConfig = accountList[currentInstruction.Accounts[AmmConfigIdx]]
 		inputTokenAddress := accountList[currentInstruction.Accounts[CpmmInputTokenMintIdx]]
 		outputTokenAddress := accountList[currentInstruction.Accounts[CpmmOutputTokenMintIdx]]
 
@@ -228,6 +231,7 @@ func (b *Bot) UniversalCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 	case raydium_cp_swap.Instruction_SwapBaseOutput:
 
 		userAddress = accountList[currentInstruction.Accounts[CpmmPayerIdx]] // #18 - User Source Owner
+		ammConfig = accountList[currentInstruction.Accounts[AmmConfigIdx]]
 		inputTokenAddress := accountList[currentInstruction.Accounts[CpmmInputTokenMintIdx]]
 		outputTokenAddress := accountList[currentInstruction.Accounts[CpmmOutputTokenMintIdx]]
 
@@ -270,7 +274,7 @@ func (b *Bot) UniversalCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 		return nil
 	}
 	_logMessages := []string{logMessages[index+1]}
-	tradeInfo := b.parseCpmmTransaction(_logMessages, mintAddress, userPubkey, isBuy, _signature)
+	tradeInfo := b.parseCpmmTransaction(_logMessages, mintAddress, userPubkey, ammConfig, isBuy, _signature)
 	botWallet := b.privateKey.PublicKey()
 
 	if tradeInfo == nil {
@@ -335,7 +339,7 @@ func (b *Bot) RaydiumCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx c
 	instructions := messages.Instructions
 	_signature := base58.Encode(txn.Transaction.Transaction.Signatures[0])
 
-	var mintAddress, userAddress string
+	var mintAddress, userAddress, ammConfig string
 	var isBuy bool = true
 	var tradeInfo *global.CPMMTradeEventInfo
 	accountList := b.GetAccountList(out)
@@ -364,7 +368,7 @@ func (b *Bot) RaydiumCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx c
 		case raydium_cp_swap.Instruction_SwapBaseInput:
 
 			userAddress = accountList[accounts[CpmmPayerIdx]] // #18 - User Source Owner
-
+			ammConfig = accountList[accounts[AmmConfigIdx]]
 			inputTokenAddress := accountList[accounts[CpmmInputTokenMintIdx]]
 			outputTokenAddress := accountList[accounts[CpmmOutputTokenMintIdx]]
 
@@ -382,6 +386,7 @@ func (b *Bot) RaydiumCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx c
 		case raydium_cp_swap.Instruction_SwapBaseOutput:
 
 			userAddress = accountList[accounts[CpmmPayerIdx]] // #18 - User Source Owner
+			ammConfig = accountList[accounts[AmmConfigIdx]]
 			inputTokenAddress := accountList[accounts[CpmmInputTokenMintIdx]]
 			outputTokenAddress := accountList[accounts[CpmmOutputTokenMintIdx]]
 
@@ -407,7 +412,7 @@ func (b *Bot) RaydiumCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx c
 	// 处理AMM交易信息
 	userPk := solana.MustPublicKeyFromBase58(userAddress)
 
-	tradeInfo = b.parseCpmmTransaction(logMessages, mintAddress, userPk, isBuy, _signature)
+	tradeInfo = b.parseCpmmTransaction(logMessages, mintAddress, userPk, ammConfig, isBuy, _signature)
 
 	// 处理AMM交易信息
 	botWallet := b.privateKey.PublicKey()

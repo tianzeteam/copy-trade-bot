@@ -125,7 +125,7 @@ func TestCalculateRaydiumCPMMAccounts(t *testing.T) {
 	quoteMint := solana.MustPublicKeyFromBase58("So11111111111111111111111111111111111111112") // WSOL
 
 	// Call the method to test
-	cpmmAccounts, err := accountsCalc.CalculateRaydiumCPMMAccounts(user, pool, baseMint, quoteMint)
+	cpmmAccounts, err := accountsCalc.CalculateRaydiumCPMMAccounts(user, "D4FPEruKEHrG5TenZ2mpDGEfu1iUvTiqBxvpU8HLBvC2", pool, baseMint, quoteMint)
 
 	// Assertions
 	assert.NoError(t, err)

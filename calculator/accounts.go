@@ -480,7 +480,7 @@ type RaydiumCPMMAccounts struct {
 }
 
 // CalculateRaydiumCPMMAccounts 计算Raydium CPMM账户
-func (c *AccountsCalculator) CalculateRaydiumCPMMAccounts(user solana.PublicKey, pool, baseMint, quoteMint solana.PublicKey) (*RaydiumCPMMAccounts, error) {
+func (c *AccountsCalculator) CalculateRaydiumCPMMAccounts(user solana.PublicKey, ammConfig string, pool, baseMint, quoteMint solana.PublicKey) (*RaydiumCPMMAccounts, error) {
 
 	inputTokenAccount, _, err := solana.FindAssociatedTokenAddress(user, quoteMint)
 	if err != nil {
@@ -530,7 +530,7 @@ func (c *AccountsCalculator) CalculateRaydiumCPMMAccounts(user solana.PublicKey,
 	return &RaydiumCPMMAccounts{
 		Payer:              user,
 		Authority:          solana.MustPublicKeyFromBase58("GpMZbSM2GgvTKHJirzeGfMFoaZ8UR2X7F4v8vHTvxFbL"),
-		AmmConfig:          solana.MustPublicKeyFromBase58("D4FPEruKEHrG5TenZ2mpDGEfu1iUvTiqBxvpU8HLBvC2"),
+		AmmConfig:          solana.MustPublicKeyFromBase58(ammConfig),
 		PoolState:          pool,
 		InputTokenAccount:  inputTokenAccount,
 		OutputTokenAccount: outputTokenAccount,

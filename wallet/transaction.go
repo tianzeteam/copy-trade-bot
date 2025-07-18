@@ -142,11 +142,13 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 		m.WalletMonitor.Mux.RUnlock()
 		return
 	}
-	m.WalletMonitor.Mux.RUnlock()
+
 	// 发送买入请求
 	logger.Infof("执行跟单买入: 代币=%s, 金额=%.6f SOL", tradeInfo.MintAddress, m.BuySolAmount)
 
 	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress, copyAddress, tradeInfo.CurrentPrice, tradeInfo.TokenAmount) // 假设买入了1000000个代币
+	m.WalletMonitor.Mux.RUnlock()
+
 	ctx := context.Background()
 
 	// Convert mint address string to solana.PublicKey
@@ -269,14 +271,14 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 		m.WalletMonitor.Mux.RUnlock()
 		return
 	}
-	m.WalletMonitor.Mux.RUnlock()
 
 	// 发送买入请求
 	logger.Infof("执行AMM跟单买入: 代币=%s, 金额=%f SOL", tradeInfo.MintAddress, m.BuySolAmount)
 
 	// 先记录原始交易者的交易
 	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress.String(), originalWallet, tradeInfo.CurrentPrice, originalAmount)
-	//
+	m.WalletMonitor.Mux.RUnlock()
+
 	pumpAccounts, err := m.TradeBot.Trader.AccountsCalc.CalculateAmmAccounts(
 
 		tradeInfo.AmmPool,
@@ -370,14 +372,14 @@ func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *global.AmmRayd
 		m.WalletMonitor.Mux.RUnlock()
 		return
 	}
-	m.WalletMonitor.Mux.RUnlock()
 
 	// 发送买入请求
 	logger.Infof("执行RAYDIUM POOL V4 跟单买入: 代币=%s, 金额=%f SOL", tradeInfo.MintAddress, m.BuySolAmount)
 
 	// 先记录原始交易者的交易
 	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress.String(), originalWallet, tradeInfo.CurrentPrice, originalAmount)
-	//
+	m.WalletMonitor.Mux.RUnlock()
+
 	raydiumV4Accounts, err := m.TradeBot.Trader.AccountsCalc.CalculateV4Accounts(
 		m.BotWallet,
 		tradeInfo,
@@ -498,14 +500,14 @@ func (m *TransactionMonitor) executeLaunchpadCopyTrade(tradeInfo *global.Launchp
 		m.WalletMonitor.Mux.RUnlock()
 		return
 	}
-	m.WalletMonitor.Mux.RUnlock()
 
 	// 发送买入请求
 	logger.Infof("执行RAYDIUM LAUNCHPAD 跟单买入: 代币=%s, 金额=%f SOL", tradeInfo.MintAddress, m.BuySolAmount)
 
 	// 先记录原始交易者的交易
 	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress.String(), originalWallet, tradeInfo.CurrentPrice, originalAmount)
-	//
+	m.WalletMonitor.Mux.RUnlock()
+
 	launchpadAccounts, err := m.TradeBot.Trader.AccountsCalc.CalculateLaunchpadAccounts(
 		m.BotWallet,
 		tradeInfo.MintAddress,
@@ -627,16 +629,16 @@ func (m *TransactionMonitor) executeCpmmCopyTrade(tradeInfo *global.CPMMTradeEve
 		m.WalletMonitor.Mux.RUnlock()
 		return
 	}
-	m.WalletMonitor.Mux.RUnlock()
 
 	// 发送买入请求
 	logger.Infof("执行RAYDIUM CPMM 跟单买入: 代币=%s, 金额=%f SOL", tradeInfo.MintAddress, m.BuySolAmount)
 
 	// 先记录原始交易者的交易
 	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress.String(), originalWallet, tradeInfo.CurrentPrice, originalAmount)
-	//
+	m.WalletMonitor.Mux.RUnlock()
 	cpmmAccounts, err := m.TradeBot.Trader.AccountsCalc.CalculateRaydiumCPMMAccounts(
 		m.BotWallet,
+		tradeInfo.AmmConfig,
 		tradeInfo.PoolState,
 		tradeInfo.MintAddress,
 		solana.SolMint,

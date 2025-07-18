@@ -673,6 +673,7 @@ func (b *Bot) ExecuteCpmmSellOrder(tokenInfo queue.TokenInfo) {
 	// 计算账户信息
 	raydiumCpmmAccounts, err := b.Trader.AccountsCalc.CalculateRaydiumCPMMAccounts(
 		b.privateKey.PublicKey(),
+		tradeInfo.AmmConfig,
 		tradeInfo.PoolState,
 		tokenInfo.Mint,
 		solana.SolMint,

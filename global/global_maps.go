@@ -116,6 +116,7 @@ type LaunchpadTradeEventInfo struct {
 
 // CPMMTradeEventInfo 存储CPMM交易事件信息
 type CPMMTradeEventInfo struct {
+	AmmConfig    string
 	UserAddress  solana.PublicKey // 用户地址
 	SolAmount    uint64           // Sol数量
 	TokenAmount  uint64           // Token数量
@@ -220,6 +221,10 @@ var (
 	CpmmTradeInfoMap     = make(map[string]*CPMMTradeEventInfo)
 	CpmmTradeInfoMapLock = &sync.RWMutex{} // 用于保护映射表的读写锁
 
+	// LaunchpadTradeEventMap 存储Launchpad交易事件信息，键为池地址
+	LaunchpadTradeEventMap     = make(map[string]*LaunchpadTradeEventInfo)
+	LaunchpadTradeEventMapLock = &sync.RWMutex{} // 用于保护映射表的读写锁
+
 	// TokenSellLimiters 代币卖出限制器映射表，键为Mint地址
 	TokenSellLimiters     = make(map[string]*TokenSellLimiter)
 	TokenSellLimitersLock = &sync.RWMutex{} // 用于保护映射表的读写锁
@@ -231,10 +236,6 @@ var (
 	// RaydiumPoolLayouts 存储Raydium池布局信息，键为池地址
 	RaydiumPoolLayouts     = make(map[string]*layouts.LIQUIDITY_STATE_LAYOUT_V4)
 	RaydiumPoolLayoutsLock = &sync.RWMutex{} // 用于保护映射表的读写锁
-
-	// LaunchpadTradeEventMap 存储Launchpad交易事件信息，键为池地址
-	LaunchpadTradeEventMap     = make(map[string]*LaunchpadTradeEventInfo)
-	LaunchpadTradeEventMapLock = &sync.RWMutex{} // 用于保护映射表的读写锁
 
 	// 代币卖出时间间隔限制，默认10秒
 	SellIntervalLimit = 10 * time.Second
