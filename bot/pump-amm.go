@@ -220,7 +220,7 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx conte
 
 	userPubkey := tradeInfo.UserAddress
 	if userPubkey.String() == botWallet.String() {
-		logger.Infof("bot 钱包交易记录处理: %s, %v", mintAddress, tradeInfo.IsBuy)
+		logger.Debugf("bot 钱包交易记录处理: %s, %v", mintAddress, tradeInfo.IsBuy)
 		if tradeInfo.IsBuy {
 			// 检查是否是自己的交易
 
@@ -243,7 +243,7 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx conte
 		} else {
 			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 			if ok {
-				logger.Infof("bot 钱包卖出记录处理: %s, %v, %d, %d", mintAddress, ok, assetInfo.Amount, tradeInfo.TokenAmount)
+				logger.Debugf("bot 钱包卖出记录处理: %s, %v, %d, %d", mintAddress, ok, assetInfo.Amount, tradeInfo.TokenAmount)
 				global.DelPendingHoldAssetWithAmount(mintAddress, tradeInfo.TokenAmount)
 			}
 		}

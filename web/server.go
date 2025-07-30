@@ -147,6 +147,8 @@ func (s *WebServer) handleGetConfig(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("加载配置失败: %v", err)})
 		return
 	}
+	//@TODO
+	//config.TradeWallet= global.GetTradeWallet()
 
 	ctx.JSON(http.StatusOK, config)
 }

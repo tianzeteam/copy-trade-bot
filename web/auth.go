@@ -67,7 +67,8 @@ func InitAuth() {
 	// 如果没有用户，创建默认管理员账户
 	if len(users) == 0 {
 		// 默认密码：admin123
-		passwordHash, _ := bcrypt.GenerateFromPassword([]byte("admin123#000*xss"), bcrypt.DefaultCost)
+		adminPassword := os.Getenv("ADMIN_PASSWORD")
+		passwordHash, _ := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
 		users["admin"] = User{
 			Username: "admin10111",
 			Password: string(passwordHash),

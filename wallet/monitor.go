@@ -106,8 +106,6 @@ func (m *WalletMonitor) GetWallet(address solana.PublicKey) *WalletSettings {
 
 // RecordTrade 记录原始交易者的交易
 func (m *WalletMonitor) RecordTrade(mintAddress string, copyAddress solana.PublicKey, entryPrice float64, originAmount uint64) {
-	m.Mux.Lock()
-	defer m.Mux.Unlock()
 
 	// 获取聪明钱包设置
 	var walletSettings *WalletSettings

@@ -25,7 +25,7 @@ func (b *Bot) parsePhotonRouterAmmTransaction(logMessages []string, mintAddress 
 	// 使用pumpamm包中的事件解析功能
 	events, err := pumpamm.DecodeEventsInLogs(logMessages)
 	if err != nil {
-		logger.Errorf("解析AMM事件失败: %v", err)
+		logger.Errorf("解析PhotonRouter AMM事件失败: %v", err)
 		return nil
 	}
 
@@ -236,7 +236,7 @@ func (b *Bot) PhotonRouterPumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 
 			// 管道步骤3: 处理买入事件
 			if tradeEvent.User.String() == botWallet.String() {
-				logger.Infof("bot 钱包交易记录处理: %s, %v", mintAddress, tradeEvent.IsBuy)
+				logger.Debugf("bot 钱包交易记录处理: %s, %v", mintAddress, tradeEvent.IsBuy)
 				if tradeEvent.IsBuy {
 
 					entryPrice := (float64(tradeEvent.VirtualSolReserves) / SolDecimals) / (float64(tradeEvent.VirtualTokenReserves) / TokenDecimals)
@@ -261,7 +261,7 @@ func (b *Bot) PhotonRouterPumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 					//卖出记录处理
 					assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 					if ok {
-						logger.Infof("bot 钱包卖出记录处理: %s, %v, %d, %d", mintAddress, ok, assetInfo.Amount, tradeEvent.TokenAmount)
+						logger.Debugf("bot 钱包卖出记录处理: %s, %v, %d, %d", mintAddress, ok, assetInfo.Amount, tradeEvent.TokenAmount)
 						global.DelPendingHoldAssetWithAmount(mintAddress, tradeEvent.TokenAmount)
 					}
 

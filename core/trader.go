@@ -2113,6 +2113,15 @@ func (t *TraderImpl) RaydiumCPMMSell(ctx context.Context, params types.OrderPara
 
 	instructions = append(instructions, sellInstruction.Build())
 
+	//close wsol account
+	closeWsolAccountInstruction := token.NewCloseAccountInstruction(
+		cpmmAccounts.InputTokenAccount,
+		t.Wallet.PublicKey(),
+		t.Wallet.PublicKey(),
+		[]solana.PublicKey{},
+	).Build()
+	instructions = append(instructions, closeWsolAccountInstruction)
+
 	// 创建通道
 	resultChan := make(chan string, 4)
 	errChan := make(chan error, 4)

@@ -62,7 +62,7 @@ func (b *Bot) parseLaunchpadTransaction(accountList []string, innerInstructions 
 
 	events, err := raydium_launchpad.ParseEventsFromEmitCPI(eventBinaries)
 	if err != nil {
-		logger.Errorf("解析AMM事件失败: %v", err)
+		logger.Errorf("解析Launchpad事件失败: %v", err)
 		return nil
 	}
 
@@ -337,7 +337,7 @@ func (b *Bot) RaydiumLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 		userPubkey := tradeInfo.UserAddress
 		// 检查是否是自己的交易
 		if userPubkey.String() == botWallet.String() {
-			logger.Infof("bot 钱包交易记录处理: %s, %v", mintAddress, tradeInfo.IsBuy)
+			logger.Debugf("bot 钱包交易记录处理: %s, %v", mintAddress, tradeInfo.IsBuy)
 			if tradeInfo.IsBuy {
 
 				logger.Infof("买入交易: SOL=%d , 代币=%d , 价格=%.8f",
@@ -359,7 +359,7 @@ func (b *Bot) RaydiumLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 			} else {
 				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 				if ok {
-					logger.Infof("bot 钱包卖出记录处理: %s, %v, %d, %d", mintAddress, ok, assetInfo.Amount, tradeInfo.TokenAmount)
+					logger.Debugf("bot 钱包卖出记录处理: %s, %v, %d, %d", mintAddress, ok, assetInfo.Amount, tradeInfo.TokenAmount)
 					global.DelPendingHoldAssetWithAmount(mintAddress, tradeInfo.TokenAmount)
 				}
 			}
