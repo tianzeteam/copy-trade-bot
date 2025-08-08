@@ -117,6 +117,8 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		SetCreatorVaultAccount(params.TradeParams.Accounts.CreatorVault).
 		SetEventAuthorityAccount(EVENT_AUTHORITY).
 		SetProgramAccount(PUMP_PROGRAM_ID).
+		SetGlobalVolumeAccumulatorAccount(params.TradeParams.Accounts.GlobalVolumeAccumulator).
+		SetUserVolumeAccumulatorAccount(params.TradeParams.Accounts.UserVolumeAccumulator).
 		SetAmount(params.TradeParams.Amount).
 		SetMaxSolCost(params.TradeParams.Cost)
 	buildInstruction, err := buyInstruction.ValidateAndBuild()
@@ -356,6 +358,8 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		SetCoinCreatorVaultAuthorityAccount(params.TradeParams.Accounts.CoinCreatorVaultAuthority).
 		SetEventAuthorityAccount(AMM_EVENT_AUTHORITY).
 		SetProgramAccount(pumpamm.ProgramID).
+		SetGlobalVolumeAccumulatorAccount(params.TradeParams.Accounts.GlobalVolumeAccumulator).
+		SetUserVolumeAccumulatorAccount(params.TradeParams.Accounts.UserVolumeAccumulator).
 		SetBaseAmountOut(params.TradeParams.Amount).
 		SetMaxQuoteAmountIn(params.TradeParams.Cost)
 

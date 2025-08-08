@@ -50,9 +50,11 @@ type TradeAccounts struct {
 	CreatorVault              solana.PublicKey
 	CoinCreatorVaultAuthority solana.PublicKey
 
-	RaydiumV4Accounts   *calculator.RaydiumV4Accounts
-	LaunchpadAccounts   *calculator.RaydiumLaunchpadAccounts
-	RaydiumCPMMAccounts *calculator.RaydiumCPMMAccounts
+	RaydiumV4Accounts       *calculator.RaydiumV4Accounts
+	LaunchpadAccounts       *calculator.RaydiumLaunchpadAccounts
+	RaydiumCPMMAccounts     *calculator.RaydiumCPMMAccounts
+	GlobalVolumeAccumulator solana.PublicKey // 全局成交量累加器地址
+	UserVolumeAccumulator   solana.PublicKey // 用户成交量累加器地址
 }
 
 // FeeConfig 定义费用相关配置

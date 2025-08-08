@@ -84,21 +84,46 @@ func (c *AccountsCalculator) CalculatePumpAccounts(ctx context.Context, creator,
 	if err != nil {
 		return nil, fmt.Errorf("计算creator vault PDA失败: %w", err)
 	}
+	// 计算global_volume_accumulator (全局成交量累加器地址)
+	globalVolumeAccumulator, _, err := solana.FindProgramAddress(
+		[][]byte{
+			[]byte("global_volume_accumulator"),
+		},
+		PUMP_PROGRAM_ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("计算global volume accumulator失败: %w", err)
+	}
+	// 计算user_volume_accumulator (用户成交量累加器地址)
+	userVolumeAccumulator, _, err := solana.FindProgramAddress(
+		[][]byte{
+			[]byte("user_volume_accumulator"),
+			user.Bytes(),
+		},
+		PUMP_PROGRAM_ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("计算user volume accumulator失败: %w", err)
+	}
 
 	return &PumpAccounts{
-		BondingCurve:           bondingCurve,
-		AssociatedBondingCurve: associatedBondingCurve,
-		AssociatedTokenAccount: associatedTokenAccount,
-		CreatorVaultPda:        creatorVaultPda,
+		BondingCurve:            bondingCurve,
+		AssociatedBondingCurve:  associatedBondingCurve,
+		AssociatedTokenAccount:  associatedTokenAccount,
+		CreatorVaultPda:         creatorVaultPda,
+		GlobalVolumeAccumulator: globalVolumeAccumulator,
+		UserVolumeAccumulator:   userVolumeAccumulator,
 	}, nil
 }
 
 // PumpAccounts 存储所有需要的账户地址
 type PumpAccounts struct {
-	BondingCurve           solana.PublicKey
-	AssociatedBondingCurve solana.PublicKey
-	AssociatedTokenAccount solana.PublicKey
-	CreatorVaultPda        solana.PublicKey // 代币创建者金库PDA地址
+	BondingCurve            solana.PublicKey
+	AssociatedBondingCurve  solana.PublicKey
+	AssociatedTokenAccount  solana.PublicKey
+	CreatorVaultPda         solana.PublicKey // 代币创建者金库PDA地址
+	GlobalVolumeAccumulator solana.PublicKey // 全局成交量累加器地址
+	UserVolumeAccumulator   solana.PublicKey // 用户成交量累加器地址
 }
 
 // AmmAccounts 存储AMM相关的账户地址
@@ -115,6 +140,8 @@ type AmmAccounts struct {
 	CoinCreator               solana.PublicKey // 代币创建者地址
 	CoinCreatorVaultAuthority solana.PublicKey // 代币创建者金库授权地址
 	CoinCreatorVaultAta       solana.PublicKey // 代币创建者金库ATA地址
+	GlobalVolumeAccumulator   solana.PublicKey // 全局成交量累加器地址
+	UserVolumeAccumulator     solana.PublicKey // 用户成交量累加器地址
 }
 
 // String 返回AmmAccounts的字符串表示，用于调试输出
@@ -144,6 +171,8 @@ func (a *AmmAccounts) String() string {
 		a.CoinCreator.String(),
 		a.CoinCreatorVaultAuthority.String(),
 		a.CoinCreatorVaultAta.String(),
+		a.GlobalVolumeAccumulator.String(),
+		a.UserVolumeAccumulator.String(),
 	)
 }
 
@@ -332,6 +361,29 @@ func (c *AccountsCalculator) CalculateAmmAccounts(pool, baseMint, user solana.Pu
 		return nil, fmt.Errorf("failed to find coin creator vault ata: %w", err)
 	}
 
+	// 计算global_volume_accumulator (全局成交量累加器地址)
+	globalVolumeAccumulator, _, err := solana.FindProgramAddress(
+		[][]byte{
+			[]byte("global_volume_accumulator"),
+		},
+		pumpamm.ProgramID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find global volume accumulator: %w", err)
+	}
+
+	// 计算user_volume_accumulator (用户成交量累加器地址)
+	userVolumeAccumulator, _, err := solana.FindProgramAddress(
+		[][]byte{
+			[]byte("user_volume_accumulator"),
+			user.Bytes(),
+		},
+		pumpamm.ProgramID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find user volume accumulator: %w", err)
+	}
+
 	// 返回所有计算出的账户地址
 	ammAccounts := &AmmAccounts{
 		Pool:                      pool,
@@ -346,6 +398,8 @@ func (c *AccountsCalculator) CalculateAmmAccounts(pool, baseMint, user solana.Pu
 		CoinCreator:               coinCreator,
 		CoinCreatorVaultAuthority: coinCreatorVaultAuthority,
 		CoinCreatorVaultAta:       coinCreatorVaultAta,
+		GlobalVolumeAccumulator:   globalVolumeAccumulator,
+		UserVolumeAccumulator:     userVolumeAccumulator,
 	}
 
 	// 调试输出所有账户地址

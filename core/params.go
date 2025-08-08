@@ -8,12 +8,14 @@ import (
 
 // TradeAccounts 定义交易所需的账户
 type TradeAccounts struct {
-	Mint                   solana.PublicKey
-	User                   solana.PublicKey
-	BondingCurve           solana.PublicKey
-	AssociatedBondingCurve solana.PublicKey
-	AssociatedTokenAccount solana.PublicKey
-	CreatorVault           solana.PublicKey
+	Mint                    solana.PublicKey
+	User                    solana.PublicKey
+	BondingCurve            solana.PublicKey
+	AssociatedBondingCurve  solana.PublicKey
+	AssociatedTokenAccount  solana.PublicKey
+	CreatorVault            solana.PublicKey
+	GlobalVolumeAccumulator solana.PublicKey // 全局成交量累加器地址
+	UserVolumeAccumulator   solana.PublicKey // 用户成交量累加器地址
 }
 
 // BuyParams 定义购买交易所需的参数

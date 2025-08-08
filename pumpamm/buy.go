@@ -4,6 +4,7 @@ package pumpamm
 
 import (
 	"errors"
+
 	ag_binary "github.com/gagliardetto/binary"
 	ag_solanago "github.com/gagliardetto/solana-go"
 	ag_format "github.com/gagliardetto/solana-go/text/format"
@@ -52,13 +53,18 @@ type Buy struct {
 	// [17] = [WRITE] coin_creator_vault_ata
 	//
 	// [18] = [] coin_creator_vault_authority
+	//
+	// [19] = [] global_volume_accumulator
+	//
+	// [20] = [] user_volume_accumulator
+	//
 	ag_solanago.AccountMetaSlice `bin:"-"`
 }
 
 // NewBuyInstructionBuilder creates a new `Buy` instruction builder.
 func NewBuyInstructionBuilder() *Buy {
 	nd := &Buy{
-		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 19),
+		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 21),
 	}
 	nd.AccountMetaSlice[13] = ag_solanago.Meta(Addresses["11111111111111111111111111111111"])
 	nd.AccountMetaSlice[14] = ag_solanago.Meta(Addresses["ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"])
@@ -478,8 +484,30 @@ func (inst *Buy) GetCoinCreatorVaultAuthorityAccount() *ag_solanago.AccountMeta 
 	return inst.AccountMetaSlice.Get(18)
 }
 
+// SetGlobalVolumeAccumulatorAccount sets the "global_volume_accumulator" account.
+func (inst *Buy) SetGlobalVolumeAccumulatorAccount(globalVolumeAccumulator ag_solanago.PublicKey) *Buy {
+	inst.AccountMetaSlice[19] = ag_solanago.Meta(globalVolumeAccumulator).WRITE()
+	return inst
+}
+
+// GetGlobalVolumeAccumulatorAccount gets the "global_volume_accumulator" account.
+func (inst *Buy) GetGlobalVolumeAccumulatorAccount() *ag_solanago.AccountMeta {
+	return inst.AccountMetaSlice.Get(19)
+}
+
+// SetUserVolumeAccumulatorAccount sets the "user_volume_accumulator" account.
+func (inst *Buy) SetUserVolumeAccumulatorAccount(userVolumeAccumulator ag_solanago.PublicKey) *Buy {
+	inst.AccountMetaSlice[20] = ag_solanago.Meta(userVolumeAccumulator).WRITE()
+	return inst
+}
+
+// GetUserVolumeAccumulatorAccount gets the "user_volume_accumulator" account.
+func (inst *Buy) GetUserVolumeAccumulatorAccount() *ag_solanago.AccountMeta {
+	return inst.AccountMetaSlice.Get(20)
+}
+
 func (inst *Buy) AddRemainingAccounts(remainingAccounts []ag_solanago.PublicKey) *Buy {
-	accounts := 19
+	accounts := 20
 	for i, _ := range remainingAccounts {
 		index := accounts + i
 		inst.AccountMetaSlice[index] = ag_solanago.Meta(remainingAccounts[i]).WRITE()

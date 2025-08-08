@@ -4,6 +4,7 @@ package pump
 
 import (
 	"errors"
+
 	ag_binary "github.com/gagliardetto/binary"
 	ag_solanago "github.com/gagliardetto/solana-go"
 	ag_format "github.com/gagliardetto/solana-go/text/format"
@@ -38,13 +39,17 @@ type Buy struct {
 	// [10] = [] event_authority
 	//
 	// [11] = [] program
+	//
+	// [12] = [] global_volume_accumulator
+	//
+	// [13] = [WRITE] user_volume_accumulator
 	ag_solanago.AccountMetaSlice `bin:"-"`
 }
 
 // NewBuyInstructionBuilder creates a new `Buy` instruction builder.
 func NewBuyInstructionBuilder() *Buy {
 	nd := &Buy{
-		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 12),
+		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 14),
 	}
 	nd.AccountMetaSlice[7] = ag_solanago.Meta(Addresses["11111111111111111111111111111111"])
 	nd.AccountMetaSlice[8] = ag_solanago.Meta(Addresses["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"])
@@ -423,6 +428,28 @@ func (inst *Buy) SetProgramAccount(program ag_solanago.PublicKey) *Buy {
 // GetProgramAccount gets the "program" account.
 func (inst *Buy) GetProgramAccount() *ag_solanago.AccountMeta {
 	return inst.AccountMetaSlice.Get(11)
+}
+
+// SetGlobalVolumeAccumulatorAccount sets the "global_volume_accumulator" account.
+func (inst *Buy) SetGlobalVolumeAccumulatorAccount(globalVolumeAccumulator ag_solanago.PublicKey) *Buy {
+	inst.AccountMetaSlice[12] = ag_solanago.Meta(globalVolumeAccumulator).WRITE()
+	return inst
+}
+
+// GetGlobalVolumeAccumulatorAccount gets the "global_volume_accumulator" account.
+func (inst *Buy) GetGlobalVolumeAccumulatorAccount() *ag_solanago.AccountMeta {
+	return inst.AccountMetaSlice.Get(12)
+}
+
+// SetUserVolumeAccumulatorAccount sets the "user_volume_accumulator" account.
+func (inst *Buy) SetUserVolumeAccumulatorAccount(userVolumeAccumulator ag_solanago.PublicKey) *Buy {
+	inst.AccountMetaSlice[13] = ag_solanago.Meta(userVolumeAccumulator).WRITE()
+	return inst
+}
+
+// GetUserVolumeAccumulatorAccount gets the "user_volume_accumulator" account.
+func (inst *Buy) GetUserVolumeAccumulatorAccount() *ag_solanago.AccountMeta {
+	return inst.AccountMetaSlice.Get(13)
 }
 
 func (inst *Buy) AddRemainingAccounts(remainingAccounts []ag_solanago.PublicKey) *Buy {

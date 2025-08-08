@@ -171,12 +171,14 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 
 	// Prepare transaction parameters
 	accounts := core.TradeAccounts{
-		Mint:                   mintAddr,
-		User:                   m.BotWallet,
-		BondingCurve:           pumpAccounts.BondingCurve,
-		AssociatedBondingCurve: pumpAccounts.AssociatedBondingCurve,
-		AssociatedTokenAccount: pumpAccounts.AssociatedTokenAccount,
-		CreatorVault:           pumpAccounts.CreatorVaultPda,
+		Mint:                    mintAddr,
+		User:                    m.BotWallet,
+		BondingCurve:            pumpAccounts.BondingCurve,
+		AssociatedBondingCurve:  pumpAccounts.AssociatedBondingCurve,
+		AssociatedTokenAccount:  pumpAccounts.AssociatedTokenAccount,
+		CreatorVault:            pumpAccounts.CreatorVaultPda,
+		GlobalVolumeAccumulator: pumpAccounts.GlobalVolumeAccumulator,
+		UserVolumeAccumulator:   pumpAccounts.UserVolumeAccumulator,
 	}
 
 	// Get trade information using the thread-safe getter function
@@ -209,12 +211,14 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 	// Build transaction parameters
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
-			User:                   accounts.User,
-			Mint:                   accounts.Mint,
-			BondingCurve:           accounts.BondingCurve,
-			AssociatedBondingCurve: accounts.AssociatedBondingCurve,
-			AssociatedTokenAccount: accounts.AssociatedTokenAccount,
-			CreatorVault:           accounts.CreatorVault,
+			User:                    accounts.User,
+			Mint:                    accounts.Mint,
+			BondingCurve:            accounts.BondingCurve,
+			AssociatedBondingCurve:  accounts.AssociatedBondingCurve,
+			AssociatedTokenAccount:  accounts.AssociatedTokenAccount,
+			CreatorVault:            accounts.CreatorVault,
+			GlobalVolumeAccumulator: accounts.GlobalVolumeAccumulator,
+			UserVolumeAccumulator:   accounts.UserVolumeAccumulator,
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MaxCost,
@@ -318,6 +322,8 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 			PoolQuoteTokenAccount:     pumpAccounts.PoolQuoteTokenAccount,
 			CreatorVault:              pumpAccounts.CoinCreatorVaultAta,
 			CoinCreatorVaultAuthority: pumpAccounts.CoinCreatorVaultAuthority,
+			GlobalVolumeAccumulator:   pumpAccounts.GlobalVolumeAccumulator,
+			UserVolumeAccumulator:     pumpAccounts.UserVolumeAccumulator,
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MaxCost,

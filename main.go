@@ -473,74 +473,7 @@ func main() {
 				logger.Debugf("SOL余额未变化，跳过更新")
 				continue
 			}
-			// 如果有特定的数据结构需要解析，可以在这里添加解析逻辑
-			/* if owner == solana.TokenProgramID.String() && len(accountData) >= 165 {
-				// SPL代币账户数据结构
-				_mint := solana.PublicKeyFromBytes(accountData[0:32])
-				_owner := solana.PublicKeyFromBytes(accountData[32:64])
-				_amount := binary.LittleEndian.Uint64(accountData[64:72])
-				logger.Infof("代币账户信息 - Mint: %s, 所有者: %s, token数量: %d", _mint, _owner, _amount)
 
-				assetInfo, exist := global.GetPendingHoldAsset(_mint.String())
-				lastestAmmTradeInfo := global.GetAmmTradeInfo(_mint.String())
-				lastestPumpTradeInfo := global.GetTradeInfo(_mint.String())
-				lastestRaydiumV4TradeInfo := global.GetAmmRaydiuV4TradeInfo(_mint.String())
-
-				if assetInfo != nil {
-					logger.Infof("Asset info for %s: Amount=%d, EntryPrice=%.8f", _mint.String(), assetInfo.Amount, assetInfo.EntryPrice)
-				} else {
-					logger.Infof("Asset info for %s is nil", _mint.String())
-				}
-
-				if exist {
-					platform := "unknown"
-					//@TODO
-					currentPrice := changeSolBalance / (float64(assetInfo.Amount) / math.Pow(10, float64(assetInfo.Decimal)))
-					if lastestPumpTradeInfo != nil {
-						platform = "pumpfun"
-						currentPrice = lastestPumpTradeInfo.CurrentPrice
-
-					}
-					if lastestAmmTradeInfo != nil {
-						platform = "pumpamm"
-						currentPrice = lastestAmmTradeInfo.CurrentPrice
-
-					}
-
-					if lastestRaydiumV4TradeInfo != nil {
-						platform = "raydiumV4"
-						currentPrice = lastestRaydiumV4TradeInfo.CurrentPrice
-
-					}
-					// Check if we have a trade record for this token
-					tradeSetting, existCopyTrade := walletMonitor.TradeRecords[_mint.String()]
-					logger.Infof("existCopyTrade %v", existCopyTrade)
-					logger.Infof("tradeSetting %v", tradeSetting)
-
-					// 检查代币是否已经被发送到卖出通道
-					if existCopyTrade && changeSolBalance > 0 && platform != "unknown" {
-						// 检查是否可以卖出该代币（防止多次卖出）
-						if global.CanSellToken(_mint.String()) {
-							// 更新代币卖出时间，防止短时间内重复卖出
-							global.UpdateTokenSellTime(_mint.String())
-
-							// tradeRecord := walletMonitor.BotTrades[_mint.String()]
-							strategyName := tradeSetting.Settings.Name
-							exitTimeSec := tradeSetting.Settings.ExitTimeSec
-							nowTime := time.Now().Unix()
-							waitSellTime := int64(exitTimeSec) + nowTime
-
-							logger.Infof("将在 %d 秒后卖出代币 %s ,卖出时间: %s", exitTimeSec, _mint.String(), time.Unix(waitSellTime, 0).Format("2006-01-02 15:04:05"))
-
-							queue.SendTokenToSellChannel(exitTimeSec*1000, assetInfo, currentPrice, platform, strategyName, "due_to_exit")
-
-						} else {
-							logger.Warnf("代币 %s 已经在卖出周期中，跳过重复卖出", _mint.String())
-						}
-					}
-				}
-
-			}*/
 		}
 	}()
 
