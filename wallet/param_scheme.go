@@ -2,21 +2,22 @@ package wallet
 
 import (
 	"context"
+	"copytrade/types"
 	"time"
 )
 
 // ParamScheme 参数模板结构体
 type ParamScheme struct {
-	ID          string    `json:"id"`           // 参数模板ID
-	Name        string    `json:"name"`         // 参数模板名称
-	Description string    `json:"description"`  // 参数模板描述
-	IsDefault   bool      `json:"is_default"`   // 是否为默认方案
-	CreatedAt   time.Time `json:"created_at"`   // 创建时间
-	UpdatedAt   time.Time `json:"updated_at"`   // 更新时间
-	
+	ID          string    `json:"id"`          // 参数模板ID
+	Name        string    `json:"name"`        // 参数模板名称
+	Description string    `json:"description"` // 参数模板描述
+	IsDefault   bool      `json:"is_default"`  // 是否为默认方案
+	CreatedAt   time.Time `json:"created_at"`  // 创建时间
+	UpdatedAt   time.Time `json:"updated_at"`  // 更新时间
+
 	// 交易参数
-	SellDelayTime        int  `json:"sell_delay_time"`        // 延迟卖出时间（ms）
-	
+	SellDelayTime int `json:"sell_delay_time"` // 延迟卖出时间（ms）
+
 	// 交易触发和池子大小参数
 	MinFollowTriggerAmount float64 `json:"min_follow_trigger_amount"` // 最小触发买入数量 (SOL)
 	MaxFollowTriggerAmount float64 `json:"max_follow_trigger_amount"` // 最大触发买入数量 (SOL)
@@ -46,10 +47,10 @@ type ParamScheme struct {
 type ParamSchemeProvider interface {
 	// GetParamSchemeIDs 获取所有参数模板ID
 	GetParamSchemeIDs(ctx context.Context) ([]string, error)
-	
+
 	// GetDefaultParamSchemeID 获取默认参数模板ID
 	GetDefaultParamSchemeID(ctx context.Context) (string, error)
-	
+
 	// GetParamScheme 获取指定参数模板的详细信息
-	GetParamScheme(ctx context.Context, id string) (*ParamScheme, error)
+	GetParamScheme(ctx context.Context, id string) (*types.ParamScheme, error)
 }

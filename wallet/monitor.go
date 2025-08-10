@@ -2,12 +2,13 @@ package wallet
 
 import (
 	"context"
+	"copytrade/queue"
 	"sync"
 	"time"
 
 	"copytrade/global"
 	"copytrade/logger"
-	"copytrade/queue"
+	"copytrade/types"
 
 	"github.com/gagliardetto/solana-go"
 )
@@ -46,14 +47,18 @@ type TradeRecord struct {
 
 // WalletMonitor 钱包监控器
 type WalletMonitor struct {
-	Wallets             []*WalletSettings       // 监控的钱包列表
-	TradeRecords        map[string]*TradeRecord // 交易记录，key为代币地址
-	TradedTokens        map[string]bool         // 已交易过的代币，防止重复交易
-	BotTrades           map[string]*TradeRecord // 机器人的交易记录，key为代币地址
-	Mux                 sync.RWMutex            // 保护并发访问
-	RedisService        *RedisWalletService     // Redis服务
-	ParamSchemeProvider ParamSchemeProvider     // 参数模板提供者
-	Ctx                 context.Context         // 上下文
+	Wallets             []*WalletSettings             // 监控的钱包列表
+	TradeRecords        map[string]*TradeRecord       // 交易记录，key为代币地址
+	TradedTokens        map[string]bool               // 已交易过的代币，防止重复交易
+	BotTrades           map[string]*TradeRecord       // 机器人的交易记录，key为代币地址
+	Mux                 sync.RWMutex                  // 保护并发访问
+	RedisService        *RedisWalletService           // Redis服务
+	ParamSchemeProvider ParamSchemeProvider           // 参数模板提供者
+	Ctx                 context.Context               // 上下文
+	ParamSchemes        map[string]*types.ParamScheme // 参数模板缓存，key为钱包地址
+	SchemeTemplates     map[string]*types.ParamScheme // 模板缓存，key为模板ID
+	DefaultSchemeID     string                        // 默认参数模板ID
+	ParamSchemesMux     sync.RWMutex                  // 参数模板缓存的并发访问保护
 }
 
 // NewWalletMonitor 创建新的钱包监控器
@@ -67,6 +72,10 @@ func NewWalletMonitor(redisService *RedisWalletService, paramSchemeProvider Para
 		RedisService:        redisService,
 		ParamSchemeProvider: paramSchemeProvider,
 		Ctx:                 context.Background(),
+		ParamSchemes:        make(map[string]*types.ParamScheme), // 钱包地址 -> 参数模板
+		SchemeTemplates:     make(map[string]*types.ParamScheme), // 模板ID -> 参数模板
+		DefaultSchemeID:     "",
+		ParamSchemesMux:     sync.RWMutex{},
 	}
 }
 
@@ -251,6 +260,9 @@ func (m *WalletMonitor) StartMonitoring(ctx context.Context) {
 	// 从 Redis 加载钱包列表
 	m.refreshWalletList()
 
+	// 初始化时刷新参数模板列表
+	m.refreshParamSchemes()
+
 	logger.Infof("启动钱包监控服务，监控 %d 个钱包", len(m.Wallets))
 
 	// 启动定期检查价格和退出条件的协程
@@ -263,8 +275,8 @@ func (m *WalletMonitor) StartMonitoring(ctx context.Context) {
 		walletRefreshTicker := time.NewTicker(30 * time.Second)
 		defer walletRefreshTicker.Stop()
 
-		// 参数模板刷新器 - 每60秒从 Redis 刷新一次参数模板列表
-		paramSchemeRefreshTicker := time.NewTicker(60 * time.Second)
+		// 参数模板刷新器 - 每30秒从 Redis 刷新一次参数模板列表
+		paramSchemeRefreshTicker := time.NewTicker(30 * time.Second)
 		defer paramSchemeRefreshTicker.Stop()
 
 		for {
@@ -316,20 +328,63 @@ func (m *WalletMonitor) refreshParamSchemes() {
 	}
 
 	// 使用接口获取默认参数模板 ID
-	defaultSchemeID, _ := m.ParamSchemeProvider.GetDefaultParamSchemeID(m.Ctx)
+	defaultSchemeID, err := m.ParamSchemeProvider.GetDefaultParamSchemeID(m.Ctx)
+	if err != nil {
+		logger.Warnf("获取默认参数模板ID失败: %v", err)
+		// 如果获取默认模板ID失败，使用空字符串
+		defaultSchemeID = ""
+	}
 
-	// 记录钱包绑定的参数模板 ID
-	walletParamSchemeIDs := make(map[string]string)
+	// 创建新的参数模板缓存 (模板ID -> 模板)
+	newSchemeTemplates := make(map[string]*types.ParamScheme)
 
-	// 遍历钱包列表，记录参数模板 ID
+	// 遍历所有参数模板ID，获取并缓存模板详细信息
+	for _, schemeID := range schemeIDs {
+		scheme, err := m.ParamSchemeProvider.GetParamScheme(m.Ctx, schemeID)
+		if err != nil {
+			logger.Warnf("获取参数模板详细信息失败: %s, %v", schemeID, err)
+			continue
+		}
+
+		// 将模板添加到模板ID缓存中
+		newSchemeTemplates[schemeID] = scheme
+	}
+
+	// 创建新的钱包地址到参数模板的映射
+	newParamSchemes := make(map[string]*types.ParamScheme)
+
+	// 遍历钱包列表，记录参数模板 ID 并建立钱包地址到模板的映射
 	m.Mux.RLock()
 	for _, wallet := range m.Wallets {
-		if wallet.ParamSchemeID != "" {
-			walletParamSchemeIDs[wallet.Address.String()] = wallet.ParamSchemeID
+		walletAddr := wallet.Address.String()
+		schemeID := wallet.ParamSchemeID
+
+		// 如果钱包有绑定的参数模板ID
+		if schemeID != "" {
+			// 如果模板存在，将其添加到钱包地址映射中
+			if scheme, exists := newSchemeTemplates[schemeID]; exists {
+				newParamSchemes[walletAddr] = scheme
+			} else {
+				logger.Warnf("钱包 %s 绑定的参数模板 %s 不存在", walletAddr, schemeID)
+			}
+		} else if defaultSchemeID != "" {
+			// 如果钱包没有绑定模板但有默认模板，使用默认模板
+			if scheme, exists := newSchemeTemplates[defaultSchemeID]; exists {
+				newParamSchemes[walletAddr] = scheme
+			}
 		}
 	}
 	m.Mux.RUnlock()
 
+	// 更新参数模板缓存
+	m.ParamSchemesMux.Lock()
+	m.SchemeTemplates = newSchemeTemplates // 更新（模板ID -> 模板）的映射
+	m.ParamSchemes = newParamSchemes       // 更新（钱包地址 -> 模板）的映射
+	m.DefaultSchemeID = defaultSchemeID
+	m.ParamSchemesMux.Unlock()
+	global.UpdateConfigField("wallet_param_schemes", newParamSchemes)
+
 	logger.Infof("刷新参数模板列表，共 %d 个参数模板，默认参数模板 ID: %s", len(schemeIDs), defaultSchemeID)
-	logger.Infof("钱包绑定的参数模板数量: %d", len(walletParamSchemeIDs))
+	logger.Infof("成功缓存 %d 个参数模板到内存", len(newSchemeTemplates))
+	logger.Infof("成功建立 %d 个钱包地址到参数模板的映射", len(newParamSchemes))
 }

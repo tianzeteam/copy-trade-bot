@@ -8,22 +8,23 @@ import (
 
 	"copytrade/global"
 	"copytrade/logger"
+	"copytrade/types"
 
 	"github.com/go-redis/redis/v8"
 )
 
 // ParamScheme 参数方案结构
 type ParamScheme struct {
-	ID          string    `json:"id"`           // 参数方案ID
-	Name        string    `json:"name"`         // 参数方案名称
-	Description string    `json:"description"`  // 参数方案描述
-	IsDefault   bool      `json:"is_default"`   // 是否为默认方案
-	CreatedAt   time.Time `json:"created_at"`   // 创建时间
-	UpdatedAt   time.Time `json:"updated_at"`   // 更新时间
-	
+	ID          string    `json:"id"`          // 参数方案ID
+	Name        string    `json:"name"`        // 参数方案名称
+	Description string    `json:"description"` // 参数方案描述
+	IsDefault   bool      `json:"is_default"`  // 是否为默认方案
+	CreatedAt   time.Time `json:"created_at"`  // 创建时间
+	UpdatedAt   time.Time `json:"updated_at"`  // 更新时间
+
 	// 交易参数
-	SellDelayTime        int  `json:"sell_delay_time"`        // 延迟卖出时间（ms）
-	
+	SellDelayTime int `json:"sell_delay_time"` // 延迟卖出时间（ms）
+
 	// 交易触发和池子大小参数
 	MinFollowTriggerAmount float64 `json:"min_follow_trigger_amount"` // 最小触发买入数量 (SOL)
 	MaxFollowTriggerAmount float64 `json:"max_follow_trigger_amount"` // 最大触发买入数量 (SOL)
@@ -81,7 +82,7 @@ func (s *ParamSchemeService) getDefaultSchemeKey() string {
 }
 
 // CreateScheme 创建新的参数方案
-func (s *ParamSchemeService) CreateScheme(ctx context.Context, scheme *ParamScheme) error {
+func (s *ParamSchemeService) CreateScheme(ctx context.Context, scheme *types.ParamScheme) error {
 	// 设置创建和更新时间
 	now := time.Now()
 	scheme.CreatedAt = now
@@ -119,7 +120,7 @@ func (s *ParamSchemeService) CreateScheme(ctx context.Context, scheme *ParamSche
 }
 
 // GetScheme 获取指定ID的参数方案
-func (s *ParamSchemeService) GetScheme(ctx context.Context, id string) (*ParamScheme, error) {
+func (s *ParamSchemeService) GetScheme(ctx context.Context, id string) (*types.ParamScheme, error) {
 	key := s.getSchemeKey(id)
 	schemeJSON, err := s.Client.Get(ctx, key).Result()
 	if err != nil {
@@ -129,7 +130,7 @@ func (s *ParamSchemeService) GetScheme(ctx context.Context, id string) (*ParamSc
 		return nil, fmt.Errorf("获取参数方案数据失败: %w", err)
 	}
 
-	var scheme ParamScheme
+	var scheme types.ParamScheme
 	err = json.Unmarshal([]byte(schemeJSON), &scheme)
 	if err != nil {
 		return nil, fmt.Errorf("解析参数方案数据失败: %w", err)
@@ -139,7 +140,7 @@ func (s *ParamSchemeService) GetScheme(ctx context.Context, id string) (*ParamSc
 }
 
 // UpdateScheme 更新参数方案
-func (s *ParamSchemeService) UpdateScheme(ctx context.Context, scheme *ParamScheme) error {
+func (s *ParamSchemeService) UpdateScheme(ctx context.Context, scheme *types.ParamScheme) error {
 	// 检查方案是否存在
 	_, err := s.GetScheme(ctx, scheme.ID)
 	if err != nil {
@@ -174,7 +175,7 @@ func (s *ParamSchemeService) UpdateScheme(ctx context.Context, scheme *ParamSche
 				}
 			}
 		}
-		
+
 		err = s.Client.Set(ctx, s.getDefaultSchemeKey(), scheme.ID, s.Expiration).Err()
 		if err != nil {
 			return fmt.Errorf("设置默认参数方案失败: %w", err)
@@ -211,7 +212,7 @@ func (s *ParamSchemeService) DeleteScheme(ctx context.Context, id string) error 
 }
 
 // ListSchemes 获取所有参数方案
-func (s *ParamSchemeService) ListSchemes(ctx context.Context) ([]*ParamScheme, error) {
+func (s *ParamSchemeService) ListSchemes(ctx context.Context) ([]*types.ParamScheme, error) {
 	// 获取所有方案ID
 	ids, err := s.Client.SMembers(ctx, s.getSchemesListKey()).Result()
 	if err != nil {
@@ -220,11 +221,11 @@ func (s *ParamSchemeService) ListSchemes(ctx context.Context) ([]*ParamScheme, e
 
 	// 如果没有方案，返回空列表
 	if len(ids) == 0 {
-		return []*ParamScheme{}, nil
+		return []*types.ParamScheme{}, nil
 	}
 
 	// 获取每个方案的详细信息
-	schemes := make([]*ParamScheme, 0, len(ids))
+	schemes := make([]*types.ParamScheme, 0, len(ids))
 	for _, id := range ids {
 		scheme, err := s.GetScheme(ctx, id)
 		if err != nil {
@@ -250,7 +251,7 @@ func (s *ParamSchemeService) GetDefaultSchemeID(ctx context.Context) (string, er
 }
 
 // GetDefaultScheme 获取默认参数方案
-func (s *ParamSchemeService) GetDefaultScheme(ctx context.Context) (*ParamScheme, error) {
+func (s *ParamSchemeService) GetDefaultScheme(ctx context.Context) (*types.ParamScheme, error) {
 	id, err := s.GetDefaultSchemeID(ctx)
 	if err != nil {
 		return nil, err
@@ -259,7 +260,7 @@ func (s *ParamSchemeService) GetDefaultScheme(ctx context.Context) (*ParamScheme
 }
 
 // CreateDefaultSchemeFromConfig 从全局配置创建默认参数方案
-func (s *ParamSchemeService) CreateDefaultSchemeFromConfig(ctx context.Context, config interface{}) (*ParamScheme, error) {
+func (s *ParamSchemeService) CreateDefaultSchemeFromConfig(ctx context.Context, config interface{}) (*types.ParamScheme, error) {
 	// 使用类型断言将配置转换为全局配置类型
 	globalConfig, ok := config.(*global.GlobalConfig)
 	if !ok {
@@ -267,7 +268,7 @@ func (s *ParamSchemeService) CreateDefaultSchemeFromConfig(ctx context.Context, 
 	}
 
 	// 创建新的参数方案，只包含非全局启用状态参数
-	scheme := &ParamScheme{
+	scheme := &types.ParamScheme{
 		ID:                     "default",
 		Name:                   "默认方案",
 		Description:            "从配置文件自动生成的默认参数方案",
@@ -301,12 +302,12 @@ func (s *ParamSchemeService) CreateDefaultSchemeFromConfig(ctx context.Context, 
 }
 
 // CreateSchemeFromGlobalConfig 从全局配置创建参数方案
-func (s *ParamSchemeService) CreateSchemeFromGlobalConfig(ctx context.Context, id string, name string, description string) (*ParamScheme, error) {
+func (s *ParamSchemeService) CreateSchemeFromGlobalConfig(ctx context.Context, id string, name string, description string) (*types.ParamScheme, error) {
 	// 获取全局配置
 	config := global.GetConfig()
-	
+
 	// 创建新的参数方案
-	scheme := &ParamScheme{
+	scheme := &types.ParamScheme{
 		ID:                     id,
 		Name:                   name,
 		Description:            description,
@@ -329,12 +330,12 @@ func (s *ParamSchemeService) CreateSchemeFromGlobalConfig(ctx context.Context, i
 		SellPriorityFee:        config.SellPriorityFee,
 		SellTipFee:             config.SellTipFee,
 	}
-	
+
 	// 保存方案
 	err := s.CreateScheme(ctx, scheme)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return scheme, nil
 }

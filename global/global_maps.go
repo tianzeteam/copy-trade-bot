@@ -3,6 +3,7 @@ package global
 import (
 	"copytrade/logger"
 	"copytrade/raydium/layouts"
+	"copytrade/types"
 	"sync"
 	"time"
 
@@ -73,31 +74,6 @@ type AmmTradeEventInfo struct {
 	Router       string
 }
 
-// Raydium V4 存储AMM交易事件信息
-type AmmRaydiumV4TradeInfo struct {
-	UserAddress  solana.PublicKey // 用户地址
-	SolAmount    uint64           // Sol数量
-	TokenAmount  uint64           // Token数量
-	IsBuy        bool             // 是否买入
-	MintAddress  solana.PublicKey // Mint地址
-	AmmPool      solana.PublicKey // AMM池地址
-	TimeStamp    int64            // 时间戳
-	OpenOrders   solana.PublicKey
-	TargetOrders solana.PublicKey
-	BaseVault    solana.PublicKey
-	QuoteVault   solana.PublicKey
-	MarketId     solana.PublicKey
-
-	Version      uint32
-	CurrentPrice float64   // 当前价格
-	TradeTime    string    // 交易时间
-	ReceivedAt   time.Time // 接收时间
-	TxHash       string    // 交易哈希
-	Slot         uint64    // 区块槽位
-	Decimal      uint32
-	SolReserve   uint64 // SOL储备量
-}
-
 // LaunchpadTradeEventInfo 存储Launchpad交易事件信息
 type LaunchpadTradeEventInfo struct {
 	UserAddress  solana.PublicKey // 用户地址
@@ -141,37 +117,9 @@ type AmmPoolInfo struct {
 	LastUpdated           time.Time        // 最后更新时间
 }
 
-// MarketState represents an OpenBook market state with additional metadata
-type MarketState struct {
-	// Market account public key
-	MarketID solana.PublicKey
-	// Market state data
-	Layout layouts.MarketStateLayoutV3
-	// Base token mint address
-	BaseMint solana.PublicKey
-	// Quote token mint address
-	QuoteMint solana.PublicKey
-	// Base token decimal places
-	MarketEventQueue solana.PublicKey
-	// Base vault address
-	BaseVault solana.PublicKey
-	// Quote vault address
-	QuoteVault solana.PublicKey
-	// Bids account address
-	Bids solana.PublicKey
-	// Asks account address
-	Asks solana.PublicKey
-	// Base lot size
-	BaseLotSize uint64
-	// Quote lot size
-	QuoteLotSize uint64
-	// Fee rate in basis points
-	FeeRateBps uint64
-}
-
 // NewMarketStateFromLayout creates a new MarketState from a MarketStateLayoutV3
-func NewMarketStateFromLayout(marketID solana.PublicKey, layout layouts.MarketStateLayoutV3) *MarketState {
-	return &MarketState{
+func NewMarketStateFromLayout(marketID solana.PublicKey, layout layouts.MarketStateLayoutV3) *types.MarketState {
+	return &types.MarketState{
 		MarketID:         marketID,
 		Layout:           layout,
 		BaseMint:         layout.BaseMint,
@@ -215,7 +163,7 @@ var (
 	AmmPoolInfoMapLock = &sync.RWMutex{} // 用于保护映射表的读写锁
 
 	// AmmRaydiumV4 全局AMM交易信息映射表，键为Mint地址
-	AmmRaydiumV4TradeMap     = make(map[string]*AmmRaydiumV4TradeInfo)
+	AmmRaydiumV4TradeMap     = make(map[string]*types.AmmRaydiumV4TradeInfo)
 	AmmRaydiumV4TradeMapLock = &sync.RWMutex{} // 用于保护映射表的读写锁
 
 	CpmmTradeInfoMap     = make(map[string]*CPMMTradeEventInfo)
@@ -230,7 +178,7 @@ var (
 	TokenSellLimitersLock = &sync.RWMutex{} // 用于保护映射表的读写锁
 
 	// OpenBookMarketStates 存储OpenBook市场状态信息，键为市场ID
-	OpenBookMarketStates     = make(map[string]*MarketState)
+	OpenBookMarketStates     = make(map[string]*types.MarketState)
 	OpenBookMarketStatesLock = &sync.RWMutex{} // 用于保护映射表的读写锁
 
 	// RaydiumPoolLayouts 存储Raydium池布局信息，键为池地址
@@ -367,7 +315,7 @@ func SetAmmPoolInfo(mintAddress string, info *AmmPoolInfo) {
 }
 
 // SetRaydiumV4TradeInfo 设置指定代币的AMM交易信息
-func SetRaydiumV4TradeInfo(mintAddress string, info *AmmRaydiumV4TradeInfo) {
+func SetRaydiumV4TradeInfo(mintAddress string, info *types.AmmRaydiumV4TradeInfo) {
 	AmmRaydiumV4TradeMapLock.Lock()
 	defer AmmRaydiumV4TradeMapLock.Unlock()
 	AmmRaydiumV4TradeMap[mintAddress] = info
@@ -388,7 +336,7 @@ func GetLaunchpadTradeInfo(mintAddress string) *LaunchpadTradeEventInfo {
 }
 
 // GetAmmRaydiuV4TradeInfo 获取指定代币的AMM交易信息
-func GetAmmRaydiuV4TradeInfo(mintAddress string) *AmmRaydiumV4TradeInfo {
+func GetAmmRaydiuV4TradeInfo(mintAddress string) *types.AmmRaydiumV4TradeInfo {
 	AmmRaydiumV4TradeMapLock.Lock()
 	defer AmmRaydiumV4TradeMapLock.Unlock()
 	return AmmRaydiumV4TradeMap[mintAddress]
@@ -424,14 +372,14 @@ func UpdateTokenSellTime(mintAddress string) {
 }
 
 // GetOpenBookMarketState 获取指定市场ID的OpenBook市场状态
-func GetOpenBookMarketState(marketID string) *MarketState {
+func GetOpenBookMarketState(marketID string) *types.MarketState {
 	OpenBookMarketStatesLock.RLock()
 	defer OpenBookMarketStatesLock.RUnlock()
 	return OpenBookMarketStates[marketID]
 }
 
 // SetOpenBookMarketState 设置指定市场ID的OpenBook市场状态
-func SetOpenBookMarketState(marketID string, state *MarketState) {
+func SetOpenBookMarketState(marketID string, state *types.MarketState) {
 	OpenBookMarketStatesLock.Lock()
 	defer OpenBookMarketStatesLock.Unlock()
 	OpenBookMarketStates[marketID] = state

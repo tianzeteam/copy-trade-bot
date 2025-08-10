@@ -1,6 +1,7 @@
 package global
 
 import (
+	"copytrade/types"
 	"sync"
 	"time"
 )
@@ -38,6 +39,9 @@ type GlobalConfig struct {
 	SellPriorityFee float64 `json:"sell_priority_fee"` // 卖出优先费
 	SellTipFee      float64 `json:"sell_tip_fee"`      // 卖出小费
 
+	// 钱包参数模板
+	WalletParamSchemes map[string]*types.ParamScheme `json:"wallet_param_schemes"` // 钱包地址到参数模板的映射
+
 	// 其他系统配置
 	UpdatedAt time.Time `json:"updated_at"` // 最后更新时间
 }
@@ -54,6 +58,19 @@ func GetConfig() GlobalConfig {
 	configMutex.RLock()
 	defer configMutex.RUnlock()
 	return Config
+}
+func GetConfigByWallet(copyAddress string) *types.ParamScheme {
+	configMutex.RLock()
+	defer configMutex.RUnlock()
+
+	if Config.WalletParamSchemes == nil {
+		return nil
+	}
+	scheme, ok := Config.WalletParamSchemes[copyAddress]
+	if !ok {
+		return nil
+	}
+	return scheme
 }
 
 // UpdateConfig 更新全局配置
@@ -91,127 +108,11 @@ func UpdateConfigField(key string, value any) {
 		if val, ok := value.(bool); ok {
 			Config.RepeatTradeEnable = val
 		}
-	case "sell_delay_time":
-		if val, ok := value.(int); ok {
-			Config.SellDelayTime = val
-		}
 
-	// 交易触发和池子大小参数
-	case "min_follow_trigger_amount":
-		if val, ok := value.(float64); ok {
-			Config.MinFollowTriggerAmount = val
-		}
-	case "max_follow_trigger_amount":
-		if val, ok := value.(float64); ok {
-			Config.MaxFollowTriggerAmount = val
-		}
-	case "min_pool_size":
-		if val, ok := value.(float64); ok {
-			Config.MinPoolSize = val
-		}
-	case "max_pool_size":
-		if val, ok := value.(float64); ok {
-			Config.MaxPoolSize = val
-		}
-
-	// 交易参数
-	case "buy_sol_amount":
-		if val, ok := value.(float64); ok {
-			Config.BuySolAmount = val
-		}
-	case "max_buy_amount":
-		if val, ok := value.(float64); ok {
-			Config.MaxBuyAmount = val
-		}
-	case "min_buy_amount":
-		if val, ok := value.(float64); ok {
-			Config.MinBuyAmount = val
-		}
-	case "sell_percentage":
-		if val, ok := value.(float64); ok {
-			Config.SellPercentage = val
-		}
-	case "stop_loss_percentage":
-		if val, ok := value.(float64); ok {
-			Config.StopLossPercentage = val
-		}
-	case "take_profit_percentage":
-		if val, ok := value.(float64); ok {
-			Config.TakeProfitPercentage = val
-		}
-
-	// 滑点参数
-	case "buy_slippage":
-		if val, ok := value.(float64); ok {
-			Config.BuySlippage = val
-		}
-	case "sell_slippage":
-		if val, ok := value.(float64); ok {
-			Config.SellSlippage = val
-		}
-
-	// 交易手续费参数
-	case "buy_priority_fee":
-		if val, ok := value.(float64); ok {
-			Config.BuyPriorityFee = val
-		}
-	case "buy_tip_fee":
-		if val, ok := value.(float64); ok {
-			Config.BuyTipFee = val
-		}
-	case "sell_priority_fee":
-		if val, ok := value.(float64); ok {
-			Config.SellPriorityFee = val
-		}
-	case "sell_tip_fee":
-		if val, ok := value.(float64); ok {
-			Config.SellTipFee = val
-		}
-
-	// 兼容旧的键名
-	case "maxPoolSize":
-		if val, ok := value.(float64); ok {
-			Config.MaxPoolSize = val
-		}
-	case "minPoolSize":
-		if val, ok := value.(float64); ok {
-			Config.MinPoolSize = val
-		}
-	case "minFollowTriggerAmount":
-		if val, ok := value.(float64); ok {
-			Config.MinFollowTriggerAmount = val
-		}
-	case "maxFollowTriggerAmount":
-		if val, ok := value.(float64); ok {
-			Config.MaxFollowTriggerAmount = val
-		}
-	case "sellDelayTime":
-		if val, ok := value.(int); ok {
-			Config.SellDelayTime = val
-		}
-	case "buySolAmount":
-		if val, ok := value.(float64); ok {
-			Config.BuySolAmount = val
-		}
-	case "maxBuyAmount":
-		if val, ok := value.(float64); ok {
-			Config.MaxBuyAmount = val
-		}
-	case "minBuyAmount":
-		if val, ok := value.(float64); ok {
-			Config.MinBuyAmount = val
-		}
-	case "sellPercentage":
-		if val, ok := value.(float64); ok {
-			Config.SellPercentage = val
-		}
-	case "stopLossPercentage":
-		if val, ok := value.(float64); ok {
-			Config.StopLossPercentage = val
-		}
-	case "takeProfitPercentage":
-		if val, ok := value.(float64); ok {
-			Config.TakeProfitPercentage = val
+	// 钱包参数模板
+	case "wallet_param_schemes":
+		if val, ok := value.(map[string]*types.ParamScheme); ok {
+			Config.WalletParamSchemes = val
 		}
 	}
 
@@ -231,31 +132,8 @@ func InitConfig(config map[string]any) {
 		RaydiumTradeEnable:   getBoolValue(config, "raydium_trade_enable", false),
 		LaunchpadTradeEnable: getBoolValue(config, "launchpad_trade_enable", false),
 		RepeatTradeEnable:    getBoolValue(config, "repeat_trade_enable", false),
-		SellDelayTime:        getIntValue(config, "sell_delay_time", 0),
-
-		// 交易触发和池子大小参数
-		MinFollowTriggerAmount: getFloat64Value(config, "min_follow_trigger_amount", 0.5),
-		MaxFollowTriggerAmount: getFloat64Value(config, "max_follow_trigger_amount", 10.0),
-		MinPoolSize:            getFloat64Value(config, "min_pool_size", 200.0),
-		MaxPoolSize:            getFloat64Value(config, "max_pool_size", 1000.0),
-
-		// 交易参数
-		BuySolAmount:         getFloat64Value(config, "buy_sol_amount", 0.002),
-		MaxBuyAmount:         getFloat64Value(config, "max_buy_amount", 1.0),
-		MinBuyAmount:         getFloat64Value(config, "min_buy_amount", 0.5),
-		SellPercentage:       getFloat64Value(config, "sell_percentage", 100.0),
-		StopLossPercentage:   getFloat64Value(config, "stop_loss_percentage", 10.0),
-		TakeProfitPercentage: getFloat64Value(config, "take_profit_percentage", 50.0),
-
-		// 滑点参数
-		BuySlippage:  getFloat64Value(config, "buy_slippage", 0.2),
-		SellSlippage: getFloat64Value(config, "sell_slippage", 0.2),
-
-		// 交易手续费参数
-		BuyPriorityFee:  getFloat64Value(config, "buy_priority_fee", 0.005),
-		BuyTipFee:       getFloat64Value(config, "buy_tip_fee", 0.005),
-		SellPriorityFee: getFloat64Value(config, "sell_priority_fee", 0.03),
-		SellTipFee:      getFloat64Value(config, "sell_tip_fee", 0.03),
+		// 钱包参数模板
+		WalletParamSchemes: getWalletParamSchemes(config),
 
 		// 更新时间
 		UpdatedAt: time.Now(),
@@ -304,4 +182,17 @@ func getIntValue(config map[string]any, key string, defaultValue int) int {
 		}
 	}
 	return defaultValue
+}
+
+// getWalletParamSchemes 从配置中获取钱包参数模板映射
+func getWalletParamSchemes(config map[string]any) map[string]*types.ParamScheme {
+	// 如果配置中存在钱包参数模板映射，直接返回
+	if val, ok := config["wallet_param_schemes"]; ok {
+		if schemes, ok := val.(map[string]*types.ParamScheme); ok {
+			return schemes
+		}
+	}
+
+	// 如果不存在或类型不匹配，返回空映射
+	return make(map[string]*types.ParamScheme)
 }

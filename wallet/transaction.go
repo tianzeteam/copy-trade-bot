@@ -69,7 +69,7 @@ func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo
 }
 
 // ProcessAmmTransaction 处理AMM交易事件
-func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *global.AmmRaydiumV4TradeInfo, marketLayout *global.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4) {
+func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *types.AmmRaydiumV4TradeInfo, marketLayout *types.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4) {
 	// 只处理买入交易
 	if !tradeInfo.IsBuy {
 		return
@@ -193,12 +193,12 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 	} else {
 		virtualSolReserves = TradeEventInfo.VirtualSolReserves
 	}
-
+	specailScheme := global.GetConfigByWallet(copyAddress.String())
 	// Calculate buy amounts
 	amounts, err := m.TradeBot.Trader.AmountsCalc.CalculateBuyAmounts(
 		ctx,
 		pumpAccounts.BondingCurve,
-		global.GetConfig().BuySolAmount,
+		specailScheme.BuySolAmount,
 		virtualSolReserves,
 		global.GetConfig().BuySlippage,
 	)
@@ -224,8 +224,8 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 		Cost:      amounts.MaxCost,
 		Blockhash: *m.TradeBot.Blockhash,
 		FeeConfig: types.FeeConfig{
-			Slippage:    global.GetConfig().BuySlippage,
-			PriorityFee: uint64(global.GetConfig().BuyPriorityFee * 1e9),
+			Slippage:    specailScheme.BuySlippage,
+			PriorityFee: uint64(specailScheme.BuyPriorityFee * 1e9),
 		},
 	}
 
@@ -238,24 +238,24 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 			RpcUrl:    m.TradeBot.Config.Zeroslot.RpcUrl,
 			BundleUrl: m.TradeBot.Config.Zeroslot.RpcUrl,
 			ApiKeys:   m.TradeBot.Config.Zeroslot.ApiKeys,
-			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
+			TipAmount: uint64(specailScheme.BuyTipFee * 1e9),
 		},
 		JitoParams: &types.JitoParams{
 			Enable:    m.TradeBot.Config.Jito.Enable,
 			BundleUrl: m.TradeBot.Config.Jito.RpcUrl,
-			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
+			TipAmount: uint64(specailScheme.BuyTipFee * 1e9),
 		},
 		TemporalParams: &types.TemporalParams{
 			Enable:    m.TradeBot.Config.Temporal.Enable,
 			BundleUrl: m.TradeBot.Config.Temporal.RpcUrl,
 			ApiKey:    m.TradeBot.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
+			TipAmount: uint64(specailScheme.BuyTipFee * 1e9),
 		},
 		BloXrouteParams: &types.BloXrouteParams{
 			Enable:    m.TradeBot.Config.BloXroute.Enable,
 			RpcUrl:    m.TradeBot.Config.BloXroute.RpcUrl,
 			ApiKeys:   m.TradeBot.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
+			TipAmount: uint64(specailScheme.BuyTipFee * 1e9),
 		},
 	}
 
@@ -282,6 +282,7 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 	// 先记录原始交易者的交易
 	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress.String(), originalWallet, tradeInfo.CurrentPrice, originalAmount)
 	m.WalletMonitor.Mux.RUnlock()
+	specailScheme := global.GetConfigByWallet(originalWallet.String())
 
 	pumpAccounts, err := m.TradeBot.Trader.AccountsCalc.CalculateAmmAccounts(
 
@@ -298,10 +299,10 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 	quoteReserve := tradeInfo.QuoteReserve
 	// Calculate buy amounts
 	amounts, err := m.TradeBot.Trader.AmountsCalc.CalculateAmmBuyAmounts(
-		global.GetConfig().BuySolAmount,
+		specailScheme.BuySolAmount,
 		baseReserve,
 		quoteReserve,
-		global.GetConfig().BuySlippage,
+		specailScheme.BuySlippage,
 	)
 
 	if err != nil {
@@ -329,8 +330,8 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 		Cost:      amounts.MaxCost,
 		Blockhash: *m.TradeBot.Blockhash,
 		FeeConfig: types.FeeConfig{
-			Slippage:    global.GetConfig().BuySlippage,
-			PriorityFee: uint64(global.GetConfig().BuyPriorityFee * 1e9),
+			Slippage:    specailScheme.BuySlippage,
+			PriorityFee: uint64(specailScheme.BuyPriorityFee * 1e9),
 		},
 	}
 
@@ -341,25 +342,25 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 			Enable:    m.TradeBot.Config.Zeroslot.Enable,
 			RpcUrl:    m.TradeBot.Config.Zeroslot.RpcUrl,
 			ApiKeys:   m.TradeBot.Config.Zeroslot.ApiKeys,
-			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
+			TipAmount: uint64(specailScheme.BuyTipFee * 1e9),
 		},
 
 		JitoParams: &types.JitoParams{
 			Enable:    m.TradeBot.Config.Jito.Enable,
 			BundleUrl: m.TradeBot.Config.Jito.RpcUrl,
-			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
+			TipAmount: uint64(specailScheme.BuyTipFee * 1e9),
 		},
 		TemporalParams: &types.TemporalParams{
 			Enable:    m.TradeBot.Config.Temporal.Enable,
 			BundleUrl: m.TradeBot.Config.Temporal.RpcUrl,
 			ApiKey:    m.TradeBot.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
+			TipAmount: uint64(specailScheme.BuyTipFee * 1e9),
 		},
 		BloXrouteParams: &types.BloXrouteParams{
 			Enable:    m.TradeBot.Config.BloXroute.Enable,
 			RpcUrl:    m.TradeBot.Config.BloXroute.RpcUrl,
 			ApiKeys:   m.TradeBot.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(global.GetConfig().BuyTipFee * 1e9),
+			TipAmount: uint64(specailScheme.BuyTipFee * 1e9),
 		},
 	}
 
@@ -370,7 +371,7 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 }
 
 // executeRaydiumV4CopyTrade
-func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *global.AmmRaydiumV4TradeInfo, marketLayout *global.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4, originalWallet solana.PublicKey, originalAmount uint64) {
+func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *types.AmmRaydiumV4TradeInfo, marketLayout *types.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4, originalWallet solana.PublicKey, originalAmount uint64) {
 	// 检查是否已经交易过该代币
 	m.WalletMonitor.Mux.RLock()
 	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress.String()]; exists && !global.GetConfig().RepeatTradeEnable {

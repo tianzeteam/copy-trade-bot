@@ -561,7 +561,7 @@ function loadSchemeDetails(schemeId) {
         document.getElementById('schemeMinBuyAmount').value = scheme.min_buy_amount;
         document.getElementById('schemeMaxBuyAmount').value = scheme.max_buy_amount;
         document.getElementById('schemeBuySolAmount').value = scheme.buy_sol_amount;
-        document.getElementById('schemeSellPercentage').value = scheme.sell_percentage;
+        //document.getElementById('schemeSellPercentage').value = scheme.sell_percentage;
         document.getElementById('schemeStopLossPercentage').value = scheme.stop_loss_percentage;
         document.getElementById('schemeTakeProfitPercentage').value = scheme.take_profit_percentage;
         document.getElementById('schemeBuySlippage').value = scheme.buy_slippage;
@@ -601,7 +601,7 @@ function addNewScheme() {
         min_buy_amount: parseFloat(document.getElementById('newSchemeMinBuyAmount').value),
         max_buy_amount: parseFloat(document.getElementById('newSchemeMaxBuyAmount').value),
         buy_sol_amount: parseFloat(document.getElementById('newSchemeBuySolAmount').value),
-        sell_percentage: parseFloat(document.getElementById('newSchemeSellPercentage').value),
+        //sell_percentage: parseFloat(document.getElementById('newSchemeSellPercentage').value),
         stop_loss_percentage: parseFloat(document.getElementById('newSchemeStopLossPercentage').value),
         take_profit_percentage: parseFloat(document.getElementById('newSchemeTakeProfitPercentage').value),
         buy_slippage: parseFloat(document.getElementById('newSchemeBuySlippage').value),
@@ -676,7 +676,7 @@ function updateScheme() {
         min_buy_amount: parseFloat(document.getElementById('schemeMinBuyAmount').value),
         max_buy_amount: parseFloat(document.getElementById('schemeMaxBuyAmount').value),
         buy_sol_amount: parseFloat(document.getElementById('schemeBuySolAmount').value),
-        sell_percentage: parseFloat(document.getElementById('schemeSellPercentage').value),
+        //sell_percentage: parseFloat(document.getElementById('schemeSellPercentage').value),
         stop_loss_percentage: parseFloat(document.getElementById('schemeStopLossPercentage').value),
         take_profit_percentage: parseFloat(document.getElementById('schemeTakeProfitPercentage').value),
         buy_slippage: parseFloat(document.getElementById('schemeBuySlippage').value),

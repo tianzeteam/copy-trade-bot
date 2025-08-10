@@ -133,7 +133,7 @@ func main() {
 		logger.Errorf("创建钱包监控器失败: %v", err)
 		os.Exit(1)
 	}
-	
+
 	// 设置全局钱包监控器实例，供其他包使用
 	global.SetWalletMonitor(walletMonitor)
 	logger.Infof("已设置全局钱包监控器实例")
@@ -156,7 +156,7 @@ func main() {
 	// 创建交易监控器
 	transactionMonitor = wallet.NewTransactionMonitor(tradeBot, walletMonitor, tradeBot.GetWalletPublicKey(), config.BuySolAmount)
 
-	// 启动钱包监控服务
+	// 启动钱包监控、参数模板刷新服务
 	ctx := context.Background()
 
 	walletMonitor.StartMonitoring(ctx)
@@ -165,6 +165,15 @@ func main() {
 	go processWaitingSellTokens(tradeBot)
 
 	// 初始化全局配置到内存中
+	// 获取钱包参数模板映射
+	walletParamSchemes := walletMonitor.GetAllCachedWalletParamSchemes()
+
+	// 转换为map[string]any类型
+	walletParamsMap := make(map[string]any)
+	for walletAddr, scheme := range walletParamSchemes {
+		walletParamsMap[walletAddr] = scheme
+	}
+
 	configMap := map[string]any{
 		// 交易平台启用状态
 		"pump_trade_enable":      config.PumpTradeEnable,      // PumpFun交易启用
@@ -172,32 +181,13 @@ func main() {
 		"raydium_trade_enable":   config.RaydiumTradeEnable,   // Raydium交易禁用
 		"launchpad_trade_enable": config.LaunchpadTradeEnable, // Launchpad交易禁用
 		"repeat_trade_enable":    config.RepeatTradeEnable,    // 重复交易禁用
-		"sell_delay_time":        config.SellDelayTime,        // 延迟卖出时间
-		// 交易触发和池子大小参数
-		"min_follow_trigger_amount": config.MinFollowTriggerAmount,
-		"max_follow_trigger_amount": config.MaxFollowTriggerAmount,
-		"min_pool_size":             config.MinPoolSize,
-		"max_pool_size":             config.MaxPoolSize,
 
-		// 交易参数
-		"buy_sol_amount": config.BuySolAmount,
-		"max_buy_amount": config.BuySolAmount,
-		"min_buy_amount": config.BuySolAmount * 0.5, // 默认为买入金额的一半
-		// 默认止盈50%
-
-		// 滑点参数
-		"buy_slippage":  config.BuySlippage,
-		"sell_slippage": config.SellSlippage,
-
-		// 交易手续费参数
-		"buy_priority_fee":  config.BuyPriorityFee,
-		"buy_tip_fee":       config.BuyTipFee,
-		"sell_priority_fee": config.SellPriorityFee,
-		"sell_tip_fee":      config.SellTipFee,
+		// 钱包参数模板映射
+		"wallet_param_schemes": walletParamsMap,
 	}
 
 	global.InitConfig(configMap)
-	logger.Infof("成功将配置参数初始化到内存中")
+	logger.Infof("成功将配置参数初始化到内存中，包含 %d 个钱包参数模板", len(walletParamsMap))
 
 	// 初始化资产管理器并启动自动更新服务
 	balanceManager := asset.InitBalanceManager(

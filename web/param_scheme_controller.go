@@ -8,6 +8,7 @@ import (
 
 	"copytrade/global"
 	"copytrade/logger"
+	"copytrade/types"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -56,7 +57,7 @@ type SchemeRequest struct {
 	IsDefault   bool   `json:"is_default"`
 
 	// 交易参数
-	SellDelayTime        int  `json:"sell_delay_time"`
+	SellDelayTime int `json:"sell_delay_time"`
 
 	// 交易触发和池子大小参数
 	MinFollowTriggerAmount float64 `json:"min_follow_trigger_amount"`
@@ -143,7 +144,7 @@ func (c *ParamSchemeController) CreateScheme(ctx *gin.Context) {
 	}
 
 	// 创建参数方案
-	scheme := &ParamScheme{
+	scheme := &types.ParamScheme{
 		ID:                     request.ID,
 		Name:                   request.Name,
 		Description:            request.Description,

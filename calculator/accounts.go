@@ -2,8 +2,11 @@ package calculator
 
 import (
 	"context"
-	"copytrade/global"
+	//"copytrade/global"
+	//"copytrade/types"
+
 	"copytrade/logger"
+	"copytrade/types"
 	"fmt"
 
 	"copytrade/pumpamm"
@@ -42,7 +45,7 @@ func NewAccountsCalculator(endpoint string) *AccountsCalculator {
 }
 
 // CalculatePumpAccounts 计算Pump所需的所有账户
-func (c *AccountsCalculator) CalculatePumpAccounts(ctx context.Context, creator, mint, user solana.PublicKey) (*PumpAccounts, error) {
+func (c *AccountsCalculator) CalculatePumpAccounts(ctx context.Context, creator, mint, user solana.PublicKey) (*types.PumpAccounts, error) {
 	// 计算bonding curve地址
 	bondingCurve, _, err := solana.FindProgramAddress(
 		[][]byte{
@@ -106,7 +109,7 @@ func (c *AccountsCalculator) CalculatePumpAccounts(ctx context.Context, creator,
 		return nil, fmt.Errorf("计算user volume accumulator失败: %w", err)
 	}
 
-	return &PumpAccounts{
+	return &types.PumpAccounts{
 		BondingCurve:            bondingCurve,
 		AssociatedBondingCurve:  associatedBondingCurve,
 		AssociatedTokenAccount:  associatedTokenAccount,
@@ -116,101 +119,7 @@ func (c *AccountsCalculator) CalculatePumpAccounts(ctx context.Context, creator,
 	}, nil
 }
 
-// PumpAccounts 存储所有需要的账户地址
-type PumpAccounts struct {
-	BondingCurve            solana.PublicKey
-	AssociatedBondingCurve  solana.PublicKey
-	AssociatedTokenAccount  solana.PublicKey
-	CreatorVaultPda         solana.PublicKey // 代币创建者金库PDA地址
-	GlobalVolumeAccumulator solana.PublicKey // 全局成交量累加器地址
-	UserVolumeAccumulator   solana.PublicKey // 用户成交量累加器地址
-}
-
-// AmmAccounts 存储AMM相关的账户地址
-type AmmAccounts struct {
-	Pool                      solana.PublicKey // AMM池地址
-	Mint                      solana.PublicKey // 基础代币地址
-	BaseMint                  solana.PublicKey // 基础代币地址
-	QuoteMint                 solana.PublicKey // 报价代币地址
-	PoolBaseTokenAccount      solana.PublicKey // 池中基础代币账户
-	PoolQuoteTokenAccount     solana.PublicKey // 池中报价代币账户
-	UserBaseTokenAccount      solana.PublicKey // 用户的基础代币账户
-	UserQuoteTokenAccount     solana.PublicKey // 用户的报价代币账户
-	WsolTokenAccount          solana.PublicKey // WSOL账户
-	CoinCreator               solana.PublicKey // 代币创建者地址
-	CoinCreatorVaultAuthority solana.PublicKey // 代币创建者金库授权地址
-	CoinCreatorVaultAta       solana.PublicKey // 代币创建者金库ATA地址
-	GlobalVolumeAccumulator   solana.PublicKey // 全局成交量累加器地址
-	UserVolumeAccumulator     solana.PublicKey // 用户成交量累加器地址
-}
-
-// String 返回AmmAccounts的字符串表示，用于调试输出
-func (a *AmmAccounts) String() string {
-	return fmt.Sprintf("AmmAccounts:\n"+
-		"  Pool: %s\n"+
-		"  Mint: %s\n"+
-		"  BaseMint: %s\n"+
-		"  QuoteMint: %s\n"+
-		"  PoolBaseTokenAccount: %s\n"+
-		"  PoolQuoteTokenAccount: %s\n"+
-		"  UserBaseTokenAccount: %s\n"+
-		"  UserQuoteTokenAccount: %s\n"+
-		"  WsolTokenAccount: %s\n"+
-		"  CoinCreator: %s\n"+
-		"  CoinCreatorVaultAuthority: %s\n"+
-		"  CoinCreatorVaultAta: %s",
-		a.Pool.String(),
-		a.Mint.String(),
-		a.BaseMint.String(),
-		a.QuoteMint.String(),
-		a.PoolBaseTokenAccount.String(),
-		a.PoolQuoteTokenAccount.String(),
-		a.UserBaseTokenAccount.String(),
-		a.UserQuoteTokenAccount.String(),
-		a.WsolTokenAccount.String(),
-		a.CoinCreator.String(),
-		a.CoinCreatorVaultAuthority.String(),
-		a.CoinCreatorVaultAta.String(),
-		a.GlobalVolumeAccumulator.String(),
-		a.UserVolumeAccumulator.String(),
-	)
-}
-
-type RaydiumV4Accounts struct {
-	Pool                  solana.PublicKey
-	ID                    solana.PublicKey
-	BaseMint              solana.PublicKey
-	QuoteMint             solana.PublicKey
-	UserBaseTokenAccount  solana.PublicKey
-	UserQuoteTokenAccount solana.PublicKey
-	LpMint                solana.PublicKey
-	BaseDecimals          uint64
-	QuoteDecimals         uint64
-	LpDecimals            uint64
-	Version               uint64
-	ProgramId             solana.PublicKey
-	Authority             solana.PublicKey
-	OpenOrders            solana.PublicKey
-	TargetOrders          solana.PublicKey
-	BaseVault             solana.PublicKey
-	QuoteVault            solana.PublicKey
-	//WithdrawQueue      solana.PublicKey
-	LpVault       solana.PublicKey
-	WithdrawQueue solana.PublicKey
-
-	MarketVersion      uint64
-	MarketProgramId    solana.PublicKey
-	MarketId           solana.PublicKey
-	MarketAuthority    solana.PublicKey
-	MarketBaseVault    solana.PublicKey
-	MarketQuoteVault   solana.PublicKey
-	MarketBids         solana.PublicKey
-	MarketAsks         solana.PublicKey
-	MarketEventQueue   solana.PublicKey
-	LookupTableAccount solana.PublicKey
-}
-
-func (c *AccountsCalculator) CalculateV4Accounts(user solana.PublicKey, tradeInfo *global.AmmRaydiumV4TradeInfo, marketLayout *global.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4) (*RaydiumV4Accounts, error) {
+func (c *AccountsCalculator) CalculateV4Accounts(user solana.PublicKey, tradeInfo *types.AmmRaydiumV4TradeInfo, marketLayout *types.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4) (*types.RaydiumV4Accounts, error) {
 
 	authority, _, _ := solana.FindProgramAddress([][]byte{{97, 109, 109, 32, 97, 117, 116, 104, 111, 114, 105, 116, 121}}, RAYDIUM_V4_PROGRAM_ID)
 	//TODO
@@ -232,7 +141,7 @@ func (c *AccountsCalculator) CalculateV4Accounts(user solana.PublicKey, tradeInf
 		return nil, fmt.Errorf("failed to create WSOL account with seed: %v", err)
 	}
 
-	return &RaydiumV4Accounts{
+	return &types.RaydiumV4Accounts{
 		Pool:                  tradeInfo.AmmPool,
 		BaseMint:              tradeInfo.MintAddress,
 		QuoteMint:             marketLayout.QuoteMint,
@@ -267,7 +176,7 @@ func (c *AccountsCalculator) CalculateV4Accounts(user solana.PublicKey, tradeInf
 }
 
 // CalculateAmmAccounts 计算AMM所需的所有账户
-func (c *AccountsCalculator) CalculateAmmAccounts(pool, baseMint, user solana.PublicKey, coinCreator solana.PublicKey) (*AmmAccounts, error) {
+func (c *AccountsCalculator) CalculateAmmAccounts(pool, baseMint, user solana.PublicKey, coinCreator solana.PublicKey) (*types.AmmAccounts, error) {
 
 	// 创建WSOL账户
 	wsolTokenAccount, _, err := solana.FindAssociatedTokenAddress(
@@ -385,7 +294,7 @@ func (c *AccountsCalculator) CalculateAmmAccounts(pool, baseMint, user solana.Pu
 	}
 
 	// 返回所有计算出的账户地址
-	ammAccounts := &AmmAccounts{
+	ammAccounts := &types.AmmAccounts{
 		Pool:                      pool,
 		Mint:                      baseMint,
 		BaseMint:                  baseMint,
@@ -409,26 +318,7 @@ func (c *AccountsCalculator) CalculateAmmAccounts(pool, baseMint, user solana.Pu
 
 }
 
-// RaydiumLaunchpadAccounts stores all the necessary accounts for interacting with the Raydium Launchpad.
-type RaydiumLaunchpadAccounts struct {
-	Payer                 solana.PublicKey
-	Authority             solana.PublicKey
-	GlobalConfig          solana.PublicKey // NOTE: This needs to be fetched or provided
-	PlatformConfig        solana.PublicKey // NOTE: This needs to be fetched or provided
-	PoolState             solana.PublicKey
-	UserBaseTokenAccount  solana.PublicKey
-	UserQuoteTokenAccount solana.PublicKey
-	BaseVault             solana.PublicKey
-	QuoteVault            solana.PublicKey
-	BaseTokenMint         solana.PublicKey
-	QuoteTokenMint        solana.PublicKey
-	BaseTokenProgram      solana.PublicKey
-	QuoteTokenProgram     solana.PublicKey
-	EventAuthority        solana.PublicKey
-	Program               solana.PublicKey
-}
-
-func (c *AccountsCalculator) CalculateLaunchpadAccounts(user solana.PublicKey, baseMint, quoteMint solana.PublicKey) (*RaydiumLaunchpadAccounts, error) {
+func (c *AccountsCalculator) CalculateLaunchpadAccounts(user solana.PublicKey, baseMint, quoteMint solana.PublicKey) (*types.RaydiumLaunchpadAccounts, error) {
 
 	authority, _, err := solana.FindProgramAddress(
 		[][]byte{
@@ -496,7 +386,7 @@ func (c *AccountsCalculator) CalculateLaunchpadAccounts(user solana.PublicKey, b
 		return nil, fmt.Errorf("failed to find event authority PDA: %w", err)
 	}
 
-	return &RaydiumLaunchpadAccounts{
+	return &types.RaydiumLaunchpadAccounts{
 		Payer:                 user,
 		Authority:             authority,
 		GlobalConfig:          solana.MustPublicKeyFromBase58("6s1xP3hpbAfFoNtUNF8mfHsjr2Bd97JxFJRWLbL6aHuX"), // This should be fetched from pool state
@@ -515,26 +405,8 @@ func (c *AccountsCalculator) CalculateLaunchpadAccounts(user solana.PublicKey, b
 	}, nil
 }
 
-// RaydiumCPMMAccounts stores all the necessary accounts for interacting with the Raydium CPMM.
-type RaydiumCPMMAccounts struct {
-	Payer              solana.PublicKey
-	Authority          solana.PublicKey
-	AmmConfig          solana.PublicKey
-	PoolState          solana.PublicKey
-	InputTokenAccount  solana.PublicKey
-	OutputTokenAccount solana.PublicKey
-	InputVault         solana.PublicKey
-	OutputVault        solana.PublicKey
-	ObservationState   solana.PublicKey
-	InputTokenMint     solana.PublicKey
-	OutputTokenMint    solana.PublicKey
-	InputTokenProgram  solana.PublicKey
-	OutputTokenProgram solana.PublicKey
-	Program            solana.PublicKey
-}
-
 // CalculateRaydiumCPMMAccounts 计算Raydium CPMM账户
-func (c *AccountsCalculator) CalculateRaydiumCPMMAccounts(user solana.PublicKey, ammConfig string, pool, baseMint, quoteMint solana.PublicKey) (*RaydiumCPMMAccounts, error) {
+func (c *AccountsCalculator) CalculateRaydiumCPMMAccounts(user solana.PublicKey, ammConfig string, pool, baseMint, quoteMint solana.PublicKey) (*types.RaydiumCPMMAccounts, error) {
 
 	inputTokenAccount, _, err := solana.FindAssociatedTokenAddress(user, quoteMint)
 	if err != nil {
@@ -581,7 +453,7 @@ func (c *AccountsCalculator) CalculateRaydiumCPMMAccounts(user solana.PublicKey,
 		return nil, fmt.Errorf("failed to find observation state PDA: %w", err)
 	}
 
-	return &RaydiumCPMMAccounts{
+	return &types.RaydiumCPMMAccounts{
 		Payer:              user,
 		Authority:          solana.MustPublicKeyFromBase58("GpMZbSM2GgvTKHJirzeGfMFoaZ8UR2X7F4v8vHTvxFbL"),
 		AmmConfig:          solana.MustPublicKeyFromBase58(ammConfig),

@@ -9,6 +9,7 @@ import (
 	"copytrade/logger"
 	"copytrade/queue"
 	"copytrade/raydium"
+	"copytrade/types"
 	yellowstone_geyser_pb "copytrade/yellowstone_geyser/pb"
 
 	"github.com/gagliardetto/solana-go"
@@ -87,7 +88,7 @@ func (b *Bot) extractAccountInfo(accounts []byte, accountList []string) (ammId, 
 func (b *Bot) createTradeInfo(
 	mintAddress, ammId, openOrders, targetOrders, poolCoinTokenAccount,
 	poolPcTokenAccount, serumMarket, userOwner, signature string,
-	solChange *SolBalanceChange, version uint32, hasTargetOrders bool, solReserve float64) *global.AmmRaydiumV4TradeInfo {
+	solChange *SolBalanceChange, version uint32, hasTargetOrders bool, solReserve float64) *types.AmmRaydiumV4TradeInfo {
 
 	if solChange == nil {
 		return nil
@@ -104,7 +105,7 @@ func (b *Bot) createTradeInfo(
 		version, mintAddress, solChange.SolChangeAmount, solChange.TokenChangeAmount, currentPrice, solChange.Decimals)
 
 	// Create the trade info struct
-	tradeInfo := &global.AmmRaydiumV4TradeInfo{
+	tradeInfo := &types.AmmRaydiumV4TradeInfo{
 		MintAddress:  solana.MustPublicKeyFromBase58(mintAddress),
 		AmmPool:      solana.MustPublicKeyFromBase58(ammId),
 		OpenOrders:   solana.MustPublicKeyFromBase58(openOrders),
@@ -133,7 +134,7 @@ func (b *Bot) createTradeInfo(
 }
 
 // RaydiumV4Parse 解析Raydium pool V4交易日志
-func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx context.Context) *global.AmmRaydiumV4TradeInfo {
+func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx context.Context) *types.AmmRaydiumV4TradeInfo {
 	if out.GetTransaction() == nil {
 		return nil
 	}
@@ -153,7 +154,7 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx con
 	_signature := base58.Encode(txn.Transaction.Transaction.Signatures[0])
 
 	var mintAddress string
-	var tradeInfo *global.AmmRaydiumV4TradeInfo
+	var tradeInfo *types.AmmRaydiumV4TradeInfo
 	for _, instruction := range instructions {
 		// 安全检查：确保账户数据不为空
 		if len(instruction.Accounts) == 0 {
