@@ -68,7 +68,8 @@ type WalletResponse struct {
 	StopLossPct   int    `json:"stop_loss_pct"`
 	ExitTimeSec   int    `json:"exit_time_sec"`
 	Enabled       bool   `json:"enabled"`
-	Timestamp     int64  `json:"timestamp"` // 添加时间戳确保响应唯一性
+	ParamSchemeID string `json:"param_scheme_id"` // 参数方案ID
+	Timestamp     int64  `json:"timestamp"`       // 添加时间戳确保响应唯一性
 }
 
 // GetAllWallets 获取所有钱包
@@ -95,6 +96,7 @@ func (c *WalletController) GetAllWallets(ctx *gin.Context) {
 			StopLossPct:   w.StopLossPct,
 			ExitTimeSec:   w.ExitTimeSec,
 			Enabled:       w.Enabled, // 从Redis获取的钱包都是已启用的
+			ParamSchemeID: w.ParamSchemeID,
 			Timestamp:     time.Now().Unix(),
 		})
 	}
@@ -131,6 +133,7 @@ func (c *WalletController) GetWallet(ctx *gin.Context) {
 		StopLossPct:   w.StopLossPct,
 		ExitTimeSec:   w.ExitTimeSec,
 		Enabled:       w.Enabled,
+		ParamSchemeID: w.ParamSchemeID,
 		Timestamp:     time.Now().Unix(),
 	}
 
@@ -195,8 +198,8 @@ func (c *WalletController) UpdateWallet(ctx *gin.Context) {
 	}
 
 	// 记录请求数据
-	logger.Infof("钱包更新请求数据: 地址=%s, 名称=%s, 类型=%s, 止盈=%d, 止损=%d, 退出时间=%d, 启用=%v",
-		request.Address, request.Name, request.Type, request.TakeProfitPct, request.StopLossPct, request.ExitTimeSec, request.Enabled)
+	logger.Infof("钱包更新请求数据: 地址=%s, 名称=%s, 类型=%s, 止盈=%d, 止损=%d, 退出时间=%d, 启用=%v, 参数模版id=%s",
+		request.Address, request.Name, request.Type, request.TakeProfitPct, request.StopLossPct, request.ExitTimeSec, request.Enabled, request.ParamSchemeID)
 
 	// 确保地址匹配
 	if address != request.Address {
@@ -214,6 +217,7 @@ func (c *WalletController) UpdateWallet(ctx *gin.Context) {
 		StopLossPct:   request.StopLossPct,
 		ExitTimeSec:   request.ExitTimeSec,
 		Enabled:       request.Enabled,
+		ParamSchemeID: request.ParamSchemeID,
 	}
 
 	// 更新钱包

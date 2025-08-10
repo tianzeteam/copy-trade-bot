@@ -35,6 +35,9 @@ function initializePage() {
     
     // 加载交易设置
     loadTradeSettings();
+    
+    // 加载参数模板列表
+    loadParamSchemes();
 }
 
 // 注册事件处理器
@@ -43,6 +46,11 @@ function registerEventHandlers() {
     document.getElementById('walletManagementLink').addEventListener('click', function(e) {
         e.preventDefault();
         showSection('walletManagement');
+    });
+    
+    document.getElementById('paramSchemeLink').addEventListener('click', function(e) {
+        e.preventDefault();
+        showSection('paramScheme');
     });
     
     document.getElementById('tradeSettingsLink').addEventListener('click', function(e) {
@@ -85,6 +93,31 @@ function registerEventHandlers() {
         saveTradeSettings();
     });
     
+    // 参数模板选择变更事件
+    document.getElementById('schemeSelect').addEventListener('change', function() {
+        const selectedSchemeId = this.value;
+        if (selectedSchemeId) {
+            loadSchemeDetails(selectedSchemeId);
+        } else {
+            hideSchemeDetails();
+        }
+    });
+    
+    // 保存参数模板设置按钮
+    document.getElementById('updateSchemeBtn').addEventListener('click', function() {
+        updateScheme();
+    });
+    
+    // 删除参数模板按钮
+    document.getElementById('deleteSchemeBtn').addEventListener('click', function() {
+        deleteScheme();
+    });
+    
+    // 添加新参数模板按钮
+    document.getElementById('saveNewSchemeBtn').addEventListener('click', function() {
+        addNewScheme();
+    });
+    
     // 滑点输入验证 - 买入滑点
     const buySlippageInput = document.getElementById('buySlippage');
     if (buySlippageInput) {
@@ -112,6 +145,7 @@ function registerEventHandlers() {
 function showSection(section) {
     // 隐藏所有部分
     document.getElementById('walletManagementSection').classList.add('d-none');
+    document.getElementById('paramSchemeSection').classList.add('d-none');
     document.getElementById('tradeSettingsSection').classList.add('d-none');
     
     // 移除所有导航链接的激活状态
@@ -124,6 +158,10 @@ function showSection(section) {
         case 'walletManagement':
             document.getElementById('walletManagementSection').classList.remove('d-none');
             document.getElementById('walletManagementLink').classList.add('active');
+            break;
+        case 'paramScheme':
+            document.getElementById('paramSchemeSection').classList.remove('d-none');
+            document.getElementById('paramSchemeLink').classList.add('active');
             break;
         case 'tradeSettings':
             document.getElementById('tradeSettingsSection').classList.remove('d-none');
@@ -178,6 +216,7 @@ function loadWallets() {
 
 // 加载钱包详情
 function loadWalletDetails(address) {
+    // 先加载钱包详情
     fetch(`/api/wallets/${address}`, {
         headers: {
             'Authorization': `Bearer ${authToken}`
@@ -203,9 +242,10 @@ function loadWalletDetails(address) {
         document.getElementById('takeProfitPct').value = wallet.take_profit_pct;
         document.getElementById('stopLossPct').value = wallet.stop_loss_pct;
         document.getElementById('exitTimeSec').value = wallet.exit_time_sec;
-        console.info(wallet.address)
-        console.info(wallet.enabled)
         document.getElementById('walletEnabled').checked = wallet.enabled;
+        
+        // 加载参数模板列表并设置选中项
+        loadParamSchemesForWallet(wallet.param_scheme_id);
         
         // 显示钱包详情
         document.getElementById('walletInfo').classList.remove('d-none');
@@ -213,6 +253,48 @@ function loadWalletDetails(address) {
     .catch(error => {
         console.error('加载钱包详情失败:', error);
         showError('加载钱包详情失败，请重试');
+    });
+}
+
+// 为钱包加载参数模板列表
+function loadParamSchemesForWallet(selectedSchemeId) {
+    fetch('/api/param-schemes', {
+        headers: {
+            'Authorization': `Bearer ${authToken}`
+        }
+    })
+    .then(response => {
+        if (response.status === 401) {
+            logout();
+            return;
+        }
+        return response.json();
+    })
+    .then(schemes => {
+        if (!schemes) return;
+        
+        const schemeSelect = document.getElementById('walletParamScheme');
+        schemeSelect.innerHTML = '<option value="">不绑定参数模板</option>';
+        
+        if (schemes.length === 0) {
+            return;
+        }
+        
+        // 添加参数模板选项
+        schemes.forEach(scheme => {
+            const option = document.createElement('option');
+            option.value = scheme.id;
+            option.textContent = `${scheme.name}${scheme.isDefault ? ' (默认)' : ''}`;
+            schemeSelect.appendChild(option);
+        });
+        
+        // 如果有选中的参数模板，设置选中状态
+        if (selectedSchemeId) {
+            schemeSelect.value = selectedSchemeId;
+        }
+    })
+    .catch(error => {
+        console.error('加载参数模板列表失败:', error);
     });
 }
 
@@ -233,7 +315,8 @@ function updateWallet() {
         take_profit_pct: parseFloat(document.getElementById('takeProfitPct').value),
         stop_loss_pct: parseFloat(document.getElementById('stopLossPct').value),
         exit_time_sec: parseInt(document.getElementById('exitTimeSec').value),
-        enabled: document.getElementById('walletEnabled').checked
+        enabled: document.getElementById('walletEnabled').checked,
+        param_scheme_id: document.getElementById('walletParamScheme').value || null
     };
     
     fetch(`/api/wallets/${currentWalletAddress}`, {
@@ -391,24 +474,12 @@ function loadTradeSettings() {
     .then(settings => {
         if (!settings) return;
         
-        // 填充交易设置
+        // 只填充5个交易开关设置
         document.getElementById('pumpTradeEnable').checked = settings.pump_trade_enable;
         document.getElementById('pumpAmmTradeEnable').checked = settings.pump_amm_trade_enable;
         document.getElementById('raydiumTradeEnable').checked = settings.raydium_trade_enable;
         document.getElementById('launchpadTradeEnable').checked = settings.launchpad_trade_enable;
         document.getElementById('repeatTradeEnable').checked = settings.repeat_trade_enable;
-        document.getElementById('sellDelayTime').value = settings.sell_delay_time;
-        document.getElementById('minPoolSize').value = settings.min_pool_size;
-        document.getElementById('maxPoolSize').value = settings.max_pool_size;
-        document.getElementById('minFollowTriggerAmount').value = settings.min_follow_trigger_amount;
-        document.getElementById('maxFollowTriggerAmount').value = settings.max_follow_trigger_amount;
-        document.getElementById('buySlippage').value = settings.buy_slippage;
-        document.getElementById('buyPriorityFee').value = settings.buy_priority_fee;
-        document.getElementById('buyTipFee').value = settings.buy_tip_fee;
-        document.getElementById('buySolAmount').value = settings.buy_sol_amount;
-        document.getElementById('sellSlippage').value = settings.sell_slippage;
-        document.getElementById('sellPriorityFee').value = settings.sell_priority_fee;
-        document.getElementById('sellTipFee').value = settings.sell_tip_fee;
     })
     .catch(error => {
         console.error('加载交易设置失败:', error);
@@ -416,43 +487,292 @@ function loadTradeSettings() {
     });
 }
 
+// 加载参数模板列表
+function loadParamSchemes() {
+    fetch('/api/param-schemes', {
+        headers: {
+            'Authorization': `Bearer ${authToken}`
+        }
+    })
+    .then(response => {
+        if (response.status === 401) {
+            logout();
+            return;
+        }
+        return response.json();
+    })
+    .then(schemes => {
+        if (!schemes) return;
+        
+        const schemeSelect = document.getElementById('schemeSelect');
+        schemeSelect.innerHTML = '<option value="">选择参数模板...</option>';
+        
+        if (schemes.length === 0) {
+            // 显示无参数模板提示
+            document.getElementById('noSchemeAlert').classList.remove('d-none');
+            return;
+        }
+        
+        // 隐藏无参数模板提示
+        document.getElementById('noSchemeAlert').classList.add('d-none');
+        
+        // 添加参数模板选项
+        schemes.forEach(scheme => {
+            const option = document.createElement('option');
+            option.value = scheme.id;
+            option.textContent = `${scheme.name}${scheme.isDefault ? ' (默认)' : ''}`;
+            schemeSelect.appendChild(option);
+        });
+    })
+    .catch(error => {
+        console.error('加载参数模板列表失败:', error);
+        showError('加载参数模板列表失败，请刷新页面重试');
+    });
+}
+
+// 加载参数模板详情
+function loadSchemeDetails(schemeId) {
+    fetch(`/api/param-schemes/${schemeId}`, {
+        headers: {
+            'Authorization': `Bearer ${authToken}`
+        }
+    })
+    .then(response => {
+        if (response.status === 401) {
+            logout();
+            return;
+        }
+        return response.json();
+    })
+    .then(scheme => {
+        if (!scheme) return;
+        console.info('加载参数模板详情:', scheme);
+        // 填充参数模板信息
+        document.getElementById('schemeName').textContent = scheme.name;
+        document.getElementById('schemeDescription').textContent = scheme.description || '无描述';
+        document.getElementById('schemeId').textContent = scheme.id;
+        
+        // 填充参数模板设置
+        document.getElementById('schemeSellDelayTime').value = scheme.sell_delay_time;
+        document.getElementById('schemeMinFollowTriggerAmount').value = scheme.min_follow_trigger_amount;
+        document.getElementById('schemeMaxFollowTriggerAmount').value = scheme.max_follow_trigger_amount;
+        document.getElementById('schemeMinPoolSize').value = scheme.min_pool_size;
+        document.getElementById('schemeMaxPoolSize').value = scheme.max_pool_size;
+        document.getElementById('schemeMinBuyAmount').value = scheme.min_buy_amount;
+        document.getElementById('schemeMaxBuyAmount').value = scheme.max_buy_amount;
+        document.getElementById('schemeBuySolAmount').value = scheme.buy_sol_amount;
+        document.getElementById('schemeSellPercentage').value = scheme.sell_percentage;
+        document.getElementById('schemeStopLossPercentage').value = scheme.stop_loss_percentage;
+        document.getElementById('schemeTakeProfitPercentage').value = scheme.take_profit_percentage;
+        document.getElementById('schemeBuySlippage').value = scheme.buy_slippage;
+        document.getElementById('schemeSellSlippage').value = scheme.sell_slippage;
+        document.getElementById('schemeBuyPriorityFee').value = scheme.buy_priority_fee;
+        document.getElementById('schemeBuyTipFee').value = scheme.buy_tip_fee;
+        document.getElementById('schemeSellPriorityFee').value = scheme.sell_priority_fee;
+        document.getElementById('schemeSellTipFee').value = scheme.sell_tip_fee;
+        document.getElementById('schemeIsDefault').checked = scheme.is_default;
+        
+        // 显示参数模板详情
+        document.getElementById('schemeInfo').classList.remove('d-none');
+    })
+    .catch(error => {
+        console.error('加载参数模板详情失败:', error);
+        showError('加载参数模板详情失败，请刷新页面重试');
+    });
+}
+
+// 隐藏参数模板详情
+function hideSchemeDetails() {
+    document.getElementById('schemeInfo').classList.add('d-none');
+}
+
+// 创建新参数模板
+function addNewScheme() {
+    // 收集表单数据
+    const newScheme = {
+        name: document.getElementById('newSchemeName').value,
+        description: document.getElementById('newSchemeDescription').value,
+        is_default: document.getElementById('newSchemeIsDefault').checked,
+        sell_delay_time: parseInt(document.getElementById('newSchemeSellDelayTime').value),
+        min_follow_trigger_amount: parseFloat(document.getElementById('newSchemeMinFollowTriggerAmount').value),
+        max_follow_trigger_amount: parseFloat(document.getElementById('newSchemeMaxFollowTriggerAmount').value),
+        min_pool_size: parseFloat(document.getElementById('newSchemeMinPoolSize').value),
+        max_pool_size: parseFloat(document.getElementById('newSchemeMaxPoolSize').value),
+        min_buy_amount: parseFloat(document.getElementById('newSchemeMinBuyAmount').value),
+        max_buy_amount: parseFloat(document.getElementById('newSchemeMaxBuyAmount').value),
+        buy_sol_amount: parseFloat(document.getElementById('newSchemeBuySolAmount').value),
+        sell_percentage: parseFloat(document.getElementById('newSchemeSellPercentage').value),
+        stop_loss_percentage: parseFloat(document.getElementById('newSchemeStopLossPercentage').value),
+        take_profit_percentage: parseFloat(document.getElementById('newSchemeTakeProfitPercentage').value),
+        buy_slippage: parseFloat(document.getElementById('newSchemeBuySlippage').value),
+        sell_slippage: parseFloat(document.getElementById('newSchemeSellSlippage').value),
+        buy_priority_fee: parseFloat(document.getElementById('newSchemeBuyPriorityFee').value),
+        buy_tip_fee: parseFloat(document.getElementById('newSchemeBuyTipFee').value),
+        sell_priority_fee: parseFloat(document.getElementById('newSchemeSellPriorityFee').value),
+        sell_tip_fee: parseFloat(document.getElementById('newSchemeSellTipFee').value)
+    };
+    
+    // 验证必填字段
+    if (!newScheme.name) {
+        showError('模板名称不能为空');
+        return;
+    }
+    
+    // 发送请求创建新参数模板
+    fetch('/api/param-schemes', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify(newScheme)
+    })
+    .then(response => {
+        if (response.status === 401) {
+            logout();
+            return;
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (!data) return;
+        
+        // 关闭模态框
+        const modal = bootstrap.Modal.getInstance(document.getElementById('addSchemeModal'));
+        modal.hide();
+        
+        // 重新加载参数模板列表
+        loadParamSchemes();
+        
+        // 显示成功提示
+        showSuccess('参数模板创建成功');
+    })
+    .catch(error => {
+        console.error('创建参数模板失败:', error);
+        showError('创建参数模板失败，请重试');
+    });
+}
+
+// 更新参数模板
+function updateScheme() {
+    // 获取当前选中的参数模板 ID
+    const schemeId = document.getElementById('schemeId').textContent;
+    if (!schemeId) {
+        showError('未选择参数模板');
+        return;
+    }
+    
+    // 收集表单数据
+    const updatedScheme = {
+        id: schemeId,
+        name: document.getElementById('schemeName').textContent,
+        description: document.getElementById('schemeDescription').textContent === '无描述' ? '' : document.getElementById('schemeDescription').textContent,
+        is_default: document.getElementById('schemeIsDefault').checked,
+        sell_delay_time: parseInt(document.getElementById('schemeSellDelayTime').value),
+        min_follow_trigger_amount: parseFloat(document.getElementById('schemeMinFollowTriggerAmount').value),
+        max_follow_trigger_amount: parseFloat(document.getElementById('schemeMaxFollowTriggerAmount').value),
+        min_pool_size: parseFloat(document.getElementById('schemeMinPoolSize').value),
+        max_pool_size: parseFloat(document.getElementById('schemeMaxPoolSize').value),
+        min_buy_amount: parseFloat(document.getElementById('schemeMinBuyAmount').value),
+        max_buy_amount: parseFloat(document.getElementById('schemeMaxBuyAmount').value),
+        buy_sol_amount: parseFloat(document.getElementById('schemeBuySolAmount').value),
+        sell_percentage: parseFloat(document.getElementById('schemeSellPercentage').value),
+        stop_loss_percentage: parseFloat(document.getElementById('schemeStopLossPercentage').value),
+        take_profit_percentage: parseFloat(document.getElementById('schemeTakeProfitPercentage').value),
+        buy_slippage: parseFloat(document.getElementById('schemeBuySlippage').value),
+        sell_slippage: parseFloat(document.getElementById('schemeSellSlippage').value),
+        buy_priority_fee: parseFloat(document.getElementById('schemeBuyPriorityFee').value),
+        buy_tip_fee: parseFloat(document.getElementById('schemeBuyTipFee').value),
+        sell_priority_fee: parseFloat(document.getElementById('schemeSellPriorityFee').value),
+        sell_tip_fee: parseFloat(document.getElementById('schemeSellTipFee').value)
+    };
+    
+    // 发送请求更新参数模板
+    fetch(`/api/param-schemes/${schemeId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify(updatedScheme)
+    })
+    .then(response => {
+        if (response.status === 401) {
+            logout();
+            return;
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (!data) return;
+        
+        // 重新加载参数模板列表
+        loadParamSchemes();
+        
+        // 显示成功提示
+        showSuccess('参数模板更新成功');
+    })
+    .catch(error => {
+        console.error('更新参数模板失败:', error);
+        showError('更新参数模板失败，请重试');
+    });
+}
+
+// 删除参数模板
+function deleteScheme() {
+    // 获取当前选中的参数模板 ID
+    const schemeId = document.getElementById('schemeId').textContent;
+    if (!schemeId) {
+        showError('未选择参数模板');
+        return;
+    }
+    
+    // 确认删除
+    if (!confirm('确定要删除此参数模板吗？删除后无法恢复。')) {
+        return;
+    }
+    
+    // 发送请求删除参数模板
+    fetch(`/api/param-schemes/${schemeId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${authToken}`
+        }
+    })
+    .then(response => {
+        if (response.status === 401) {
+            logout();
+            return;
+        }
+        return response.json();
+    })
+    .then(data => {
+        // 重新加载参数模板列表
+        loadParamSchemes();
+        
+        // 隐藏参数模板详情
+        hideSchemeDetails();
+        
+        // 显示成功提示
+        showSuccess('参数模板删除成功');
+    })
+    .catch(error => {
+        console.error('删除参数模板失败:', error);
+        showError('删除参数模板失败，请重试');
+    });
+}
+
 // 保存交易设置
 function saveTradeSettings() {
     console.log('开始保存交易设置...');
     
-    // 获取滑点值
-    const buySlippage = parseFloat(document.getElementById('buySlippage').value);
-    const sellSlippage = parseFloat(document.getElementById('sellSlippage').value);
-    
-    // 验证滑点值是否在0-1范围内
-    if (buySlippage < 0 || buySlippage > 1) {
-        showError('买入滑点必须在0-1范围内');
-        return;
-    }
-    
-    if (sellSlippage < 0 || sellSlippage > 1) {
-        showError('卖出滑点必须在0-1范围内');
-        return;
-    }
-    
+    // 只保留5个交易开关设置
     const settings = {
         pump_trade_enable: document.getElementById('pumpTradeEnable').checked,
         pump_amm_trade_enable: document.getElementById('pumpAmmTradeEnable').checked,
         raydium_trade_enable: document.getElementById('raydiumTradeEnable').checked,
         launchpad_trade_enable: document.getElementById('launchpadTradeEnable').checked,
-        repeat_trade_enable: document.getElementById('repeatTradeEnable').checked,
-        sell_delay_time: parseInt(document.getElementById('sellDelayTime').value),
-        min_pool_size: parseFloat(document.getElementById('minPoolSize').value),
-        max_pool_size: parseFloat(document.getElementById('maxPoolSize').value),
-        min_follow_trigger_amount: parseFloat(document.getElementById('minFollowTriggerAmount').value),
-        max_follow_trigger_amount: parseFloat(document.getElementById('maxFollowTriggerAmount').value),
-        buy_slippage: buySlippage,
-        buy_priority_fee: parseFloat(document.getElementById('buyPriorityFee').value),
-        buy_tip_fee: parseFloat(document.getElementById('buyTipFee').value),
-        buy_sol_amount: parseFloat(document.getElementById('buySolAmount').value),
-        sell_slippage: sellSlippage,
-        sell_priority_fee: parseFloat(document.getElementById('sellPriorityFee').value),
-        sell_tip_fee: parseFloat(document.getElementById('sellTipFee').value)
+        repeat_trade_enable: document.getElementById('repeatTradeEnable').checked
     };
     
     console.log('发送的设置数据:', settings);

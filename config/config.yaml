@@ -4,9 +4,9 @@ simulate_mode: false
 private_key: 4a98pEQpEcYAWRYZ4XTrhnBpDvUT1xc2qvgLPmgt2TjKcATid8rcoLAHZqfug3C9NTwNU2fAYTaWapuPVcyZnpv
 grpc_url: https://solana-yellowstone-grpc.publicnode.com:443
 rpc_url: https://mainnet.helius-rpc.com/?api-key=dc537a21-36c2-4a5f-bcf8-90ae704fbbfc
-buy_sol_amount: 0.0001
+buy_sol_amount: 0
 sell_mode: delay_sell
-sell_delay_time: 6000
+sell_delay_time: 0
 multi_sell_levels:
     - price_percent: 100
       sell_percent: 10
@@ -21,20 +21,20 @@ batch_sell_config:
     thresholds: []
 skip_ata_check: true
 pump_trade_enable: true
-pump_amm_trade_enable: true
+pump_amm_trade_enable: false
 raydium_trade_enable: true
 launchpad_trade_enable: true
 repeat_trade_enable: false
-min_follow_trigger_amount: 0.0001
-max_follow_trigger_amount: 105
-min_pool_size: 0.1
-max_pool_size: 1000
-buy_slippage: 0.25
-sell_slippage: 0.25
-buy_priority_fee: 1e-05
-buy_tip_fee: 0.0001
-sell_priority_fee: 1e-05
-sell_tip_fee: 0.0001
+min_follow_trigger_amount: 0
+max_follow_trigger_amount: 0
+min_pool_size: 0
+max_pool_size: 0
+buy_slippage: 0
+sell_slippage: 0
+buy_priority_fee: 0
+buy_tip_fee: 0
+sell_priority_fee: 0
+sell_tip_fee: 0
 logging:
     level: info
     format: text

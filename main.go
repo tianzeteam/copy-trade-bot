@@ -133,6 +133,10 @@ func main() {
 		logger.Errorf("创建钱包监控器失败: %v", err)
 		os.Exit(1)
 	}
+	
+	// 设置全局钱包监控器实例，供其他包使用
+	global.SetWalletMonitor(walletMonitor)
+	logger.Infof("已设置全局钱包监控器实例")
 
 	// get the geyser rpc address
 	grpcUrl := config.GRPCUrl

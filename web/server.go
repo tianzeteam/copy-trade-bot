@@ -68,6 +68,24 @@ func StartServer(configPath string) {
 		return
 	}
 
+	// 创建参数模板服务
+	paramSchemeService := NewParamSchemeService(redisService.Client, redisKeyPrefix)
+	
+	// 创建参数模板提供者
+	paramSchemeProvider := NewParamSchemeProvider(paramSchemeService)
+	
+	// 获取钱包监控器实例并设置参数模板提供者
+	if monitor := global.GetWalletMonitor(); monitor != nil {
+		// 设置参数模板提供者
+		// 将接口类型转换为具体类型
+		if walletMonitor, ok := monitor.(*wallet.WalletMonitor); ok {
+			walletMonitor.ParamSchemeProvider = paramSchemeProvider
+			logger.Infof("已为钱包监控器设置参数模板提供者")
+		} else {
+			logger.Warnf("无法设置参数模板提供者：钱包监控器类型不匹配")
+		}
+	}
+
 	// 初始化认证系统
 	InitAuth()
 
@@ -134,6 +152,11 @@ func (s *WebServer) RegisterRoutes() {
 	// 注册Redis配置控制器（需要认证）
 	configController := NewConfigController(s.RedisService)
 	configController.RegisterRoutesWithAuth(s.Router)
+	
+	// 注册参数模板控制器（需要认证）
+	paramSchemeService := NewParamSchemeService(s.RedisService.Client, s.RedisService.KeyPrefix)
+	paramSchemeController := NewParamSchemeController(paramSchemeService)
+	paramSchemeController.RegisterRoutesWithAuth(s.Router)
 }
 
 // handleGetConfig 获取配置
@@ -231,26 +254,13 @@ func (s *WebServer) handleGetTradeSettings(ctx *gin.Context) {
 // handleUpdateTradeSettings 更新交易设置
 func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
 
-	// 交易设置请求体
+	// 交易设置请求体 - 精简版本，只保留5个交易开关
 	type TradeSettingsRequest struct {
 		PumpTradeEnable      bool `json:"pump_trade_enable"`
 		PumpAmmTradeEnable   bool `json:"pump_amm_trade_enable"`
 		RaydiumTradeEnable   bool `json:"raydium_trade_enable"`
 		LaunchpadTradeEnable bool `json:"launchpad_trade_enable"`
 		RepeatTradeEnable    bool `json:"repeat_trade_enable"`
-		SellDelayTime        int  `json:"sell_delay_time"`
-
-		MinPoolSize            float64 `json:"min_pool_size"`
-		MaxPoolSize            float64 `json:"max_pool_size"`
-		MinFollowTriggerAmount float64 `json:"min_follow_trigger_amount"`
-		MaxFollowTriggerAmount float64 `json:"max_follow_trigger_amount"`
-		BuySlippage            float64 `json:"buy_slippage"`
-		BuyPriorityFee         float64 `json:"buy_priority_fee"`
-		BuyTipFee              float64 `json:"buy_tip_fee"`
-		BuySolAmount           float64 `json:"buy_sol_amount"`
-		SellSlippage           float64 `json:"sell_slippage"`
-		SellPriorityFee        float64 `json:"sell_priority_fee"`
-		SellTipFee             float64 `json:"sell_tip_fee"`
 	}
 
 	var updates TradeSettingsRequest
@@ -267,18 +277,6 @@ func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
 		"raydium_trade_enable":      updates.RaydiumTradeEnable,
 		"launchpad_trade_enable":    updates.LaunchpadTradeEnable,
 		"repeat_trade_enable":       updates.RepeatTradeEnable,
-		"sell_delay_time":           updates.SellDelayTime,
-		"min_pool_size":             updates.MinPoolSize,
-		"max_pool_size":             updates.MaxPoolSize,
-		"min_follow_trigger_amount": updates.MinFollowTriggerAmount,
-		"max_follow_trigger_amount": updates.MaxFollowTriggerAmount,
-		"buy_slippage":              updates.BuySlippage,
-		"buy_priority_fee":          updates.BuyPriorityFee,
-		"buy_tip_fee":               updates.BuyTipFee,
-		"buy_sol_amount":            updates.BuySolAmount,
-		"sell_slippage":             updates.SellSlippage,
-		"sell_priority_fee":         updates.SellPriorityFee,
-		"sell_tip_fee":              updates.SellTipFee,
 	}
 
 	// 更新各个字段
@@ -298,24 +296,13 @@ func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
 		return
 	}
 
-	// 更新配置
+	// 只更新5个交易开关配置
 	config.PumpTradeEnable = updates.PumpTradeEnable
 	config.PumpAmmTradeEnable = updates.PumpAmmTradeEnable
 	config.RaydiumTradeEnable = updates.RaydiumTradeEnable
 	config.LaunchpadTradeEnable = updates.LaunchpadTradeEnable
 	config.RepeatTradeEnable = updates.RepeatTradeEnable
-	config.SellDelayTime = updates.SellDelayTime
-	config.MinPoolSize = updates.MinPoolSize
-	config.MaxPoolSize = updates.MaxPoolSize
-	config.MinFollowTriggerAmount = updates.MinFollowTriggerAmount
-	config.MaxFollowTriggerAmount = updates.MaxFollowTriggerAmount
-	config.BuySlippage = updates.BuySlippage
-	config.BuyPriorityFee = updates.BuyPriorityFee
-	config.BuyTipFee = updates.BuyTipFee
-	config.BuySolAmount = updates.BuySolAmount
-	config.SellSlippage = updates.SellSlippage
-	config.SellPriorityFee = updates.SellPriorityFee
-	config.SellTipFee = updates.SellTipFee
+	// 保留其他配置不变
 
 	// 保存配置
 	configData, err := yaml.Marshal(config)

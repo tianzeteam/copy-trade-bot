@@ -2,10 +2,10 @@ package calculator
 
 import (
 	"context"
+	"copytrade/global"
 	"copytrade/logger"
 	"fmt"
 
-	"copytrade/global"
 	"copytrade/pumpamm"
 	"copytrade/raydium/layouts"
 	"copytrade/raydium/utils"

@@ -25,6 +25,9 @@
                         <a class="nav-link" href="#" id="walletManagementLink">钱包管理</a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link" href="#" id="paramSchemeLink">参数模板</a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="#" id="tradeSettingsLink">交易设置</a>
                     </li>
                 </ul>
@@ -63,6 +66,16 @@
                             <h5 class="card-title" id="walletName"></h5>
                             <h6 class="card-subtitle mb-2 text-muted" id="walletAddress"></h6>
                             <p class="card-text">钱包类型: <span id="walletType"></span></p>
+                            
+                            <!-- 参数模板绑定 -->
+                            <div class="form-group mb-3">
+                                <label for="walletParamScheme" class="form-label"><i class="bi bi-link-45deg me-1"></i> 绑定参数模板</label>
+                                <select class="form-select" id="walletParamScheme">
+                                    <option value="">不绑定参数模板</option>
+                                    <!-- 参数模板选项将通过JS动态加载 -->
+                                </select>
+                                <div class="form-text">绑定后，该钱包将使用选定参数模板的交易设置</div>
+                            </div>
                             
                             <div class="row mt-4">
                                 <div class="col-md-4">
@@ -119,73 +132,89 @@
             </div>
         </div>
         
-        <!-- 交易开关设置 -->
-        <div class="card mb-4" id="tradeSettingsSection">
+        <!-- 参数模板管理 -->
+        <div class="card mb-4" id="paramSchemeSection">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">交易开关设置</h5>
+                <h5 class="mb-0">参数模板管理</h5>
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addSchemeModal">
+                    <i class="bi bi-plus-circle"></i> 创建新模板
+                </button>
             </div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="pumpTradeEnable">
-                            <label class="form-check-label" for="pumpTradeEnable">
-                                Pump 交易开关
-                            </label>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="pumpAmmTradeEnable">
-                            <label class="form-check-label" for="pumpAmmTradeEnable">
-                                Pump AMM 交易开关
-                            </label>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="raydiumTradeEnable">
-                            <label class="form-check-label" for="raydiumTradeEnable">
-                                Raydium 交易开关
-                            </label>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="launchpadTradeEnable">
-                            <label class="form-check-label" for="launchpadTradeEnable">
-                                bonk 交易开关
-                            </label>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="repeatTradeEnable">
-                            <label class="form-check-label" for="repeatTradeEnable">
-                                重复交易开关
-                            </label>
-                        </div>
-                    </div>
+                <!-- 参数模板选择下拉菜单 -->
+                <div class="mb-3">
+                    <label for="schemeSelect" class="form-label">选择参数模板</label>
+                    <select class="form-select" id="schemeSelect">
+                        <!-- 参数模板选项将通过JS动态加载 -->
+                    </select>
                 </div>
                 
-                <div class="row mt-4">
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header">
-                                <h6 class="mb-0"><i class="bi bi-water me-2"></i>池子大小范围</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label for="minPoolSize" class="form-label">最小池子大小 (SOL)</label>
-                                            <input type="number" class="form-control" id="minPoolSize" min="0" step="0.1">
+                <!-- 参数模板信息卡片 -->
+                <div id="schemeInfo" class="d-none">
+                    <!-- 基本信息卡片 -->
+                    <div class="card mb-4 border-primary">
+                        <div class="card-header bg-primary bg-opacity-10 d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>基本信息</h6>
+                            <span class="badge bg-primary" id="schemeId"></span>
+                        </div>
+                        <div class="card-body">
+                            <h5 class="card-title" id="schemeName"></h5>
+                            <p class="card-text text-muted" id="schemeDescription"></p>
+                        </div>
+                    </div>
+                    
+                    <!-- 交易触发参数卡片 -->
+                    <div class="card mb-4 border-info">
+                        <div class="card-header bg-info bg-opacity-10">
+                            <h6 class="mb-0"><i class="bi bi-lightning-charge me-2"></i>交易触发参数</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeSellDelayTime" class="form-label">卖出延迟时间 (秒)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-clock"></i></span>
+                                            <input type="number" class="form-control" id="schemeSellDelayTime" min="0">
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label for="maxPoolSize" class="form-label">最大池子大小 (SOL)</label>
-                                            <input type="number" class="form-control" id="maxPoolSize" min="0" step="0.1">
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeMinFollowTriggerAmount" class="form-label">最小跟单触发金额</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
+                                            <input type="number" class="form-control" id="schemeMinFollowTriggerAmount" min="0" step="0.01">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeMaxFollowTriggerAmount" class="form-label">最大跟单触发金额</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
+                                            <input type="number" class="form-control" id="schemeMaxFollowTriggerAmount" min="0" step="0.01">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeMinPoolSize" class="form-label">最小池子大小 (SOL)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-water"></i></span>
+                                            <input type="number" class="form-control" id="schemeMinPoolSize" min="0" step="0.1">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeMaxPoolSize" class="form-label">最大池子大小 (SOL)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-water"></i></span>
+                                            <input type="number" class="form-control" id="schemeMaxPoolSize" min="0" step="0.1">
                                         </div>
                                     </div>
                                 </div>
@@ -193,63 +222,68 @@
                         </div>
                     </div>
                     
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header">
-                                <h6 class="mb-0"><i class="bi bi-cash-stack me-2"></i>跟单金额范围</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label for="minFollowTriggerAmount" class="form-label">最小跟单金额 (SOL)</label>
-                                            <input type="number" class="form-control" id="minFollowTriggerAmount" min="0" step="0.1">
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label for="maxFollowTriggerAmount" class="form-label">最大跟单金额 (SOL)</label>
-                                            <input type="number" class="form-control" id="maxFollowTriggerAmount" min="0" step="0.1">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                    <!-- 买入参数卡片 -->
+                    <div class="card mb-4 border-success">
+                        <div class="card-header bg-success bg-opacity-10">
+                            <h6 class="mb-0"><i class="bi bi-cart-plus me-2 text-success"></i>买入参数</h6>
                         </div>
-                    </div>
-                </div>
-                
-                <div class="row mt-4">
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header">
-                                <h6 class="mb-0"><i class="bi bi-cart-plus me-2 text-success"></i>买入设置</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label for="buySlippage" class="form-label">买入滑点 (0-1)</label>
-                                            <input type="number" class="form-control" id="buySlippage" min="0" max="1" step="0.01">
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label for="buySolAmount" class="form-label">买入金额 (SOL)</label>
-                                            <input type="number" class="form-control" id="buySolAmount" min="0" step="0.01">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeBuySolAmount" class="form-label">购买金额 (SOL)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
+                                            <input type="number" class="form-control" id="schemeBuySolAmount" min="0" step="0.01">
                                         </div>
                                     </div>
                                 </div>
-                                <div class="row mt-3">
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label for="buyPriorityFee" class="form-label">优先费 (SOL)</label>
-                                            <input type="number" class="form-control" id="buyPriorityFee" min="0" step="0.000001">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeMinBuyAmount" class="form-label">最小购买金额 (SOL)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
+                                            <input type="number" class="form-control" id="schemeMinBuyAmount" min="0" step="0.01">
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label for="buyTipFee" class="form-label">小费 (SOL)</label>
-                                            <input type="number" class="form-control" id="buyTipFee" min="0" step="0.000001">
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeMaxBuyAmount" class="form-label">最大购买金额 (SOL)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
+                                            <input type="number" class="form-control" id="schemeMaxBuyAmount" min="0" step="0.01">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeBuySlippage" class="form-label">买入滑点 (0-1)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-sliders"></i></span>
+                                            <input type="number" class="form-control" id="schemeBuySlippage" min="0" step="0.1">
+                                            <span class="input-group-text"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeBuyPriorityFee" class="form-label">买入优先费</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-lightning-charge"></i></span>
+                                            <input type="number" class="form-control" id="schemeBuyPriorityFee" min="0">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeBuyTipFee" class="form-label">买入小费</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-coin"></i></span>
+                                            <input type="number" class="form-control" id="schemeBuyTipFee" min="0">
                                         </div>
                                     </div>
                                 </div>
@@ -257,46 +291,172 @@
                         </div>
                     </div>
                     
-                    <div class="col-md-6">
-                        <div class="card">
-                            <div class="card-header">
-                                <h6 class="mb-0"><i class="bi bi-cart-dash me-2 text-danger"></i>卖出设置</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label for="sellSlippage" class="form-label">卖出滑点 (0-1)</label>
-                                            <input type="number" class="form-control" id="sellSlippage" min="0" max="1" step="0.01">
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label for="sellDelayTime" class="form-label">卖出延迟时间 (毫秒)</label>
-                                            <input type="number" class="form-control" id="sellDelayTime" min="0" step="1000" placeholder="例如：6000 表示6秒">
+                    <!-- 卖出参数卡片 -->
+                    <div class="card mb-4 border-danger">
+                        <div class="card-header bg-danger bg-opacity-10">
+                            <h6 class="mb-0"><i class="bi bi-cart-dash me-2 text-danger"></i>卖出参数</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeSellPercentage" class="form-label">卖出百分比 (%)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-percent"></i></span>
+                                            <input type="number" class="form-control" id="schemeSellPercentage" min="0" max="100" step="1">
+                                            <span class="input-group-text">%</span>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="row mt-3">
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label for="sellPriorityFee" class="form-label">优先费 (SOL)</label>
-                                            <input type="number" class="form-control" id="sellPriorityFee" min="0" step="0.000001">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeStopLossPercentage" class="form-label">止损百分比 (%)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-graph-down-arrow text-danger"></i></span>
+                                            <input type="number" class="form-control" id="schemeStopLossPercentage" min="0" max="100" step="1">
+                                            <span class="input-group-text">%</span>
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <div class="form-group">
-                                            <label for="sellTipFee" class="form-label">小费 (SOL)</label>
-                                            <input type="number" class="form-control" id="sellTipFee" min="0" step="0.000001">
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeTakeProfitPercentage" class="form-label">止盈百分比 (%)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-graph-up-arrow text-success"></i></span>
+                                            <input type="number" class="form-control" id="schemeTakeProfitPercentage" min="0" max="1000" step="1">
+                                            <span class="input-group-text">%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeSellSlippage" class="form-label">卖出滑点 (0-1)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-sliders"></i></span>
+                                            <input type="number" class="form-control" id="schemeSellSlippage" min="0" step="0.1">
+                                            <span class="input-group-text"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeSellPriorityFee" class="form-label">卖出优先费</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-lightning-charge"></i></span>
+                                            <input type="number" class="form-control" id="schemeSellPriorityFee" min="0">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeSellTipFee" class="form-label">卖出小费</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-coin"></i></span>
+                                            <input type="number" class="form-control" id="schemeSellTipFee" min="0">
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
+                    
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" type="checkbox" id="schemeIsDefault">
+                        <label class="form-check-label" for="schemeIsDefault">
+                            <i class="bi bi-star-fill text-warning me-1"></i> 设为默认参数模板
+                        </label>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end">
+                        <button type="button" class="btn btn-danger me-2" id="deleteSchemeBtn">
+                            <i class="bi bi-trash"></i> 删除模板
+                        </button>
+                        <button type="button" class="btn btn-primary" id="updateSchemeBtn">
+                            <i class="bi bi-save"></i> 保存更改
+                        </button>
+                    </div>
                 </div>
                 
-                <div class="mt-4">
+                <!-- 无参数模板提示 -->
+                <div id="noSchemeAlert" class="alert alert-warning d-none">
+                    没有可用的参数模板。请创建一个新模板。
+                </div>
+            </div>
+        </div>
+        
+        <!-- 交易开关设置 -->
+        <div class="card mb-4" id="tradeSettingsSection">
+            <div class="card-header bg-primary bg-opacity-10 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-toggles me-2"></i>交易开关设置</h5>
+            </div>
+            <div class="card-body">
+                <div class="row row-cols-1 row-cols-md-3 g-4">
+                    <div class="col">
+                        <div class="card h-100 border-primary">
+                            <div class="card-body d-flex align-items-center">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="pumpTradeEnable">
+                                    <label class="form-check-label" for="pumpTradeEnable">
+                                        <i class="bi bi-currency-exchange me-2 text-primary"></i>Pump 交易开关
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100 border-info">
+                            <div class="card-body d-flex align-items-center">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="pumpAmmTradeEnable">
+                                    <label class="form-check-label" for="pumpAmmTradeEnable">
+                                        <i class="bi bi-currency-exchange me-2 text-info"></i>Pump AMM 交易开关
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100 border-success">
+                            <div class="card-body d-flex align-items-center">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="raydiumTradeEnable">
+                                    <label class="form-check-label" for="raydiumTradeEnable">
+                                        <i class="bi bi-currency-exchange me-2 text-success"></i>Raydium 交易开关
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100 border-warning">
+                            <div class="card-body d-flex align-items-center">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="launchpadTradeEnable">
+                                    <label class="form-check-label" for="launchpadTradeEnable">
+                                        <i class="bi bi-currency-exchange me-2 text-warning"></i>bonk 交易开关
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100 border-danger">
+                            <div class="card-body d-flex align-items-center">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="repeatTradeEnable">
+                                    <label class="form-check-label" for="repeatTradeEnable">
+                                        <i class="bi bi-arrow-repeat me-2 text-danger"></i>重复交易开关
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 d-flex justify-content-end">
                     <button type="button" class="btn btn-primary" id="saveTradeSettingsBtn">
                         <i class="bi bi-save"></i> 保存交易设置
                     </button>
@@ -370,6 +530,261 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                     <button type="button" class="btn btn-primary" id="saveNewWalletBtn">添加钱包</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加参数模板模态框 -->
+    <div class="modal fade" id="addSchemeModal" tabindex="-1" aria-labelledby="addSchemeModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="addSchemeModalLabel"><i class="bi bi-gear-fill me-2"></i>创建新参数模板</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="newSchemeForm">
+                        <!-- 基本信息卡片 -->
+                        <div class="card mb-4 border-primary">
+                            <div class="card-header bg-primary bg-opacity-10">
+                                <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>基本信息</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="newSchemeName" class="form-label">模板名称</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-tag"></i></span>
+                                                <input type="text" class="form-control" id="newSchemeName" required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="newSchemeDescription" class="form-label">模板描述</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-card-text"></i></span>
+                                                <input type="text" class="form-control" id="newSchemeDescription">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 交易触发参数卡片 -->
+                        <div class="card mb-4 border-info">
+                            <div class="card-header bg-info bg-opacity-10">
+                                <h6 class="mb-0"><i class="bi bi-lightning-charge me-2"></i>交易触发参数</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeSellDelayTime" class="form-label">卖出延迟时间 (毫秒)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-clock"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeSellDelayTime" min="0" value="0">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeMinFollowTriggerAmount" class="form-label">最小跟单触发金额</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeMinFollowTriggerAmount" min="0" step="0.01" value="0.1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeMaxFollowTriggerAmount" class="form-label">最大跟单触发金额</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeMaxFollowTriggerAmount" min="0" step="0.01" value="10">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeMinPoolSize" class="form-label">最小池子大小 (SOL)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-water"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeMinPoolSize" min="0" step="0.1" value="1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeMaxPoolSize" class="form-label">最大池子大小 (SOL)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-water"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeMaxPoolSize" min="0" step="0.1" value="100">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 买入参数卡片 -->
+                        <div class="card mb-4 border-success">
+                            <div class="card-header bg-success bg-opacity-10">
+                                <h6 class="mb-0"><i class="bi bi-cart-plus me-2 text-success"></i>买入参数</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeBuySolAmount" class="form-label">购买金额 (SOL)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeBuySolAmount" min="0" step="0.01" value="0.5">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeMinBuyAmount" class="form-label">最小购买金额 (SOL)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeMinBuyAmount" min="0" step="0.01" value="0.1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeMaxBuyAmount" class="form-label">最大购买金额 (SOL)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeMaxBuyAmount" min="0" step="0.01" value="1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeBuySlippage" class="form-label">买入滑点 (0-1)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-sliders"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeBuySlippage" min="0" step="0.1" value="1">
+                                                <span class="input-group-text"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeBuyPriorityFee" class="form-label">买入优先费</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-lightning-charge"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeBuyPriorityFee" min="0" value="1000">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeBuyTipFee" class="form-label">买入小费</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-coin"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeBuyTipFee" min="0" value="0">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 卖出参数卡片 -->
+                        <div class="card mb-4 border-danger">
+                            <div class="card-header bg-danger bg-opacity-10">
+                                <h6 class="mb-0"><i class="bi bi-cart-dash me-2 text-danger"></i>卖出参数</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeSellPercentage" class="form-label">卖出百分比 (%)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-percent"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeSellPercentage" min="0" max="100" step="1" value="100">
+                                                <span class="input-group-text">%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeStopLossPercentage" class="form-label">止损百分比 (%)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-graph-down-arrow text-danger"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeStopLossPercentage" min="0" max="100" step="1" value="10">
+                                                <span class="input-group-text">%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeTakeProfitPercentage" class="form-label">止盈百分比 (%)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-graph-up-arrow text-success"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeTakeProfitPercentage" min="0" max="1000" step="1" value="100">
+                                                <span class="input-group-text">%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeSellSlippage" class="form-label">卖出滑点 (0-1)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-sliders"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeSellSlippage" min="0" step="0.1" value="1">
+                                                <span class="input-group-text"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeSellPriorityFee" class="form-label">卖出优先费</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-lightning-charge"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeSellPriorityFee" min="0" value="1000">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeSellTipFee" class="form-label">卖出小费</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-coin"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeSellTipFee" min="0" value="0">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="newSchemeIsDefault">
+                            <label class="form-check-label" for="newSchemeIsDefault">
+                                <i class="bi bi-star-fill text-warning me-1"></i> 设为默认参数模板
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="bi bi-x-circle me-1"></i>取消</button>
+                    <button type="button" class="btn btn-primary" id="saveNewSchemeBtn"><i class="bi bi-save me-1"></i>创建模板</button>
                 </div>
             </div>
         </div>

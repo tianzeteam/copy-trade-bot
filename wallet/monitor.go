@@ -29,6 +29,7 @@ type WalletSettings struct {
 	StopLossPct   int              // 止损百分比
 	ExitTimeSec   int              // 持仓时间(秒)
 	Enabled       bool             // 是否启用
+	ParamSchemeID string           // 参数方案ID
 }
 
 // TradeRecord 记录交易信息
@@ -45,25 +46,27 @@ type TradeRecord struct {
 
 // WalletMonitor 钱包监控器
 type WalletMonitor struct {
-	Wallets      []*WalletSettings       // 监控的钱包列表
-	TradeRecords map[string]*TradeRecord // 交易记录，key为代币地址
-	TradedTokens map[string]bool         // 已交易过的代币，防止重复交易
-	BotTrades    map[string]*TradeRecord // 机器人的交易记录，key为代币地址
-	Mux          sync.RWMutex            // 保护并发访问
-	RedisService *RedisWalletService     // Redis服务
-	Ctx          context.Context         // 上下文
+	Wallets             []*WalletSettings       // 监控的钱包列表
+	TradeRecords        map[string]*TradeRecord // 交易记录，key为代币地址
+	TradedTokens        map[string]bool         // 已交易过的代币，防止重复交易
+	BotTrades           map[string]*TradeRecord // 机器人的交易记录，key为代币地址
+	Mux                 sync.RWMutex            // 保护并发访问
+	RedisService        *RedisWalletService     // Redis服务
+	ParamSchemeProvider ParamSchemeProvider     // 参数模板提供者
+	Ctx                 context.Context         // 上下文
 }
 
 // NewWalletMonitor 创建新的钱包监控器
-func NewWalletMonitor(redisService *RedisWalletService) *WalletMonitor {
+func NewWalletMonitor(redisService *RedisWalletService, paramSchemeProvider ParamSchemeProvider) *WalletMonitor {
 	return &WalletMonitor{
-		Wallets:      make([]*WalletSettings, 0),
-		TradeRecords: make(map[string]*TradeRecord),
-		TradedTokens: make(map[string]bool),
-		BotTrades:    make(map[string]*TradeRecord),
-		Mux:          sync.RWMutex{},
-		RedisService: redisService,
-		Ctx:          context.Background(),
+		Wallets:             make([]*WalletSettings, 0),
+		TradeRecords:        make(map[string]*TradeRecord),
+		TradedTokens:        make(map[string]bool),
+		BotTrades:           make(map[string]*TradeRecord),
+		Mux:                 sync.RWMutex{},
+		RedisService:        redisService,
+		ParamSchemeProvider: paramSchemeProvider,
+		Ctx:                 context.Background(),
 	}
 }
 
@@ -260,6 +263,10 @@ func (m *WalletMonitor) StartMonitoring(ctx context.Context) {
 		walletRefreshTicker := time.NewTicker(30 * time.Second)
 		defer walletRefreshTicker.Stop()
 
+		// 参数模板刷新器 - 每60秒从 Redis 刷新一次参数模板列表
+		paramSchemeRefreshTicker := time.NewTicker(60 * time.Second)
+		defer paramSchemeRefreshTicker.Stop()
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -268,6 +275,9 @@ func (m *WalletMonitor) StartMonitoring(ctx context.Context) {
 			case <-walletRefreshTicker.C:
 				// 刷新钱包列表
 				m.refreshWalletList()
+			case <-paramSchemeRefreshTicker.C:
+				// 刷新参数模板列表
+				m.refreshParamSchemes()
 			}
 		}
 	}()
@@ -288,4 +298,38 @@ func (m *WalletMonitor) refreshWalletList() {
 	m.Mux.Unlock()
 
 	logger.Infof("从 Redis 刷新钱包列表，共 %d 个钱包", len(wallets))
+}
+
+// refreshParamSchemes 刷新参数模板列表
+func (m *WalletMonitor) refreshParamSchemes() {
+	// 如果没有参数模板提供者，直接返回
+	if m.ParamSchemeProvider == nil {
+		logger.Warnf("参数模板提供者未设置，无法刷新参数模板")
+		return
+	}
+
+	// 使用接口获取所有参数模板 ID
+	schemeIDs, err := m.ParamSchemeProvider.GetParamSchemeIDs(m.Ctx)
+	if err != nil {
+		logger.Errorf("获取参数模板列表失败: %v", err)
+		return
+	}
+
+	// 使用接口获取默认参数模板 ID
+	defaultSchemeID, _ := m.ParamSchemeProvider.GetDefaultParamSchemeID(m.Ctx)
+
+	// 记录钱包绑定的参数模板 ID
+	walletParamSchemeIDs := make(map[string]string)
+
+	// 遍历钱包列表，记录参数模板 ID
+	m.Mux.RLock()
+	for _, wallet := range m.Wallets {
+		if wallet.ParamSchemeID != "" {
+			walletParamSchemeIDs[wallet.Address.String()] = wallet.ParamSchemeID
+		}
+	}
+	m.Mux.RUnlock()
+
+	logger.Infof("刷新参数模板列表，共 %d 个参数模板，默认参数模板 ID: %s", len(schemeIDs), defaultSchemeID)
+	logger.Infof("钱包绑定的参数模板数量: %d", len(walletParamSchemeIDs))
 }

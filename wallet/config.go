@@ -10,13 +10,14 @@ import (
 
 // WalletConfig 钱包配置结构体
 type WalletConfig struct {
-	Address       string `yaml:"address"`         // 钱包地址
-	Name          string `yaml:"name"`            // 钱包名称或标识
-	Type          string `yaml:"type"`            // 钱包类型: high_frequency 或 low_frequency
-	TakeProfitPct int    `yaml:"take_profit_pct"` // 止盈百分比
-	StopLossPct   int    `yaml:"stop_loss_pct"`   // 止损百分比
-	ExitTimeSec   int    `yaml:"exit_time_sec"`   // 持仓时间(秒)
-	Enabled       bool   `yaml:"enabled"`         // 是否启用
+	Address       string `yaml:"address" json:"address"`                 // 钱包地址
+	Name          string `yaml:"name" json:"name"`                       // 钱包名称或标识
+	Type          string `yaml:"type" json:"type"`                       // 钱包类型: high_frequency 或 low_frequency
+	TakeProfitPct int    `yaml:"take_profit_pct" json:"take_profit_pct"` // 止盈百分比
+	StopLossPct   int    `yaml:"stop_loss_pct" json:"stop_loss_pct"`     // 止损百分比
+	ExitTimeSec   int    `yaml:"exit_time_sec" json:"exit_time_sec"`     // 持仓时间(秒)
+	Enabled       bool   `yaml:"enabled" json:"enabled"`                 // 是否启用
+	ParamSchemeID string `yaml:"param_scheme_id" json:"param_scheme_id"` // 参数方案ID
 }
 
 // MonitorConfig 监控配置结构体
@@ -120,6 +121,7 @@ func CreateWalletSettings(config WalletConfig) (*WalletSettings, error) {
 		StopLossPct:   config.StopLossPct,
 		ExitTimeSec:   config.ExitTimeSec,
 		Enabled:       config.Enabled,
+		ParamSchemeID: config.ParamSchemeID,
 	}, nil
 }
 
@@ -132,7 +134,8 @@ func CreateWalletMonitorFromRedis(redisAddr string, redisDB int, redisKeyPrefix 
 	}
 
 	// 创建钱包监控器
-	monitor := NewWalletMonitor(redisService)
+	// 注意：参数模板提供者将在web包中设置，这里传入nil
+	monitor := NewWalletMonitor(redisService, nil)
 
 	return monitor, nil
 }
