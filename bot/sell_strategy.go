@@ -252,7 +252,7 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 		logger.Errorf("计算卖出金额失败: %v", err)
 		return
 	}
-
+	//specailScheme := global.GetConfigByWallet(tokenInfo.Owner.String())
 	// 计算卖出金额
 	amounts, err := b.Trader.AmountsCalc.CalculateSellAmounts(
 		context.Background(),

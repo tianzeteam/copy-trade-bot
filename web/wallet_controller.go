@@ -196,7 +196,13 @@ func (c *WalletController) UpdateWallet(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求数据: " + err.Error()})
 		return
 	}
-
+	paramSchemeID := request.ParamSchemeID
+	//检查模版id
+	if paramSchemeID == "" {
+		logger.Warnf("更新钱包失败: 参数模版id为空")
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "参数模版id不能为空"})
+		return
+	}
 	// 记录请求数据
 	logger.Infof("钱包更新请求数据: 地址=%s, 名称=%s, 类型=%s, 止盈=%d, 止损=%d, 退出时间=%d, 启用=%v, 参数模版id=%s",
 		request.Address, request.Name, request.Type, request.TakeProfitPct, request.StopLossPct, request.ExitTimeSec, request.Enabled, request.ParamSchemeID)

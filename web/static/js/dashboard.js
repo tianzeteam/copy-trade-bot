@@ -558,12 +558,12 @@ function loadSchemeDetails(schemeId) {
         document.getElementById('schemeMaxFollowTriggerAmount').value = scheme.max_follow_trigger_amount;
         document.getElementById('schemeMinPoolSize').value = scheme.min_pool_size;
         document.getElementById('schemeMaxPoolSize').value = scheme.max_pool_size;
-        document.getElementById('schemeMinBuyAmount').value = scheme.min_buy_amount;
-        document.getElementById('schemeMaxBuyAmount').value = scheme.max_buy_amount;
+        //document.getElementById('schemeMinBuyAmount').value = scheme.min_buy_amount;
+        //document.getElementById('schemeMaxBuyAmount').value = scheme.max_buy_amount;
         document.getElementById('schemeBuySolAmount').value = scheme.buy_sol_amount;
         //document.getElementById('schemeSellPercentage').value = scheme.sell_percentage;
-        document.getElementById('schemeStopLossPercentage').value = scheme.stop_loss_percentage;
-        document.getElementById('schemeTakeProfitPercentage').value = scheme.take_profit_percentage;
+        //document.getElementById('schemeStopLossPercentage').value = scheme.stop_loss_percentage;
+        //document.getElementById('schemeTakeProfitPercentage').value = scheme.take_profit_percentage;
         document.getElementById('schemeBuySlippage').value = scheme.buy_slippage;
         document.getElementById('schemeSellSlippage').value = scheme.sell_slippage;
         document.getElementById('schemeBuyPriorityFee').value = scheme.buy_priority_fee;
@@ -598,12 +598,12 @@ function addNewScheme() {
         max_follow_trigger_amount: parseFloat(document.getElementById('newSchemeMaxFollowTriggerAmount').value),
         min_pool_size: parseFloat(document.getElementById('newSchemeMinPoolSize').value),
         max_pool_size: parseFloat(document.getElementById('newSchemeMaxPoolSize').value),
-        min_buy_amount: parseFloat(document.getElementById('newSchemeMinBuyAmount').value),
-        max_buy_amount: parseFloat(document.getElementById('newSchemeMaxBuyAmount').value),
+        //min_buy_amount: parseFloat(document.getElementById('newSchemeMinBuyAmount').value),
+        //max_buy_amount: parseFloat(document.getElementById('newSchemeMaxBuyAmount').value),
         buy_sol_amount: parseFloat(document.getElementById('newSchemeBuySolAmount').value),
         //sell_percentage: parseFloat(document.getElementById('newSchemeSellPercentage').value),
-        stop_loss_percentage: parseFloat(document.getElementById('newSchemeStopLossPercentage').value),
-        take_profit_percentage: parseFloat(document.getElementById('newSchemeTakeProfitPercentage').value),
+        //stop_loss_percentage: parseFloat(document.getElementById('newSchemeStopLossPercentage').value),
+        //take_profit_percentage: parseFloat(document.getElementById('newSchemeTakeProfitPercentage').value),
         buy_slippage: parseFloat(document.getElementById('newSchemeBuySlippage').value),
         sell_slippage: parseFloat(document.getElementById('newSchemeSellSlippage').value),
         buy_priority_fee: parseFloat(document.getElementById('newSchemeBuyPriorityFee').value),

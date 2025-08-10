@@ -154,18 +154,18 @@ func (c *ParamSchemeController) CreateScheme(ctx *gin.Context) {
 		MaxFollowTriggerAmount: request.MaxFollowTriggerAmount,
 		MinPoolSize:            request.MinPoolSize,
 		MaxPoolSize:            request.MaxPoolSize,
-		MaxBuyAmount:           request.MaxBuyAmount,
-		MinBuyAmount:           request.MinBuyAmount,
-		BuySolAmount:           request.BuySolAmount,
-		SellPercentage:         request.SellPercentage,
-		StopLossPercentage:     request.StopLossPercentage,
-		TakeProfitPercentage:   request.TakeProfitPercentage,
-		BuySlippage:            request.BuySlippage,
-		SellSlippage:           request.SellSlippage,
-		BuyPriorityFee:         request.BuyPriorityFee,
-		BuyTipFee:              request.BuyTipFee,
-		SellPriorityFee:        request.SellPriorityFee,
-		SellTipFee:             request.SellTipFee,
+		//MaxBuyAmount:           request.MaxBuyAmount,
+		//MinBuyAmount:           request.MinBuyAmount,
+		BuySolAmount: request.BuySolAmount,
+		//SellPercentage:         request.SellPercentage,
+		//StopLossPercentage:   request.StopLossPercentage,
+		//TakeProfitPercentage: request.TakeProfitPercentage,
+		BuySlippage:     request.BuySlippage,
+		SellSlippage:    request.SellSlippage,
+		BuyPriorityFee:  request.BuyPriorityFee,
+		BuyTipFee:       request.BuyTipFee,
+		SellPriorityFee: request.SellPriorityFee,
+		SellTipFee:      request.SellTipFee,
 	}
 
 	// 保存参数方案
@@ -219,12 +219,12 @@ func (c *ParamSchemeController) UpdateScheme(ctx *gin.Context) {
 	existingScheme.MaxFollowTriggerAmount = request.MaxFollowTriggerAmount
 	existingScheme.MinPoolSize = request.MinPoolSize
 	existingScheme.MaxPoolSize = request.MaxPoolSize
-	existingScheme.MaxBuyAmount = request.MaxBuyAmount
-	existingScheme.MinBuyAmount = request.MinBuyAmount
+	//existingScheme.MaxBuyAmount = request.MaxBuyAmount
+	//existingScheme.MinBuyAmount = request.MinBuyAmount
 	existingScheme.BuySolAmount = request.BuySolAmount
-	existingScheme.SellPercentage = request.SellPercentage
-	existingScheme.StopLossPercentage = request.StopLossPercentage
-	existingScheme.TakeProfitPercentage = request.TakeProfitPercentage
+	//existingScheme.SellPercentage = request.SellPercentage
+	///existingScheme.StopLossPercentage = request.StopLossPercentage
+	//existingScheme.TakeProfitPercentage = request.TakeProfitPercentage
 	existingScheme.BuySlippage = request.BuySlippage
 	existingScheme.SellSlippage = request.SellSlippage
 	existingScheme.BuyPriorityFee = request.BuyPriorityFee
