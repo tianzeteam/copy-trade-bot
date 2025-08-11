@@ -124,8 +124,8 @@ func main() {
 		redisAddr = "localhost:6379" // 默认Redis地址
 	}
 
-	redisDB := 0                  // 默认使用DB 0
-	redisKeyPrefix := "copytrade" // 默认键前缀
+	redisDB := config.RedisDb               // 默认使用DB 0
+	redisKeyPrefix := config.RedisKeyPrefix // 默认键前缀
 
 	logger.Infof("使用Redis创建钱包监控器: %s", redisAddr)
 	walletMonitor, err = wallet.CreateWalletMonitorFromRedis(redisAddr, redisDB, redisKeyPrefix)
@@ -201,7 +201,7 @@ func main() {
 	logger.Infof("启动钱包监控服务，监控 %d 个钱包", len(walletMonitor.Wallets))
 
 	// 启动Web服务器（在单独的goroutine中运行）
-	go web.StartServer(configPath)
+	go web.StartServer(configPath, walletMonitor.RedisService)
 
 	if err = client.AddStreamClient(ctx, "mint_stream", yellowstone_geyser_pb.CommitmentLevel_PROCESSED); err != nil {
 		logger.Fatalf("添加流客户端失败: %v", err)

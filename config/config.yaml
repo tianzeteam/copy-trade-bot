@@ -4,6 +4,8 @@ simulate_mode: false
 private_key: 4a98pEQpEcYAWRYZ4XTrhnBpDvUT1xc2qvgLPmgt2TjKcATid8rcoLAHZqfug3C9NTwNU2fAYTaWapuPVcyZnpv
 grpc_url: https://solana-yellowstone-grpc.publicnode.com:443
 rpc_url: https://mainnet.helius-rpc.com/?api-key=dc537a21-36c2-4a5f-bcf8-90ae704fbbfc
+redis_db: 1
+redis_key_prefix: copytrade
 buy_sol_amount: 0
 sell_mode: delay_sell
 sell_delay_time: 0

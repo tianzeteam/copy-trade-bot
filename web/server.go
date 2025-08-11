@@ -51,9 +51,9 @@ func NewWebServer(configPath string, redisService *wallet.RedisWalletService) *W
 }
 
 // StartServer 启动Web服务器
-func StartServer(configPath string) {
+func StartServer(configPath string, redisService *wallet.RedisWalletService) {
 	// 创建Redis服务
-	redisAddr := os.Getenv("REDIS_ADDR")
+	/* redisAddr := os.Getenv("REDIS_ADDR")
 	if redisAddr == "" {
 		redisAddr = "localhost:6379" // 默认Redis地址
 	}
@@ -67,13 +67,13 @@ func StartServer(configPath string) {
 		logger.Errorf("创建Redis服务失败: %v", err)
 		return
 	}
-
+	*/
 	// 创建参数模板服务
-	paramSchemeService := NewParamSchemeService(redisService.Client, redisKeyPrefix)
-	
+	paramSchemeService := NewParamSchemeService(redisService.Client, redisService.KeyPrefix)
+
 	// 创建参数模板提供者
 	paramSchemeProvider := NewParamSchemeProvider(paramSchemeService)
-	
+
 	// 获取钱包监控器实例并设置参数模板提供者
 	if monitor := global.GetWalletMonitor(); monitor != nil {
 		// 设置参数模板提供者
@@ -152,7 +152,7 @@ func (s *WebServer) RegisterRoutes() {
 	// 注册Redis配置控制器（需要认证）
 	configController := NewConfigController(s.RedisService)
 	configController.RegisterRoutesWithAuth(s.Router)
-	
+
 	// 注册参数模板控制器（需要认证）
 	paramSchemeService := NewParamSchemeService(s.RedisService.Client, s.RedisService.KeyPrefix)
 	paramSchemeController := NewParamSchemeController(paramSchemeService)
@@ -272,11 +272,11 @@ func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
 
 	// 将结构体转换为map以便更新配置
 	updateMap := map[string]any{
-		"pump_trade_enable":         updates.PumpTradeEnable,
-		"pump_amm_trade_enable":     updates.PumpAmmTradeEnable,
-		"raydium_trade_enable":      updates.RaydiumTradeEnable,
-		"launchpad_trade_enable":    updates.LaunchpadTradeEnable,
-		"repeat_trade_enable":       updates.RepeatTradeEnable,
+		"pump_trade_enable":      updates.PumpTradeEnable,
+		"pump_amm_trade_enable":  updates.PumpAmmTradeEnable,
+		"raydium_trade_enable":   updates.RaydiumTradeEnable,
+		"launchpad_trade_enable": updates.LaunchpadTradeEnable,
+		"repeat_trade_enable":    updates.RepeatTradeEnable,
 	}
 
 	// 更新各个字段

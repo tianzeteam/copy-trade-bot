@@ -52,11 +52,17 @@ func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo
 		// 不是我们监控的钱包，忽略
 		return
 	}
-	if float64(tradeInfo.SolAmount) < (global.Config.MinFollowTriggerAmount*1e9) || float64(tradeInfo.SolAmount) > (global.Config.MaxFollowTriggerAmount*1e9) {
+	specailScheme, err := m.WalletMonitor.GetParamSchemeForWallet(copyAddress.String())
+	if err != nil {
+		logger.Errorf("获取参数模板失败: %v", err)
+		return
+	}
+
+	if float64(tradeInfo.SolAmount) < (specailScheme.MinFollowTriggerAmount*1e9) || float64(tradeInfo.SolAmount) > (specailScheme.MaxFollowTriggerAmount*1e9) {
 		//不在跟卖金额范围内，忽略
 		return
 	}
-	if float64(tradeInfo.RealSolReserves) < (global.Config.MinPoolSize*1e9) || float64(tradeInfo.RealSolReserves) > (global.Config.MaxPoolSize*1e9) {
+	if float64(tradeInfo.RealSolReserves) < (specailScheme.MinPoolSize*1e9) || float64(tradeInfo.RealSolReserves) > (specailScheme.MaxPoolSize*1e9) {
 		//不在跟卖池子大小范围内，忽略
 		return
 	}
@@ -65,7 +71,7 @@ func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo
 		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
 
 	// 执行跟单交易
-	m.executeCopyTrade(tradeInfo, copyAddress)
+	m.executeCopyTrade(tradeInfo, copyAddress, specailScheme)
 }
 
 // ProcessAmmTransaction 处理AMM交易事件
@@ -84,11 +90,16 @@ func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *types.AmmRay
 		// 不是我们监控的钱包，忽略
 		return
 	}
-	if float64(tradeInfo.SolAmount) < (global.Config.MinFollowTriggerAmount*1e9) || float64(tradeInfo.SolAmount) > (global.Config.MaxFollowTriggerAmount*1e9) {
+	specailScheme, err := m.WalletMonitor.GetParamSchemeForWallet(copyAddress.String())
+	if err != nil {
+		logger.Errorf("获取参数模板失败: %v", err)
+		return
+	}
+	if float64(tradeInfo.SolAmount) < (specailScheme.MinFollowTriggerAmount*1e9) || float64(tradeInfo.SolAmount) > (specailScheme.MaxFollowTriggerAmount*1e9) {
 		//不在跟卖金额范围内，忽略
 		return
 	}
-	if float64(tradeInfo.SolReserve) < (global.Config.MinPoolSize*1e9) || float64(tradeInfo.SolReserve) > (global.Config.MaxPoolSize*1e9) {
+	if float64(tradeInfo.SolReserve) < (specailScheme.MinPoolSize*1e9) || float64(tradeInfo.SolReserve) > (specailScheme.MaxPoolSize*1e9) {
 		//不在跟卖池子大小范围内，忽略
 		return
 	}
@@ -97,7 +108,7 @@ func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *types.AmmRay
 
 	// 执行跟单交易
 
-	m.executeRaydiumV4CopyTrade(tradeInfo, marketLayout, poolLayout, copyAddress, tradeInfo.TokenAmount)
+	m.executeRaydiumV4CopyTrade(tradeInfo, marketLayout, poolLayout, copyAddress, tradeInfo.TokenAmount, specailScheme)
 }
 
 // ProcessAmmTransaction 处理AMM交易事件
@@ -117,11 +128,16 @@ func (m *TransactionMonitor) ProcessAmmTransaction(tradeInfo *global.AmmTradeEve
 		// 不是我们监控的钱包，或者钱包未启用，忽略
 		return
 	}
-	if float64(tradeInfo.SolAmount) < (global.GetConfig().MinFollowTriggerAmount*1e9) || float64(tradeInfo.SolAmount) > (global.GetConfig().MaxFollowTriggerAmount*1e9) {
+	specailScheme, err := m.WalletMonitor.GetParamSchemeForWallet(copyAddress.String())
+	if err != nil {
+		logger.Errorf("获取参数模板失败: %v", err)
+		return
+	}
+	if float64(tradeInfo.SolAmount) < (specailScheme.MinFollowTriggerAmount*1e9) || float64(tradeInfo.SolAmount) > (specailScheme.MaxFollowTriggerAmount*1e9) {
 		//不在跟卖金额范围内，忽略
 		return
 	}
-	if float64(tradeInfo.SolReserve) < (global.GetConfig().MinPoolSize*1e9) || float64(tradeInfo.SolReserve) > (global.GetConfig().MaxPoolSize*1e9) {
+	if float64(tradeInfo.SolReserve) < (specailScheme.MinPoolSize*1e9) || float64(tradeInfo.SolReserve) > (specailScheme.MaxPoolSize*1e9) {
 		//不在跟卖池子大小范围内，忽略
 		logger.Infof("不在跟卖池子大小范围内，忽略%s %.2f", tradeInfo.MintAddress, float64(tradeInfo.SolReserve)/1e9)
 		return
@@ -130,11 +146,11 @@ func (m *TransactionMonitor) ProcessAmmTransaction(tradeInfo *global.AmmTradeEve
 		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
 
 	// 执行跟单交易
-	m.executeAmmCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount)
+	m.executeAmmCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount, specailScheme)
 }
 
 // TODO executeCopyTrade 执行跟单交易
-func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, copyAddress solana.PublicKey) {
+func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, copyAddress solana.PublicKey, specailScheme *types.ParamScheme) {
 	// 检查是否已经交易过该代币
 	m.WalletMonitor.Mux.RLock()
 	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress]; exists && !global.GetConfig().RepeatTradeEnable {
@@ -193,7 +209,6 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 	} else {
 		virtualSolReserves = TradeEventInfo.VirtualSolReserves
 	}
-	specailScheme := global.GetConfigByWallet(copyAddress.String())
 	// Calculate buy amounts
 	amounts, err := m.TradeBot.Trader.AmountsCalc.CalculateBuyAmounts(
 		ctx,
@@ -267,7 +282,7 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 }
 
 // executeAmmCopyTrade 执行AMM跟单交易
-func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEventInfo, originalWallet solana.PublicKey, originalAmount uint64) {
+func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEventInfo, originalWallet solana.PublicKey, originalAmount uint64, specailScheme *types.ParamScheme) {
 	// 检查是否已经交易过该代币
 	m.WalletMonitor.Mux.RLock()
 	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress.String()]; exists && !global.GetConfig().RepeatTradeEnable {
@@ -282,7 +297,6 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 	// 先记录原始交易者的交易
 	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress.String(), originalWallet, tradeInfo.CurrentPrice, originalAmount)
 	m.WalletMonitor.Mux.RUnlock()
-	specailScheme := global.GetConfigByWallet(originalWallet.String())
 
 	pumpAccounts, err := m.TradeBot.Trader.AccountsCalc.CalculateAmmAccounts(
 
@@ -371,7 +385,7 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 }
 
 // executeRaydiumV4CopyTrade
-func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *types.AmmRaydiumV4TradeInfo, marketLayout *types.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4, originalWallet solana.PublicKey, originalAmount uint64) {
+func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *types.AmmRaydiumV4TradeInfo, marketLayout *types.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4, originalWallet solana.PublicKey, originalAmount uint64, specailScheme *types.ParamScheme) {
 	// 检查是否已经交易过该代币
 	m.WalletMonitor.Mux.RLock()
 	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress.String()]; exists && !global.GetConfig().RepeatTradeEnable {
@@ -386,7 +400,6 @@ func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *types.AmmRaydi
 	// 先记录原始交易者的交易
 	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress.String(), originalWallet, tradeInfo.CurrentPrice, originalAmount)
 	m.WalletMonitor.Mux.RUnlock()
-	specailScheme := global.GetConfigByWallet(originalWallet.String())
 
 	raydiumV4Accounts, err := m.TradeBot.Trader.AccountsCalc.CalculateV4Accounts(
 		m.BotWallet,
@@ -497,11 +510,11 @@ func (m *TransactionMonitor) ProcessLaunchpadTransaction(tradeInfo *global.Launc
 
 	// 执行跟单交易
 
-	m.executeLaunchpadCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount)
+	m.executeLaunchpadCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount, specailScheme)
 }
 
 // executeLaunchpadCopyTrade
-func (m *TransactionMonitor) executeLaunchpadCopyTrade(tradeInfo *global.LaunchpadTradeEventInfo, originalWallet solana.PublicKey, originalAmount uint64) {
+func (m *TransactionMonitor) executeLaunchpadCopyTrade(tradeInfo *global.LaunchpadTradeEventInfo, originalWallet solana.PublicKey, originalAmount uint64, specailScheme *types.ParamScheme) {
 	// 检查是否已经交易过该代币
 	m.WalletMonitor.Mux.RLock()
 	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress.String()]; exists && !global.GetConfig().RepeatTradeEnable {
@@ -516,7 +529,6 @@ func (m *TransactionMonitor) executeLaunchpadCopyTrade(tradeInfo *global.Launchp
 	// 先记录原始交易者的交易
 	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress.String(), originalWallet, tradeInfo.CurrentPrice, originalAmount)
 	m.WalletMonitor.Mux.RUnlock()
-	specailScheme := global.GetConfigByWallet(originalWallet.String())
 
 	launchpadAccounts, err := m.TradeBot.Trader.AccountsCalc.CalculateLaunchpadAccounts(
 		m.BotWallet,
@@ -614,11 +626,16 @@ func (m *TransactionMonitor) ProcessCpmmTransaction(tradeInfo *global.CPMMTradeE
 		// 不是我们监控的钱包，忽略
 		return
 	}
-	if float64(tradeInfo.SolAmount) < (global.Config.MinFollowTriggerAmount*1e9) || float64(tradeInfo.SolAmount) > (global.Config.MaxFollowTriggerAmount*1e9) {
+	specailScheme, err := m.WalletMonitor.GetParamSchemeForWallet(copyAddress.String())
+	if err != nil {
+		logger.Errorf("获取参数模板失败: %v", err)
+		return
+	}
+	if float64(tradeInfo.SolAmount) < (specailScheme.MinFollowTriggerAmount*1e9) || float64(tradeInfo.SolAmount) > (specailScheme.MaxFollowTriggerAmount*1e9) {
 		//不在跟卖金额范围内，忽略
 		return
 	}
-	if float64(tradeInfo.SolReserve) < (global.Config.MinPoolSize*1e9) || float64(tradeInfo.SolReserve) > (global.Config.MaxPoolSize*1e9) {
+	if float64(tradeInfo.SolReserve) < (specailScheme.MinPoolSize*1e9) || float64(tradeInfo.SolReserve) > (specailScheme.MaxPoolSize*1e9) {
 		//不在跟卖池子大小范围内，忽略
 		return
 	}
@@ -627,11 +644,11 @@ func (m *TransactionMonitor) ProcessCpmmTransaction(tradeInfo *global.CPMMTradeE
 
 	// 执行跟单交易
 
-	m.executeCpmmCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount)
+	m.executeCpmmCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount, specailScheme)
 }
 
 // executeCpmmCopyTrade
-func (m *TransactionMonitor) executeCpmmCopyTrade(tradeInfo *global.CPMMTradeEventInfo, originalWallet solana.PublicKey, originalAmount uint64) {
+func (m *TransactionMonitor) executeCpmmCopyTrade(tradeInfo *global.CPMMTradeEventInfo, originalWallet solana.PublicKey, originalAmount uint64, specailScheme *types.ParamScheme) {
 	// 检查是否已经交易过该代币
 	m.WalletMonitor.Mux.RLock()
 	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress.String()]; exists && !global.GetConfig().RepeatTradeEnable {
@@ -646,7 +663,6 @@ func (m *TransactionMonitor) executeCpmmCopyTrade(tradeInfo *global.CPMMTradeEve
 	// 先记录原始交易者的交易
 	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress.String(), originalWallet, tradeInfo.CurrentPrice, originalAmount)
 	m.WalletMonitor.Mux.RUnlock()
-	specailScheme := global.GetConfigByWallet(originalWallet.String())
 	cpmmAccounts, err := m.TradeBot.Trader.AccountsCalc.CalculateRaydiumCPMMAccounts(
 		m.BotWallet,
 		tradeInfo.AmmConfig,

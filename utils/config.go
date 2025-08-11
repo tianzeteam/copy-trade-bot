@@ -43,6 +43,8 @@ type Config struct {
 	PrivateKey             string           `yaml:"private_key"`
 	GRPCUrl                string           `yaml:"grpc_url"`
 	RPCUrl                 string           `yaml:"rpc_url"`
+	RedisDb                int              `yaml:"redis_db"`
+	RedisKeyPrefix         string           `yaml:"redis_key_prefix"`
 	BuySolAmount           float64          `yaml:"buy_sol_amount"`
 	SellMode               string           `yaml:"sell_mode"`
 	SellDelayTime          int              `yaml:"sell_delay_time"`
