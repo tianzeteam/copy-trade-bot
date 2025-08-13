@@ -275,7 +275,7 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx context.
 					)
 					assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 					if ok {
-						go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, currentPrice, "pumpfun", "delay_sell", "延迟卖出")
+						go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, tradeEvent.TokenAmount, currentPrice, "pumpfun", "delay_sell", "延迟卖出")
 					}
 
 					//买入记录处理

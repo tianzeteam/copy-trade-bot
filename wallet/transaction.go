@@ -5,6 +5,7 @@ import (
 	"copytrade/core"
 	"copytrade/global"
 	"copytrade/logger"
+	"copytrade/queue"
 	"copytrade/raydium/layouts"
 	"time"
 
@@ -34,11 +35,6 @@ func NewTransactionMonitor(tradeBot *bot.Bot, walletMonitor *WalletMonitor, botW
 
 // 处理pump内盘交易事件
 func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo) {
-	// 只处理买入交易
-	if !tradeInfo.IsBuy {
-		return
-	}
-
 	// 获取交易者钱包地址
 	copyAddress, err := solana.PublicKeyFromBase58(tradeInfo.UserAddress)
 	if err != nil {
@@ -74,6 +70,40 @@ func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo
 	m.executeCopyTrade(tradeInfo, copyAddress, specailScheme)
 }
 
+// 处理pump内盘聪明钱包卖出交易事件
+func (m *TransactionMonitor) ProcessSellTransaction(tradeInfo *global.TradeEventInfo) {
+	// 获取交易者钱包地址
+	copyAddress, err := solana.PublicKeyFromBase58(tradeInfo.UserAddress)
+	if err != nil {
+		logger.Errorf("解析用户地址失败: %v", err)
+		return
+	}
+
+	// 检查是否是我们监控的钱包
+	walletSettings := m.WalletMonitor.GetWallet(copyAddress)
+	if walletSettings == nil || !walletSettings.Enabled {
+		// 不是我们监控的钱包，忽略
+		return
+	}
+	if !walletSettings.IsFollowSell {
+		// 当前钱包不跟卖，忽略
+		return
+	}
+
+	logger.Infof("检测到监控钱包卖出交易: 钱包=%s (%s), 代币=%s, 数量=%d, time: %v",
+		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
+
+	assetInfo, ok := global.GetPendingHoldAsset(tradeInfo.MintAddress)
+	if !ok {
+		logger.Debugf("读取买入资产信息发生异常 ：%s", tradeInfo.MintAddress)
+		return
+	}
+
+	// 执行跟单卖出
+	go queue.SendTokenToSellChannel(0, assetInfo, assetInfo.Amount, tradeInfo.CurrentPrice, "pumpfun", walletSettings.Name, "follow_sell")
+
+}
+
 // ProcessAmmTransaction 处理AMM交易事件
 func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *types.AmmRaydiumV4TradeInfo, marketLayout *types.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4) {
 	// 只处理买入交易
@@ -88,6 +118,10 @@ func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *types.AmmRay
 	walletSettings := m.WalletMonitor.GetWallet(copyAddress)
 	if walletSettings == nil || !walletSettings.Enabled {
 		// 不是我们监控的钱包，忽略
+		return
+	}
+	if !walletSettings.IsFollowSell {
+		// 当前钱包不跟卖，忽略
 		return
 	}
 	specailScheme, err := m.WalletMonitor.GetParamSchemeForWallet(copyAddress.String())

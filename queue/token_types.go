@@ -37,11 +37,11 @@ var (
 
 // sendTokenToSellChannel 创建 TokenInfo 并将其发送到 WaitingSellChan
 // 它还记录了尝试发送和结果。
-func SendTokenToSellChannel(delayTime int, assetInfo *global.MyBuyMap, currentPrice float64, platform, strategyName string, reason string) {
+func SendTokenToSellChannel(delayTime int, assetInfo *global.MyBuyMap, orderAmount uint64, currentPrice float64, platform, strategyName string, reason string) {
 	tokenInfo := TokenInfo{
 		Mint:         solana.MustPublicKeyFromBase58(assetInfo.MintAddress),
 		Owner:        solana.MustPublicKeyFromBase58(assetInfo.UserAddress),
-		Amount:       assetInfo.Amount,
+		Amount:       orderAmount,
 		Creator:      assetInfo.Creator,
 		User:         solana.MustPublicKeyFromBase58(assetInfo.UserAddress),
 		UpdateTime:   time.Now(),

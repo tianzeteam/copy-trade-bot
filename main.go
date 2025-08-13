@@ -284,8 +284,13 @@ func main() {
 					tradeInfo = tradeBot.PumpParse(out, ctx)
 				}
 				if tradeInfo != nil && transactionMonitor != nil {
-					go transactionMonitor.ProcessTransaction(tradeInfo)
+					if tradeInfo.IsBuy {
+						go transactionMonitor.ProcessTransaction(tradeInfo)
+					} else {
+						go transactionMonitor.ProcessSellTransaction(tradeInfo)
+					}
 					go walletMonitor.CheckExitConditions("pumpfun", tradeInfo.MintAddress, tradeInfo.CurrentPrice)
+
 					continue
 
 				}

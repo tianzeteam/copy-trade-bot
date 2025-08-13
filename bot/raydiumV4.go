@@ -289,7 +289,7 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx con
 				)
 				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 				if ok {
-					go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, entryPrice, "raydiumV4", "delay_sell", "延迟卖出")
+					go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, tradeInfo.TokenAmount, entryPrice, "raydiumV4", "delay_sell", "延迟卖出")
 				}
 			} else {
 				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)

@@ -30,6 +30,7 @@ type WalletSettings struct {
 	StopLossPct   int              // 止损百分比
 	ExitTimeSec   int              // 持仓时间(秒)
 	Enabled       bool             // 是否启用
+	IsFollowSell  bool             // 是否跟卖
 	ParamSchemeID string           // 参数方案ID
 }
 
@@ -228,14 +229,14 @@ func (m *WalletMonitor) CheckExitConditions(platform, mintAddress string, curren
 	// 检查止盈条件
 	if priceChangePct >= float64(tradeRecord.Settings.TakeProfitPct) {
 		logger.Infof("止盈条件被触发 :%s ,价格波动：%.8f%% ,止盈设置：%d%%", mintAddress, priceChangePct, tradeRecord.Settings.TakeProfitPct)
-		go queue.SendTokenToSellChannel(0, assetInfo, currentPrice, platform, tradeRecord.Settings.Name, "stop_profit")
+		go queue.SendTokenToSellChannel(0, assetInfo, assetInfo.Amount, currentPrice, platform, tradeRecord.Settings.Name, "stop_profit")
 		return true, "止盈触发", tradeRecord
 	}
 
 	// 检查止损条件
 	if priceChangePct <= -float64(tradeRecord.Settings.StopLossPct) {
 		logger.Infof("止损条件被触发 :%s ,价格波动：%.8f%% ,止损设置：%d%%", mintAddress, priceChangePct, tradeRecord.Settings.StopLossPct)
-		go queue.SendTokenToSellChannel(0, assetInfo, currentPrice, platform, tradeRecord.Settings.Name, "stop_loss")
+		go queue.SendTokenToSellChannel(0, assetInfo, assetInfo.Amount, currentPrice, platform, tradeRecord.Settings.Name, "stop_loss")
 		return true, "止损触发", tradeRecord
 	}
 

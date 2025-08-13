@@ -305,7 +305,7 @@ func (b *Bot) UniversalCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 			)
 			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 			if ok {
-				go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, tradeInfo.CurrentPrice, "cpmm", "delay_sell", "延迟卖出")
+				go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, tradeInfo.TokenAmount, tradeInfo.CurrentPrice, "cpmm", "delay_sell", "延迟卖出")
 			}
 		} else {
 			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
@@ -442,7 +442,7 @@ func (b *Bot) RaydiumCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx c
 				)
 				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 				if ok {
-					go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, tradeInfo.CurrentPrice, "cpmm", "delay_sell", "延迟卖出")
+					go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, tradeInfo.TokenAmount, tradeInfo.CurrentPrice, "cpmm", "delay_sell", "延迟卖出")
 				}
 			} else {
 				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
