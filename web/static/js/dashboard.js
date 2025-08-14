@@ -216,39 +216,38 @@ function loadWallets() {
 
 // 加载钱包详情
 function loadWalletDetails(address) {
-    // 先加载钱包详情
     fetch(`/api/wallets/${address}`, {
+        method: 'GET',
         headers: {
             'Authorization': `Bearer ${authToken}`
         }
     })
-    .then(response => {
-        if (response.status === 401) {
-            logout();
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            showError(data.error);
             return;
         }
-        return response.json();
-    })
-    .then(wallet => {
-        if (!wallet) return;
         
-        // 保存当前钱包地址
-        currentWalletAddress = wallet.address;
+        // 更新当前钱包地址
+        currentWalletAddress = address;
         
-        // 填充钱包信息
-        document.getElementById('walletName').textContent = wallet.name;
-        document.getElementById('walletAddress').textContent = wallet.address;
-        document.getElementById('walletType').textContent = wallet.type === 'high_frequency' ? '高频交易' : '低频交易';
-        document.getElementById('takeProfitPct').value = wallet.take_profit_pct;
-        document.getElementById('stopLossPct').value = wallet.stop_loss_pct;
-        document.getElementById('exitTimeSec').value = wallet.exit_time_sec;
-        document.getElementById('walletEnabled').checked = wallet.enabled;
+        // 填充钱包详情
+        document.getElementById('walletName').textContent = data.name;
+        document.getElementById('walletAddress').textContent = data.address;
+        document.getElementById('walletType').textContent = data.type === 'high_frequency' ? '高频交易' : '低频交易';
+        document.getElementById('takeProfitPct').value = data.take_profit_pct;
+        document.getElementById('stopLossPct').value = data.stop_loss_pct;
+        document.getElementById('exitTimeSec').value = data.exit_time_sec;
+        document.getElementById('walletEnabled').checked = data.enabled;
+        document.getElementById('walletFollowSell').checked = data.follow_sell;
         
-        // 加载参数模板列表并设置选中项
-        loadParamSchemesForWallet(wallet.param_scheme_id);
+        // 加载参数模板下拉列表
+        loadParamSchemesForWallet(data.param_scheme_id);
         
         // 显示钱包详情
         document.getElementById('walletInfo').classList.remove('d-none');
+        document.getElementById('noWalletAlert').classList.add('d-none');
     })
     .catch(error => {
         console.error('加载钱包详情失败:', error);
@@ -316,6 +315,7 @@ function updateWallet() {
         stop_loss_pct: parseFloat(document.getElementById('stopLossPct').value),
         exit_time_sec: parseInt(document.getElementById('exitTimeSec').value),
         enabled: document.getElementById('walletEnabled').checked,
+        follow_sell: document.getElementById('walletFollowSell').checked,
         param_scheme_id: document.getElementById('walletParamScheme').value || null
     };
     
@@ -403,7 +403,8 @@ function addNewWallet() {
         take_profit_pct: parseFloat(document.getElementById('newTakeProfitPct').value),
         stop_loss_pct: parseFloat(document.getElementById('newStopLossPct').value),
         exit_time_sec: parseInt(document.getElementById('newExitTimeSec').value),
-        enabled: document.getElementById('newWalletEnabled').checked
+        enabled: document.getElementById('newWalletEnabled').checked,
+        follow_sell: document.getElementById('newWalletFollowSell').checked
     };
     
     // 验证输入

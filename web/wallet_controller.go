@@ -68,6 +68,7 @@ type WalletResponse struct {
 	StopLossPct   int    `json:"stop_loss_pct"`
 	ExitTimeSec   int    `json:"exit_time_sec"`
 	Enabled       bool   `json:"enabled"`
+	FollowSell    bool   `json:"follow_sell"`     // 是否跟卖
 	ParamSchemeID string `json:"param_scheme_id"` // 参数方案ID
 	Timestamp     int64  `json:"timestamp"`       // 添加时间戳确保响应唯一性
 }
@@ -96,6 +97,7 @@ func (c *WalletController) GetAllWallets(ctx *gin.Context) {
 			StopLossPct:   w.StopLossPct,
 			ExitTimeSec:   w.ExitTimeSec,
 			Enabled:       w.Enabled, // 从Redis获取的钱包都是已启用的
+			FollowSell:    w.IsFollowSell,
 			ParamSchemeID: w.ParamSchemeID,
 			Timestamp:     time.Now().Unix(),
 		})
@@ -133,6 +135,7 @@ func (c *WalletController) GetWallet(ctx *gin.Context) {
 		StopLossPct:   w.StopLossPct,
 		ExitTimeSec:   w.ExitTimeSec,
 		Enabled:       w.Enabled,
+		FollowSell:    w.IsFollowSell,
 		ParamSchemeID: w.ParamSchemeID,
 		Timestamp:     time.Now().Unix(),
 	}
@@ -164,6 +167,7 @@ func (c *WalletController) CreateWallet(ctx *gin.Context) {
 		StopLossPct:   request.StopLossPct,
 		ExitTimeSec:   request.ExitTimeSec,
 		Enabled:       request.Enabled,
+		FollowSell:    request.FollowSell,
 	}
 
 	// 保存钱包
@@ -223,6 +227,7 @@ func (c *WalletController) UpdateWallet(ctx *gin.Context) {
 		StopLossPct:   request.StopLossPct,
 		ExitTimeSec:   request.ExitTimeSec,
 		Enabled:       request.Enabled,
+		FollowSell:    request.FollowSell,
 		ParamSchemeID: request.ParamSchemeID,
 	}
 

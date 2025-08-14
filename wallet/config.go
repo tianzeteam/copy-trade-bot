@@ -17,6 +17,7 @@ type WalletConfig struct {
 	StopLossPct   int    `yaml:"stop_loss_pct" json:"stop_loss_pct"`     // 止损百分比
 	ExitTimeSec   int    `yaml:"exit_time_sec" json:"exit_time_sec"`     // 持仓时间(秒)
 	Enabled       bool   `yaml:"enabled" json:"enabled"`                 // 是否启用
+	FollowSell    bool   `yaml:"follow_sell" json:"follow_sell"`         // 是否跟卖
 	ParamSchemeID string `yaml:"param_scheme_id" json:"param_scheme_id"` // 参数方案ID
 }
 
@@ -121,6 +122,7 @@ func CreateWalletSettings(config WalletConfig) (*WalletSettings, error) {
 		StopLossPct:   config.StopLossPct,
 		ExitTimeSec:   config.ExitTimeSec,
 		Enabled:       config.Enabled,
+		IsFollowSell:  config.FollowSell,
 		ParamSchemeID: config.ParamSchemeID,
 	}, nil
 }
