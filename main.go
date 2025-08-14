@@ -312,8 +312,11 @@ func main() {
 
 				// 处理钱包监控AMM交易
 				if ammTradeInfo != nil && transactionMonitor != nil {
-
-					go transactionMonitor.ProcessAmmTransaction(ammTradeInfo)
+					if ammTradeInfo.IsBuy {
+						go transactionMonitor.ProcessAmmTransaction(ammTradeInfo)
+					} else {
+						go transactionMonitor.ProcessAmmSellTransaction(ammTradeInfo)
+					}
 					go walletMonitor.CheckExitConditions("pumpamm", ammTradeInfo.MintAddress.String(), ammTradeInfo.CurrentPrice)
 
 				}
@@ -342,7 +345,11 @@ func main() {
 						logger.Warnf(" poolLayout dont exist %s", poolId.String())
 						continue
 					}
-					go transactionMonitor.ProcessRaydiumV4Transaction(raydiumV4TradeInfo, marketLayout, poolLayout)
+					if raydiumV4TradeInfo.IsBuy {
+						go transactionMonitor.ProcessRaydiumV4Transaction(raydiumV4TradeInfo, marketLayout, poolLayout)
+					} else {
+						go transactionMonitor.ProcessRaydiumV4SellTransaction(raydiumV4TradeInfo, marketLayout, poolLayout)
+					}
 					go walletMonitor.CheckExitConditions("raydiumV4", raydiumV4TradeInfo.MintAddress.String(), raydiumV4TradeInfo.CurrentPrice)
 					continue
 				}
@@ -362,7 +369,11 @@ func main() {
 				}
 
 				if launchpadTradeInfo != nil && transactionMonitor != nil {
-					go transactionMonitor.ProcessLaunchpadTransaction(launchpadTradeInfo)
+					if launchpadTradeInfo.IsBuy {
+						go transactionMonitor.ProcessLaunchpadTransaction(launchpadTradeInfo)
+					} else {
+						go transactionMonitor.ProcessLaunchpadSellTransaction(launchpadTradeInfo)
+					}
 					go walletMonitor.CheckExitConditions("launchpad", launchpadTradeInfo.MintAddress.String(), launchpadTradeInfo.CurrentPrice)
 					continue
 
@@ -383,7 +394,11 @@ func main() {
 				}
 
 				if cpmmTradeInfo != nil && transactionMonitor != nil {
-					go transactionMonitor.ProcessCpmmTransaction(cpmmTradeInfo)
+					if cpmmTradeInfo.IsBuy {
+						go transactionMonitor.ProcessCpmmTransaction(cpmmTradeInfo)
+					} else {
+						go transactionMonitor.ProcessCpmmSellTransaction(cpmmTradeInfo)
+					}
 					go walletMonitor.CheckExitConditions("cpmm", cpmmTradeInfo.MintAddress.String(), cpmmTradeInfo.CurrentPrice)
 					continue
 

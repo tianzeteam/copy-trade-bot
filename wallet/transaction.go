@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"context"
+	"copytrade/asset"
 	"copytrade/core"
 	"copytrade/global"
 	"copytrade/logger"
@@ -66,6 +67,10 @@ func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo
 	logger.Infof("检测到监控钱包交易: 钱包=%s (%s), 代币=%s, 数量=%d, time: %v",
 		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
 
+	// 记录跟单钱包的交易资产数据持仓
+	holdingsManager := asset.GetHoldingsManager()
+	holdingsManager.RecordTokenTransaction(tradeInfo)
+
 	// 执行跟单交易
 	m.executeCopyTrade(tradeInfo, copyAddress, specailScheme)
 }
@@ -98,18 +103,56 @@ func (m *TransactionMonitor) ProcessSellTransaction(tradeInfo *global.TradeEvent
 		logger.Debugf("读取买入资产信息发生异常 ：%s", tradeInfo.MintAddress)
 		return
 	}
+	// 处理跟单钱包的交易资产卖出
+	holdingsManager := asset.GetHoldingsManager()
+	holdingsManager.RecordTokenTransaction(tradeInfo)
+
+	// 计算跟单的同比例卖出
+	// 1. 获取监控钱包的总买入量（多笔买入累计，不减去卖出量）
+	// 从资产持仓管理器中获取监控钱包的总买入量
+	// 注意：这里需要使用资产持仓管理器中的数据
+	// 如果没有记录，则使用当前卖出量作为估计值
+	walletHoldings := holdingsManager.GetWalletHoldings(tradeInfo.UserAddress)
+	monitoredWalletTotalBuyAmount := uint64(0)
+	if tokenHolding, exists := walletHoldings.GetTokenHolding(tradeInfo.MintAddress); exists {
+		// 使用记录的总买入量
+		monitoredWalletTotalBuyAmount = tokenHolding.TotalBuyAmount
+	} else {
+		// 如果没有记录，则使用当前卖出量作为估计值
+		monitoredWalletTotalBuyAmount = tradeInfo.TokenAmount
+		logger.Warnf("无法获取监控钱包 %s 的代币 %s 总买入量，使用当前卖出量作为估计", tradeInfo.UserAddress, tradeInfo.MintAddress)
+	}
+
+	if monitoredWalletTotalBuyAmount == 0 {
+		logger.Warnf("监控钱包 %s 的代币 %s 总买入量为0，无法计算卖出比例", tradeInfo.UserAddress, tradeInfo.MintAddress)
+		return
+	}
+
+	// 2. 计算卖出比例
+	sellRatio := float64(tradeInfo.TokenAmount) / float64(monitoredWalletTotalBuyAmount)
+	logger.Infof("监控钱包 %s 卖出比例: %.2f%%", tradeInfo.UserAddress, sellRatio*100)
+
+	// 3. 根据比例计算我们需要卖出的数量
+	amountToSell := uint64(float64(assetInfo.Amount) * sellRatio)
+	if amountToSell == 0 {
+		logger.Warnf("计算得到的卖出数量为0，使用最小卖出单位1")
+		return
+	}
+	if amountToSell > assetInfo.Amount {
+		amountToSell = assetInfo.Amount // 确保不超过我们的持仓量
+	}
+
+	logger.Infof("跟单卖出: 代币=%s, 原始持仓=%d, 卖出数量=%d, 卖出比例=%.2f%%",
+		assetInfo.MintAddress, assetInfo.Amount, amountToSell, sellRatio*100)
 
 	// 执行跟单卖出
-	go queue.SendTokenToSellChannel(0, assetInfo, assetInfo.Amount, tradeInfo.CurrentPrice, "pumpfun", walletSettings.Name, "follow_sell")
+	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, "pumpfun", walletSettings.Name, "follow_sell")
 
 }
 
 // ProcessAmmTransaction 处理AMM交易事件
 func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *types.AmmRaydiumV4TradeInfo, marketLayout *types.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4) {
 	// 只处理买入交易
-	if !tradeInfo.IsBuy {
-		return
-	}
 
 	// 获取聪明钱包地址
 	copyAddress := tradeInfo.UserAddress
@@ -144,13 +187,94 @@ func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *types.AmmRay
 
 	m.executeRaydiumV4CopyTrade(tradeInfo, marketLayout, poolLayout, copyAddress, tradeInfo.TokenAmount, specailScheme)
 }
+func (m *TransactionMonitor) ProcessRaydiumV4SellTransaction(tradeInfo *types.AmmRaydiumV4TradeInfo, marketLayout *types.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4) {
+	// 只处理卖出交易
+
+	// 获取交易者钱包地址
+	copyAddress := tradeInfo.UserAddress
+
+	// 检查是否是我们监控的钱包
+	walletSettings := m.WalletMonitor.GetWallet(copyAddress)
+	if walletSettings == nil || !walletSettings.Enabled {
+		// 不是我们监控的钱包，忽略
+		return
+	}
+	if !walletSettings.IsFollowSell {
+		// 当前钱包不跟卖，忽略
+		return
+	}
+
+	logger.Infof("检测到监控钱包 Raydium V4 卖出交易: 钱包=%s (%s), 代币=%s, 数量=%d, time: %v",
+		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
+
+	// 获取代币信息
+	mintAddressStr := tradeInfo.MintAddress.String()
+	assetInfo, ok := global.GetPendingHoldAsset(mintAddressStr)
+	if !ok {
+		logger.Debugf("读取买入资产信息发生异常 ：%s", mintAddressStr)
+		return
+	}
+
+	// 处理跟单钱包的交易资产卖出
+	holdingsManager := asset.GetHoldingsManager()
+
+	// 创建一个与 ProcessSellTransaction 兼容的 TradeEventInfo 结构
+	tradeEventInfo := &global.TradeEventInfo{
+		UserAddress:  copyAddress.String(),
+		MintAddress:  mintAddressStr,
+		TokenAmount:  tradeInfo.TokenAmount,
+		IsBuy:        false,
+		CurrentPrice: tradeInfo.CurrentPrice,
+	}
+
+	holdingsManager.RecordTokenTransaction(tradeEventInfo)
+
+	// 计算跟单的同比例卖出
+	// 1. 获取监控钱包的总买入量（多笔买入累计，不减去卖出量）
+	walletHoldings := holdingsManager.GetWalletHoldings(copyAddress.String())
+	monitoredWalletTotalBuyAmount := uint64(0)
+	if tokenHolding, exists := walletHoldings.GetTokenHolding(mintAddressStr); exists {
+		// 使用记录的总买入量
+		monitoredWalletTotalBuyAmount = tokenHolding.TotalBuyAmount
+	} else {
+		// 如果没有记录，则使用当前卖出量作为估计值
+		monitoredWalletTotalBuyAmount = tradeInfo.TokenAmount
+		logger.Warnf("无法获取监控钱包 %s 的代币 %s 总买入量，使用当前卖出量作为估计", copyAddress.String(), mintAddressStr)
+	}
+
+	if monitoredWalletTotalBuyAmount == 0 {
+		logger.Warnf("监控钱包 %s 的代币 %s 总买入量为0，无法计算卖出比例", copyAddress.String(), mintAddressStr)
+		return
+	}
+
+	// 2. 计算卖出比例
+	sellRatio := float64(tradeInfo.TokenAmount) / float64(monitoredWalletTotalBuyAmount)
+	logger.Infof("监控钱包 %s 卖出比例: %.2f%%", copyAddress.String(), sellRatio*100)
+
+	// 3. 根据比例计算我们需要卖出的数量
+	amountToSell := uint64(float64(assetInfo.Amount) * sellRatio)
+	if amountToSell == 0 {
+		logger.Warnf("计算得到的卖出数量为0，取消卖出")
+		return
+	}
+	if amountToSell > assetInfo.Amount {
+		amountToSell = assetInfo.Amount // 确保不超过我们的持仓量
+	}
+
+	logger.Infof("Raydium V4 跟单卖出: 代币=%s, 原始持仓=%d, 卖出数量=%d, 卖出比例=%.2f%%",
+		mintAddressStr, assetInfo.Amount, amountToSell, sellRatio*100)
+
+	// 执行跟单卖出
+	// 注意：这里需要实现适合 Raydium V4 的卖出逻辑
+	// 由于我们直接使用 SendTokenToSellChannel，不需要获取参数模板
+
+	// 调用卖出方法，使用计算出的卖出数量
+	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, "raydiumV4", walletSettings.Name, "follow_sell")
+}
 
 // ProcessAmmTransaction 处理AMM交易事件
 func (m *TransactionMonitor) ProcessAmmTransaction(tradeInfo *global.AmmTradeEventInfo) {
 	// 只处理买入交易
-	if !tradeInfo.IsBuy {
-		return
-	}
 
 	// 获取交易者钱包地址
 	copyAddress := tradeInfo.UserAddress
@@ -181,6 +305,87 @@ func (m *TransactionMonitor) ProcessAmmTransaction(tradeInfo *global.AmmTradeEve
 
 	// 执行跟单交易
 	m.executeAmmCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount, specailScheme)
+}
+
+func (m *TransactionMonitor) ProcessAmmSellTransaction(tradeInfo *global.AmmTradeEventInfo) {
+	// 只处理卖出交易
+
+	// 获取交易者钱包地址
+	copyAddress := tradeInfo.UserAddress
+
+	// 检查是否是我们监控的钱包
+	walletSettings := m.WalletMonitor.GetWallet(copyAddress)
+	if walletSettings == nil || !walletSettings.Enabled {
+		// 不是我们监控的钱包，忽略
+		return
+	}
+	if !walletSettings.IsFollowSell {
+		// 当前钱包不跟卖，忽略
+		return
+	}
+
+	logger.Infof("检测到监控钱包 AMM 卖出交易: 钱包=%s (%s), 代币=%s, 数量=%d, time: %v",
+		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
+
+	// 获取代币信息
+	mintAddressStr := tradeInfo.MintAddress.String()
+	assetInfo, ok := global.GetPendingHoldAsset(mintAddressStr)
+	if !ok {
+		logger.Debugf("读取买入资产信息发生异常 ：%s", mintAddressStr)
+		return
+	}
+
+	// 处理跟单钱包的交易资产卖出
+	holdingsManager := asset.GetHoldingsManager()
+
+	// 创建一个与 ProcessSellTransaction 兼容的 TradeEventInfo 结构
+	tradeEventInfo := &global.TradeEventInfo{
+		UserAddress:  copyAddress.String(),
+		MintAddress:  mintAddressStr,
+		TokenAmount:  tradeInfo.TokenAmount,
+		IsBuy:        false,
+		CurrentPrice: tradeInfo.CurrentPrice,
+	}
+
+	holdingsManager.RecordTokenTransaction(tradeEventInfo)
+
+	// 计算跟单的同比例卖出
+	// 1. 获取监控钱包的总买入量（多笔买入累计，不减去卖出量）
+	walletHoldings := holdingsManager.GetWalletHoldings(copyAddress.String())
+	monitoredWalletTotalBuyAmount := uint64(0)
+	if tokenHolding, exists := walletHoldings.GetTokenHolding(mintAddressStr); exists {
+		// 使用记录的总买入量
+		monitoredWalletTotalBuyAmount = tokenHolding.TotalBuyAmount
+	} else {
+		// 如果没有记录，则使用当前卖出量作为估计值
+		monitoredWalletTotalBuyAmount = tradeInfo.TokenAmount
+		logger.Warnf("无法获取监控钱包 %s 的代币 %s 总买入量，使用当前卖出量作为估计", copyAddress.String(), mintAddressStr)
+	}
+
+	if monitoredWalletTotalBuyAmount == 0 {
+		logger.Warnf("监控钱包 %s 的代币 %s 总买入量为0，无法计算卖出比例", copyAddress.String(), mintAddressStr)
+		return
+	}
+
+	// 2. 计算卖出比例
+	sellRatio := float64(tradeInfo.TokenAmount) / float64(monitoredWalletTotalBuyAmount)
+	logger.Infof("监控钱包 %s 卖出比例: %.2f%%", copyAddress.String(), sellRatio*100)
+
+	// 3. 根据比例计算我们需要卖出的数量
+	amountToSell := uint64(float64(assetInfo.Amount) * sellRatio)
+	if amountToSell == 0 {
+		logger.Warnf("计算得到的卖出数量为0，取消卖出")
+		return
+	}
+	if amountToSell > assetInfo.Amount {
+		amountToSell = assetInfo.Amount // 确保不超过我们的持仓量
+	}
+
+	logger.Infof("AMM 跟单卖出: 代币=%s, 原始持仓=%d, 卖出数量=%d, 卖出比例=%.2f%%",
+		mintAddressStr, assetInfo.Amount, amountToSell, sellRatio*100)
+
+	// 执行跟单卖出
+	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, tradeInfo.Router, walletSettings.Name, "follow_sell")
 }
 
 // TODO executeCopyTrade 执行跟单交易
@@ -514,9 +719,6 @@ func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *types.AmmRaydi
 // ProcessLaunchpadTransaction 处理Launchpad交易事件
 func (m *TransactionMonitor) ProcessLaunchpadTransaction(tradeInfo *global.LaunchpadTradeEventInfo) {
 	// 只处理买入交易
-	if !tradeInfo.IsBuy {
-		return
-	}
 
 	// 获取聪明钱包地址
 	copyAddress := tradeInfo.UserAddress
@@ -545,6 +747,85 @@ func (m *TransactionMonitor) ProcessLaunchpadTransaction(tradeInfo *global.Launc
 	// 执行跟单交易
 
 	m.executeLaunchpadCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount, specailScheme)
+}
+func (m *TransactionMonitor) ProcessLaunchpadSellTransaction(tradeInfo *global.LaunchpadTradeEventInfo) {
+
+	// 获取交易者钱包地址
+	copyAddress := tradeInfo.UserAddress
+
+	// 检查是否是我们监控的钱包
+	walletSettings := m.WalletMonitor.GetWallet(copyAddress)
+	if walletSettings == nil || !walletSettings.Enabled {
+		// 不是我们监控的钱包，忽略
+		return
+	}
+	if !walletSettings.IsFollowSell {
+		// 当前钱包不跟卖，忽略
+		return
+	}
+
+	logger.Infof("检测到监控钱包 Launchpad 卖出交易: 钱包=%s (%s), 代币=%s, 数量=%d, time: %v",
+		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
+
+	// 获取代币信息
+	mintAddressStr := tradeInfo.MintAddress.String()
+	assetInfo, ok := global.GetPendingHoldAsset(mintAddressStr)
+	if !ok {
+		logger.Debugf("读取买入资产信息发生异常 ：%s", mintAddressStr)
+		return
+	}
+
+	// 处理跟单钱包的交易资产卖出
+	holdingsManager := asset.GetHoldingsManager()
+
+	// 创建一个与 ProcessSellTransaction 兼容的 TradeEventInfo 结构
+	tradeEventInfo := &global.TradeEventInfo{
+		UserAddress:  copyAddress.String(),
+		MintAddress:  mintAddressStr,
+		TokenAmount:  tradeInfo.TokenAmount,
+		IsBuy:        false,
+		CurrentPrice: tradeInfo.CurrentPrice,
+	}
+
+	holdingsManager.RecordTokenTransaction(tradeEventInfo)
+
+	// 计算跟单的同比例卖出
+	// 1. 获取监控钱包的总买入量（多笔买入累计，不减去卖出量）
+	walletHoldings := holdingsManager.GetWalletHoldings(copyAddress.String())
+	monitoredWalletTotalBuyAmount := uint64(0)
+	if tokenHolding, exists := walletHoldings.GetTokenHolding(mintAddressStr); exists {
+		// 使用记录的总买入量
+		monitoredWalletTotalBuyAmount = tokenHolding.TotalBuyAmount
+	} else {
+		// 如果没有记录，则使用当前卖出量作为估计值
+		monitoredWalletTotalBuyAmount = tradeInfo.TokenAmount
+		logger.Warnf("无法获取监控钱包 %s 的代币 %s 总买入量，使用当前卖出量作为估计", copyAddress.String(), mintAddressStr)
+	}
+
+	if monitoredWalletTotalBuyAmount == 0 {
+		logger.Warnf("监控钱包 %s 的代币 %s 总买入量为0，无法计算卖出比例", copyAddress.String(), mintAddressStr)
+		return
+	}
+
+	// 2. 计算卖出比例
+	sellRatio := float64(tradeInfo.TokenAmount) / float64(monitoredWalletTotalBuyAmount)
+	logger.Infof("监控钱包 %s 卖出比例: %.2f%%", copyAddress.String(), sellRatio*100)
+
+	// 3. 根据比例计算我们需要卖出的数量
+	amountToSell := uint64(float64(assetInfo.Amount) * sellRatio)
+	if amountToSell == 0 {
+		logger.Warnf("计算得到的卖出数量为0，取消卖出")
+		return
+	}
+	if amountToSell > assetInfo.Amount {
+		amountToSell = assetInfo.Amount // 确保不超过我们的持仓量
+	}
+
+	logger.Infof("Launchpad 跟单卖出: 代币=%s, 原始持仓=%d, 卖出数量=%d, 卖出比例=%.2f%%",
+		mintAddressStr, assetInfo.Amount, amountToSell, sellRatio*100)
+
+	// 执行跟单卖出
+	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, "launchpad", walletSettings.Name, "follow_sell")
 }
 
 // executeLaunchpadCopyTrade
@@ -643,10 +924,6 @@ func (m *TransactionMonitor) executeLaunchpadCopyTrade(tradeInfo *global.Launchp
 
 // ProcessCpmmTransaction 处理CPMM交易事件
 func (m *TransactionMonitor) ProcessCpmmTransaction(tradeInfo *global.CPMMTradeEventInfo) {
-	// 只处理买入交易
-	if !tradeInfo.IsBuy {
-		return
-	}
 
 	// 获取聪明钱包地址
 	copyAddress := tradeInfo.UserAddress
@@ -679,6 +956,86 @@ func (m *TransactionMonitor) ProcessCpmmTransaction(tradeInfo *global.CPMMTradeE
 	// 执行跟单交易
 
 	m.executeCpmmCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount, specailScheme)
+}
+func (m *TransactionMonitor) ProcessCpmmSellTransaction(tradeInfo *global.CPMMTradeEventInfo) {
+	// 只处理卖出交易
+
+	// 获取交易者钱包地址
+	copyAddress := tradeInfo.UserAddress
+
+	// 检查是否是我们监控的钱包
+	walletSettings := m.WalletMonitor.GetWallet(copyAddress)
+	if walletSettings == nil || !walletSettings.Enabled {
+		// 不是我们监控的钱包，忽略
+		return
+	}
+	if !walletSettings.IsFollowSell {
+		// 当前钱包不跟卖，忽略
+		return
+	}
+
+	logger.Infof("检测到监控钱包 CPMM 卖出交易: 钱包=%s (%s), 代币=%s, 数量=%d, time: %v",
+		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
+
+	// 获取代币信息
+	mintAddressStr := tradeInfo.MintAddress.String()
+	assetInfo, ok := global.GetPendingHoldAsset(mintAddressStr)
+	if !ok {
+		logger.Debugf("读取买入资产信息发生异常 ：%s", mintAddressStr)
+		return
+	}
+
+	// 处理跟单钱包的交易资产卖出
+	holdingsManager := asset.GetHoldingsManager()
+
+	// 创建一个与 ProcessSellTransaction 兼容的 TradeEventInfo 结构
+	tradeEventInfo := &global.TradeEventInfo{
+		UserAddress:  copyAddress.String(),
+		MintAddress:  mintAddressStr,
+		TokenAmount:  tradeInfo.TokenAmount,
+		IsBuy:        false,
+		CurrentPrice: tradeInfo.CurrentPrice,
+	}
+
+	holdingsManager.RecordTokenTransaction(tradeEventInfo)
+
+	// 计算跟单的同比例卖出
+	// 1. 获取监控钱包的总买入量（多笔买入累计，不减去卖出量）
+	walletHoldings := holdingsManager.GetWalletHoldings(copyAddress.String())
+	monitoredWalletTotalBuyAmount := uint64(0)
+	if tokenHolding, exists := walletHoldings.GetTokenHolding(mintAddressStr); exists {
+		// 使用记录的总买入量
+		monitoredWalletTotalBuyAmount = tokenHolding.TotalBuyAmount
+	} else {
+		// 如果没有记录，则使用当前卖出量作为估计值
+		monitoredWalletTotalBuyAmount = tradeInfo.TokenAmount
+		logger.Warnf("无法获取监控钱包 %s 的代币 %s 总买入量，使用当前卖出量作为估计", copyAddress.String(), mintAddressStr)
+	}
+
+	if monitoredWalletTotalBuyAmount == 0 {
+		logger.Warnf("监控钱包 %s 的代币 %s 总买入量为0，无法计算卖出比例", copyAddress.String(), mintAddressStr)
+		return
+	}
+
+	// 2. 计算卖出比例
+	sellRatio := float64(tradeInfo.TokenAmount) / float64(monitoredWalletTotalBuyAmount)
+	logger.Infof("监控钱包 %s 卖出比例: %.2f%%", copyAddress.String(), sellRatio*100)
+
+	// 3. 根据比例计算我们需要卖出的数量
+	amountToSell := uint64(float64(assetInfo.Amount) * sellRatio)
+	if amountToSell == 0 {
+		logger.Warnf("计算得到的卖出数量为0，取消卖出")
+		return
+	}
+	if amountToSell > assetInfo.Amount {
+		amountToSell = assetInfo.Amount // 确保不超过我们的持仓量
+	}
+
+	logger.Infof("CPMM 跟单卖出: 代币=%s, 原始持仓=%d, 卖出数量=%d, 卖出比例=%.2f%%",
+		mintAddressStr, assetInfo.Amount, amountToSell, sellRatio*100)
+
+	// 执行跟单卖出
+	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, "cpmm", walletSettings.Name, "follow_sell")
 }
 
 // executeCpmmCopyTrade
