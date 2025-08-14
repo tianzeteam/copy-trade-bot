@@ -27,6 +27,7 @@ type WalletHoldings struct {
 // HoldingsManager 管理所有跟单钱包的资产持仓
 type HoldingsManager struct {
 	walletHoldings map[string]*WalletHoldings // 钱包持仓映射 (WalletAddress -> WalletHoldings)
+	mintToWallets  map[string][]string        // 代币持有钱包映射 (MintAddress -> []WalletAddress)
 	mutex          sync.RWMutex               // 读写锁
 }
 
@@ -41,6 +42,7 @@ func NewHoldingsManager() *HoldingsManager {
 	holdingsOnce.Do(func() {
 		holdingsManager = &HoldingsManager{
 			walletHoldings: make(map[string]*WalletHoldings),
+			mintToWallets:  make(map[string][]string),
 		}
 	})
 	return holdingsManager
@@ -81,6 +83,50 @@ func (hm *HoldingsManager) RecordTokenTransaction(tradeInfo *global.TradeEventIn
 
 	// 记录交易
 	walletHoldings.RecordTransaction(tradeInfo)
+
+	// 更新代币持有钱包映射
+	hm.updateMintToWallets(tradeInfo.IsBuy, tradeInfo.MintAddress, tradeInfo.UserAddress)
+}
+
+// updateMintToWallets 更新代币持有钱包映射
+func (hm *HoldingsManager) updateMintToWallets(isBuy bool, mintAddress string, walletAddress string) {
+	if !isBuy {
+		return
+	}
+	hm.mutex.Lock()
+	defer hm.mutex.Unlock()
+
+	wallets, ok := hm.mintToWallets[mintAddress]
+	if !ok {
+		hm.mintToWallets[mintAddress] = []string{walletAddress}
+		return
+	}
+
+	// 检查钱包是否已经存在
+	for _, wallet := range wallets {
+		if wallet == walletAddress {
+			return
+		}
+	}
+
+	// 添加钱包到列表
+	hm.mintToWallets[mintAddress] = append(wallets, walletAddress)
+}
+
+// GetWalletsByMint 获取持有特定代币的钱包列表
+func (hm *HoldingsManager) GetWalletsByMint(mintAddress string) []string {
+	hm.mutex.RLock()
+	defer hm.mutex.RUnlock()
+
+	wallets, ok := hm.mintToWallets[mintAddress]
+	if !ok {
+		return []string{}
+	}
+
+	// 返回副本，避免外部修改
+	result := make([]string, len(wallets))
+	copy(result, wallets)
+	return result
 }
 
 // RecordTransaction 记录代币交易到钱包持仓
@@ -99,7 +145,7 @@ func (wh *WalletHoldings) RecordTransaction(tradeInfo *global.TradeEventInfo) {
 			totalAmount := holding.Amount + tradeInfo.TokenAmount
 			totalValue := (float64(holding.Amount) * holding.BuyPrice) + (float64(tradeInfo.TokenAmount) * currentPrice)
 			averagePrice := totalValue / float64(totalAmount)
-			
+
 			// 更新总买入量
 			totalBuyAmount := holding.TotalBuyAmount + tradeInfo.TokenAmount
 

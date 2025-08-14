@@ -9,6 +9,7 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/mr-tron/base58"
 
+	"copytrade/asset"
 	"copytrade/core"
 	"copytrade/global"
 	"copytrade/logger"
@@ -229,7 +230,19 @@ func (b *Bot) WrapLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 			)
 			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 			if ok {
-				go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, tradeInfo.TokenAmount, tradeInfo.CurrentPrice, "launchpad", "delay_sell", "延迟卖出")
+				assetManager := asset.GetHoldingsManager()
+				wallets := assetManager.GetWalletsByMint(mintAddress)
+				if len(wallets) == 0 {
+					logger.Errorf("未找到代币 %s 的持仓", mintAddress)
+					return nil
+				}
+				walletAddress := wallets[0]
+				specialScheme := global.GetConfigByWallet(walletAddress)
+				if specialScheme == nil {
+					logger.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
+					return nil
+				}
+				go queue.SendTokenToSellChannel(specialScheme.SellDelayTime, assetInfo, tradeInfo.TokenAmount, tradeInfo.CurrentPrice, "launchpad", "delay_sell", "延迟卖出")
 			}
 		} else {
 			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
@@ -354,7 +367,19 @@ func (b *Bot) RaydiumLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 				)
 				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 				if ok {
-					go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, tradeInfo.TokenAmount, tradeInfo.CurrentPrice, "launchpad", "delay_sell", "延迟卖出")
+					assetManager := asset.GetHoldingsManager()
+					wallets := assetManager.GetWalletsByMint(mintAddress)
+					if len(wallets) == 0 {
+						logger.Errorf("未找到代币 %s 的持仓", mintAddress)
+						return nil
+					}
+					walletAddress := wallets[0]
+					specialScheme := global.GetConfigByWallet(walletAddress)
+					if specialScheme == nil {
+						logger.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
+						return nil
+					}
+					go queue.SendTokenToSellChannel(specialScheme.SellDelayTime, assetInfo, tradeInfo.TokenAmount, tradeInfo.CurrentPrice, "launchpad", "delay_sell", "延迟卖出")
 				}
 			} else {
 				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)

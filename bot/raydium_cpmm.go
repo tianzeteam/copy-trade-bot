@@ -9,6 +9,7 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/mr-tron/base58"
 
+	"copytrade/asset"
 	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/queue"
@@ -305,7 +306,19 @@ func (b *Bot) UniversalCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 			)
 			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 			if ok {
-				go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, tradeInfo.TokenAmount, tradeInfo.CurrentPrice, "cpmm", "delay_sell", "延迟卖出")
+				assetManager := asset.GetHoldingsManager()
+				wallets := assetManager.GetWalletsByMint(mintAddress)
+				if len(wallets) == 0 {
+					logger.Errorf("未找到代币 %s 的持仓", mintAddress)
+					return nil
+				}
+				walletAddress := wallets[0]
+				specialScheme := global.GetConfigByWallet(walletAddress)
+				if specialScheme == nil {
+					logger.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
+					return nil
+				}
+				go queue.SendTokenToSellChannel(specialScheme.SellDelayTime, assetInfo, tradeInfo.TokenAmount, tradeInfo.CurrentPrice, "cpmm", "delay_sell", "延迟卖出")
 			}
 		} else {
 			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
@@ -442,7 +455,19 @@ func (b *Bot) RaydiumCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx c
 				)
 				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 				if ok {
-					go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, tradeInfo.TokenAmount, tradeInfo.CurrentPrice, "cpmm", "delay_sell", "延迟卖出")
+					assetManager := asset.GetHoldingsManager()
+					wallets := assetManager.GetWalletsByMint(mintAddress)
+					if len(wallets) == 0 {
+						logger.Errorf("未找到代币 %s 的持仓", mintAddress)
+						return nil
+					}
+					walletAddress := wallets[0]
+					specialScheme := global.GetConfigByWallet(walletAddress)
+					if specialScheme == nil {
+						logger.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
+						return nil
+					}
+					go queue.SendTokenToSellChannel(specialScheme.SellDelayTime, assetInfo, tradeInfo.TokenAmount, tradeInfo.CurrentPrice, "cpmm", "delay_sell", "延迟卖出")
 				}
 			} else {
 				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)

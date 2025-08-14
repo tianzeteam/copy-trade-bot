@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"copytrade/asset"
 	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/pump"
@@ -275,7 +276,19 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx context.
 					)
 					assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 					if ok {
-						go queue.SendTokenToSellChannel(global.GetConfig().SellDelayTime, assetInfo, tradeEvent.TokenAmount, currentPrice, "pumpfun", "delay_sell", "延迟卖出")
+						assetManager := asset.GetHoldingsManager()
+						wallets := assetManager.GetWalletsByMint(mintAddress)
+						if len(wallets) == 0 {
+							logger.Errorf("未找到代币 %s 的持仓", mintAddress)
+							return nil
+						}
+						walletAddress := wallets[0]
+						specialScheme := global.GetConfigByWallet(walletAddress)
+						if specialScheme == nil {
+							logger.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
+							return nil
+						}
+						go queue.SendTokenToSellChannel(specialScheme.SellDelayTime, assetInfo, tradeEvent.TokenAmount, currentPrice, "pumpfun", "delay_sell", "延迟卖出")
 					}
 
 					//买入记录处理
