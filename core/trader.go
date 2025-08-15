@@ -136,6 +136,24 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 	timeout := time.After(30 * time.Second)
 	logger.Infof("构建指令时间结束: %v", time.Now().Format("2006-01-02 15:04:05.000000"))
 
+	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
+		logger.Infof("[Blockrazor] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionBlockrazor(
+				t.Wallet,
+				instructions,
+				params.BlockrazorParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("Blockrazor发送失败: %s", err)
+				errChan <- fmt.Errorf("Blockrazor发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
 	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
 		logger.Infof("[0slot] 准备发送交易...")
 		go func() {
@@ -379,6 +397,23 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 	resultChan := make(chan string, 4)
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
+	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
+		logger.Infof("[Blockrazor] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionBlockrazor(
+				t.Wallet,
+				instructions,
+				params.BlockrazorParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("Blockrazor发送失败: %s", err)
+				errChan <- fmt.Errorf("Blockrazor发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
 	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
 		logger.Infof("[0slot] 准备发送交易...")
 		go func() {
@@ -615,7 +650,23 @@ func (t *TraderImpl) RaydiumV4Buy(ctx context.Context, params types.OrderParams)
 	resultChan := make(chan string, 4)
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
-
+	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
+		logger.Infof("[Blockrazor] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionBlockrazor(
+				t.Wallet,
+				instructions,
+				params.BlockrazorParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("Blockrazor发送失败: %s", err)
+				errChan <- fmt.Errorf("Blockrazor发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
 	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
 		logger.Infof("[0slot] 准备发送交易...")
 		go func() {
@@ -809,6 +860,23 @@ func (t *TraderImpl) RaydiumLaunchpadSell(ctx context.Context, params types.Orde
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
 	// 检查各个模式是否启用并准备发送
+	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
+		logger.Infof("[blockrazor] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionBlockrazor(
+				t.Wallet,
+				instructions,
+				params.BlockrazorParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("blockrazor发送失败: %s", err)
+				errChan <- fmt.Errorf("blockrazor发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
 	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
 		logger.Debugf("[0slot] 准备发送交易...")
 		go func() {
@@ -1021,6 +1089,23 @@ func (t *TraderImpl) RaydiumV4Sell(ctx context.Context, params types.OrderParams
 	resultChan := make(chan string, 4)
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
+	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
+		logger.Infof("[blockrazor] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionBlockrazor(
+				t.Wallet,
+				instructions,
+				params.BlockrazorParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("blockrazor发送失败: %s", err)
+				errChan <- fmt.Errorf("blockrazor发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
 	// 检查各个模式是否启用并准备发送
 	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
 		logger.Debugf("[0slot] 准备发送交易...")
@@ -1214,8 +1299,25 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
 	// 检查各个模式是否启用并准备发送
+	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
+		logger.Infof("[blockrazor] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionBlockrazor(
+				t.Wallet,
+				instructions,
+				params.BlockrazorParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("blockrazor发送失败: %s", err)
+				errChan <- fmt.Errorf("blockrazor发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
 	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
-		logger.Debugf("[0slot] 准备发送交易...")
+		logger.Infof("[0slot] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionZeroSlot(
 				t.Wallet,
@@ -1457,7 +1559,23 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 	resultChan := make(chan string, 4)
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
-
+	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
+		logger.Infof("[blockrazor] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionBlockrazor(
+				t.Wallet,
+				instructions,
+				params.BlockrazorParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("blockrazor发送失败: %s", err)
+				errChan <- fmt.Errorf("blockrazor发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
 	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
 		logger.Infof("[0slot] 准备发送交易...")
 		go func() {
@@ -1693,7 +1811,23 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 	resultChan := make(chan string, 4)
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
-
+	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
+		logger.Infof("[Blockrazor] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionBlockrazor(
+				t.Wallet,
+				instructions,
+				params.BlockrazorParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("blockrazor发送失败: %s", err)
+				errChan <- fmt.Errorf("blockrazor发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
 	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
 		logger.Infof("[0slot] 准备发送交易...")
 		go func() {
@@ -1742,7 +1876,7 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 				params.TradeParams.Blockhash,
 			)
 			if err != nil {
-				errChan <- fmt.Errorf("NextBlock发送失败: %w", err)
+				errChan <- fmt.Errorf("nextblock发送失败: %w", err)
 				return
 			}
 			resultChan <- sig
@@ -1928,7 +2062,23 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 	resultChan := make(chan string, 4)
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
-
+	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
+		logger.Infof("[Blockrazor] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionBlockrazor(
+				t.Wallet,
+				instructions,
+				params.BlockrazorParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("Blockrazor发送失败: %s", err)
+				errChan <- fmt.Errorf("Blockrazor发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
 	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
 		logger.Infof("[0slot] 准备发送交易...")
 		go func() {
@@ -2132,6 +2282,23 @@ func (t *TraderImpl) RaydiumCPMMSell(ctx context.Context, params types.OrderPara
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
 	// 检查各个模式是否启用并准备发送
+	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
+		logger.Infof("[blockrazor] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionBlockrazor(
+				t.Wallet,
+				instructions,
+				params.BlockrazorParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("blockrazor发送失败: %s", err)
+				errChan <- fmt.Errorf("blockrazor发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
 	if params.ZeroslotParams != nil && params.ZeroslotParams.Enable {
 		logger.Debugf("[0slot] 准备发送交易...")
 		go func() {

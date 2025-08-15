@@ -300,6 +300,14 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		BlockrazorParams: &types.BlockrazorParams{
+			Enable:         b.Config.Blockrazor.Enable,
+			RpcUrl:         b.Config.Blockrazor.RpcUrl,
+			HealthEndpoint: b.Config.Blockrazor.HealthEndpoint,
+			Mode:           b.Config.Blockrazor.Mode,
+			ApiKey:         b.Config.Blockrazor.ApiKeys[0],
+			TipAmount:      uint64(specailScheme.SellTipFee * 1e9),
+		},
 		ZeroslotParams: &types.ZeroslotParams{
 			Enable:    b.Config.Zeroslot.Enable,
 			RpcUrl:    b.Config.Zeroslot.RpcUrl,
@@ -447,6 +455,14 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		BlockrazorParams: &types.BlockrazorParams{
+			Enable:         b.Config.Blockrazor.Enable,
+			RpcUrl:         b.Config.Blockrazor.RpcUrl,
+			HealthEndpoint: b.Config.Blockrazor.HealthEndpoint,
+			Mode:           b.Config.Blockrazor.Mode,
+			ApiKey:         b.Config.Blockrazor.ApiKeys[0],
+			TipAmount:      uint64(specailScheme.SellTipFee * 1e9),
+		},
 		ZeroslotParams: &types.ZeroslotParams{
 			Enable:    b.Config.Zeroslot.Enable,
 			RpcUrl:    b.Config.Zeroslot.RpcUrl,
@@ -566,6 +582,14 @@ func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		BlockrazorParams: &types.BlockrazorParams{
+			Enable:         b.Config.Blockrazor.Enable,
+			RpcUrl:         b.Config.Blockrazor.RpcUrl,
+			HealthEndpoint: b.Config.Blockrazor.HealthEndpoint,
+			Mode:           b.Config.Blockrazor.Mode,
+			ApiKey:         b.Config.Blockrazor.ApiKeys[0],
+			TipAmount:      uint64(specailScheme.SellTipFee * 1e9),
+		},
 		ZeroslotParams: &types.ZeroslotParams{
 			Enable:    b.Config.Zeroslot.Enable,
 			RpcUrl:    b.Config.Zeroslot.RpcUrl,
@@ -670,6 +694,14 @@ func (b *Bot) ExecuteRaydiumLaunchpadSellOrder(tokenInfo queue.TokenInfo) {
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		BlockrazorParams: &types.BlockrazorParams{
+			Enable:         b.Config.Blockrazor.Enable,
+			RpcUrl:         b.Config.Blockrazor.RpcUrl,
+			HealthEndpoint: b.Config.Blockrazor.HealthEndpoint,
+			Mode:           b.Config.Blockrazor.Mode,
+			ApiKey:         b.Config.Blockrazor.ApiKeys[0],
+			TipAmount:      uint64(specialScheme.SellTipFee * 1e9),
+		},
 		ZeroslotParams: &types.ZeroslotParams{
 			Enable:    b.Config.Zeroslot.Enable,
 			RpcUrl:    b.Config.Zeroslot.RpcUrl,
@@ -774,6 +806,14 @@ func (b *Bot) ExecuteCpmmSellOrder(tokenInfo queue.TokenInfo) {
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		BlockrazorParams: &types.BlockrazorParams{
+			Enable:         b.Config.Blockrazor.Enable,
+			RpcUrl:         b.Config.Blockrazor.RpcUrl,
+			HealthEndpoint: b.Config.Blockrazor.HealthEndpoint,
+			Mode:           b.Config.Blockrazor.Mode,
+			ApiKey:         b.Config.Blockrazor.ApiKeys[0],
+			TipAmount:      uint64(specialScheme.SellTipFee * 1e9),
+		},
 		ZeroslotParams: &types.ZeroslotParams{
 			Enable:    b.Config.Zeroslot.Enable,
 			RpcUrl:    b.Config.Zeroslot.RpcUrl,

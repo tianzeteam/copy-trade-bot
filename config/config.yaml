@@ -78,3 +78,12 @@ zeroslot:
     rpc_url: http://ams1.0slot.trade
     api_keys:
         - 04a967a0e03a4ec3a1f10c971be97934
+blockrazor:
+    buy_tip: 0.001
+    sell_tip: 0.001
+    enable: true
+    mode: "fast"
+    health_endpoint: http://frankfurt.solana.blockrazor.xyz:443/health
+    rpc_url: http://frankfurt.solana.blockrazor.xyz:443/sendTransaction
+    api_keys:
+        - fCpKRdHHLHornJqbEk4tfm494BcCBYL5gC3MuQEt7Y2PTwxwSFDyuLUGpJNfNQyi8lWx7VpAjSIhGn8DhLHh2IRJEixvIriT

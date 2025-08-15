@@ -486,7 +486,14 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 	// Build complete transaction parameters
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
-
+		BlockrazorParams: &types.BlockrazorParams{
+			Enable:         m.TradeBot.Config.Blockrazor.Enable,
+			RpcUrl:         m.TradeBot.Config.Blockrazor.RpcUrl,
+			Mode:           m.TradeBot.Config.Blockrazor.Mode,
+			HealthEndpoint: m.TradeBot.Config.Blockrazor.HealthEndpoint,
+			ApiKey:         m.TradeBot.Config.Blockrazor.ApiKeys[0],
+			TipAmount:      uint64(specailScheme.BuyTipFee * 1e9),
+		},
 		ZeroslotParams: &types.ZeroslotParams{
 			Enable:    m.TradeBot.Config.Zeroslot.Enable,
 			RpcUrl:    m.TradeBot.Config.Zeroslot.RpcUrl,
@@ -591,6 +598,14 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		BlockrazorParams: &types.BlockrazorParams{
+			Enable:         m.TradeBot.Config.Blockrazor.Enable,
+			RpcUrl:         m.TradeBot.Config.Blockrazor.RpcUrl,
+			HealthEndpoint: m.TradeBot.Config.Blockrazor.HealthEndpoint,
+			Mode:           m.TradeBot.Config.Blockrazor.Mode,
+			ApiKey:         m.TradeBot.Config.Blockrazor.ApiKeys[0],
+			TipAmount:      uint64(specailScheme.BuyTipFee * 1e9),
+		},
 		ZeroslotParams: &types.ZeroslotParams{
 			Enable:    m.TradeBot.Config.Zeroslot.Enable,
 			RpcUrl:    m.TradeBot.Config.Zeroslot.RpcUrl,
@@ -684,6 +699,14 @@ func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *types.AmmRaydi
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		BlockrazorParams: &types.BlockrazorParams{
+			Enable:         m.TradeBot.Config.Blockrazor.Enable,
+			RpcUrl:         m.TradeBot.Config.Blockrazor.RpcUrl,
+			HealthEndpoint: m.TradeBot.Config.Blockrazor.HealthEndpoint,
+			Mode:           m.TradeBot.Config.Blockrazor.Mode,
+			ApiKey:         m.TradeBot.Config.Blockrazor.ApiKeys[0],
+			TipAmount:      uint64(specailScheme.BuyTipFee * 1e9),
+		},
 		ZeroslotParams: &types.ZeroslotParams{
 			Enable:    m.TradeBot.Config.Zeroslot.Enable,
 			RpcUrl:    m.TradeBot.Config.Zeroslot.RpcUrl,
@@ -890,6 +913,14 @@ func (m *TransactionMonitor) executeLaunchpadCopyTrade(tradeInfo *global.Launchp
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		BlockrazorParams: &types.BlockrazorParams{
+			Enable:         m.TradeBot.Config.Blockrazor.Enable,
+			RpcUrl:         m.TradeBot.Config.Blockrazor.RpcUrl,
+			HealthEndpoint: m.TradeBot.Config.Blockrazor.HealthEndpoint,
+			Mode:           m.TradeBot.Config.Blockrazor.Mode,
+			ApiKey:         m.TradeBot.Config.Blockrazor.ApiKeys[0],
+			TipAmount:      uint64(specailScheme.BuyTipFee * 1e9),
+		},
 		ZeroslotParams: &types.ZeroslotParams{
 			Enable:    m.TradeBot.Config.Zeroslot.Enable,
 			RpcUrl:    m.TradeBot.Config.Zeroslot.RpcUrl,
@@ -1101,6 +1132,14 @@ func (m *TransactionMonitor) executeCpmmCopyTrade(tradeInfo *global.CPMMTradeEve
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		BlockrazorParams: &types.BlockrazorParams{
+			Enable:         m.TradeBot.Config.Blockrazor.Enable,
+			RpcUrl:         m.TradeBot.Config.Blockrazor.RpcUrl,
+			HealthEndpoint: m.TradeBot.Config.Blockrazor.HealthEndpoint,
+			Mode:           m.TradeBot.Config.Blockrazor.Mode,
+			ApiKey:         m.TradeBot.Config.Blockrazor.ApiKeys[0],
+			TipAmount:      uint64(specailScheme.BuyTipFee * 1e9),
+		},
 		ZeroslotParams: &types.ZeroslotParams{
 			Enable:    m.TradeBot.Config.Zeroslot.Enable,
 			RpcUrl:    m.TradeBot.Config.Zeroslot.RpcUrl,

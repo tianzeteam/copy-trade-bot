@@ -9,11 +9,13 @@ import (
 
 // ModeConfig 表示每个模式的配置
 type ModeConfig struct {
-	BuyTip  float64  `yaml:"buy_tip"`
-	SellTip float64  `yaml:"sell_tip"`
-	Enable  bool     `yaml:"enable"`
-	RpcUrl  string   `yaml:"rpc_url,omitempty"`  // 可选的RPC URL
-	ApiKeys []string `yaml:"api_keys,omitempty"` // NextBlock的API密钥列表
+	BuyTip         float64  `yaml:"buy_tip"`
+	SellTip        float64  `yaml:"sell_tip"`
+	Enable         bool     `yaml:"enable"`
+	Mode           string   `yaml:"mode"`
+	HealthEndpoint string   `yaml:"health_endpoint"`
+	RpcUrl         string   `yaml:"rpc_url,omitempty"`  // 可选的RPC URL
+	ApiKeys        []string `yaml:"api_keys,omitempty"` // NextBlock的API密钥列表
 }
 
 // MultiSellLevel 表示多级卖出的配置
@@ -73,6 +75,7 @@ type Config struct {
 	Temporal               ModeConfig       `yaml:"temporal"`
 	BloXroute              ModeConfig       `yaml:"bloXroute"`
 	Zeroslot               ModeConfig       `yaml:"zeroslot"`
+	Blockrazor             ModeConfig       `yaml:"blockrazor"`
 }
 
 // LoadConfig 从文件加载配置
@@ -101,10 +104,13 @@ func LoadConfig(filename string) (*Config, error) {
 func validateConfig(config *Config) error {
 	// 验证每个模式的配置
 	modes := map[string]ModeConfig{
-		"normal":    config.Normal,
-		"jito":      config.Jito,
-		"nextblock": config.NextBlock,
-		"temportal": config.Temporal,
+		"normal":     config.Normal,
+		"jito":       config.Jito,
+		"nextblock":  config.NextBlock,
+		"temportal":  config.Temporal,
+		"bloXroute":  config.BloXroute,
+		"zeroslot":   config.Zeroslot,
+		"blockrazor": config.Blockrazor,
 	}
 
 	for name, mode := range modes {

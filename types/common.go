@@ -12,18 +12,19 @@ import (
 type TradeMode string
 
 const (
-	Normal    TradeMode = "normal"
-	Jito      TradeMode = "jito"
-	NextBlock TradeMode = "nextblock"
-	Temportal TradeMode = "temportal"
-	BloXroute TradeMode = "bloXroute"
-	Zeroslot  TradeMode = "zeroslot"
+	Normal     TradeMode = "normal"
+	Jito       TradeMode = "jito"
+	NextBlock  TradeMode = "nextblock"
+	Temportal  TradeMode = "temportal"
+	BloXroute  TradeMode = "bloXroute"
+	Zeroslot   TradeMode = "zeroslot"
+	Blockrazor TradeMode = "blockrazor"
 )
 
 // ValidateMode 验证交易模式是否有效
 func (m TradeMode) IsValid() bool {
 	switch m {
-	case Normal, Jito, NextBlock, Temportal, BloXroute, Zeroslot:
+	case Normal, Jito, NextBlock, Temportal, BloXroute, Zeroslot, Blockrazor:
 		return true
 	default:
 		return false
@@ -267,12 +268,23 @@ type BloXrouteParams struct {
 	TipAmount uint64
 }
 
+// BlockrazorParams 定义 Blockrazor 模式特有的参数
+type BlockrazorParams struct {
+	Enable         bool
+	RpcUrl         string // 交易提交端点
+	HealthEndpoint string // 健康检查端点
+	ApiKey         string // API 密钥
+	Mode           string // 交易模式 (fast, normal, etc.)
+	TipAmount      uint64 // 小费金额
+}
+
 // OrderParams 定义完整的交易参数（适用于买入和卖出）
 type OrderParams struct {
-	TradeParams                      // 基础参数
-	NextBlockParams *NextBlockParams // NextBlock 特有参数
-	JitoParams      *JitoParams      // Jito 特有参数
-	TemporalParams  *TemporalParams  // Temportal 特有参数
-	BloXrouteParams *BloXrouteParams // BloXroute 特有参数
-	ZeroslotParams  *ZeroslotParams  // Zeroslot 特有参数
+	TradeParams                        // 基础参数
+	NextBlockParams  *NextBlockParams  // NextBlock 特有参数
+	JitoParams       *JitoParams       // Jito 特有参数
+	TemporalParams   *TemporalParams   // Temportal 特有参数
+	BloXrouteParams  *BloXrouteParams  // BloXroute 特有参数
+	ZeroslotParams   *ZeroslotParams   // Zeroslot 特有参数
+	BlockrazorParams *BlockrazorParams // Blockrazor 特有参数
 }
