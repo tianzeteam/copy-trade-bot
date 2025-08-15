@@ -214,8 +214,9 @@ type RaydiumCPMMAccounts struct {
 
 // FeeConfig 定义费用相关配置
 type FeeConfig struct {
-	Slippage    float64 // 滑点
-	PriorityFee uint64  // 优先级费用（lamports）
+	ComputeUnits uint32
+	Slippage     float64 // 滑点
+	PriorityFee  uint64  // 优先级费用（lamports）
 }
 
 // TradeParams 定义所有交易模式共用的基础参数

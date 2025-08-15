@@ -478,8 +478,9 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 		Cost:      amounts.MaxCost,
 		Blockhash: *m.TradeBot.Blockhash,
 		FeeConfig: types.FeeConfig{
-			Slippage:    specailScheme.BuySlippage,
-			PriorityFee: uint64(specailScheme.BuyPriorityFee * 1e9),
+			ComputeUnits: m.TradeBot.Config.ComputeUnits,
+			Slippage:     specailScheme.BuySlippage,
+			PriorityFee:  uint64(specailScheme.BuyPriorityFee * 1e9),
 		},
 	}
 
@@ -590,8 +591,9 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 		Cost:      amounts.MaxCost,
 		Blockhash: *m.TradeBot.Blockhash,
 		FeeConfig: types.FeeConfig{
-			Slippage:    specailScheme.BuySlippage,
-			PriorityFee: uint64(specailScheme.BuyPriorityFee * 1e9),
+			ComputeUnits: m.TradeBot.Config.ComputeUnits,
+			Slippage:     specailScheme.BuySlippage,
+			PriorityFee:  uint64(specailScheme.BuyPriorityFee * 1e9),
 		},
 	}
 

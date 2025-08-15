@@ -68,6 +68,7 @@ type Config struct {
 	BuyTipFee              float64          `yaml:"buy_tip_fee"`               // 全局买入Tip费用
 	SellPriorityFee        float64          `yaml:"sell_priority_fee"`         // 全局卖出优先级费用
 	SellTipFee             float64          `yaml:"sell_tip_fee"`              // 全局卖出Tip费用
+	ComputeUnits           uint32           `yaml:"compute_units"`             // 计算单元
 	Logging                LogConfig        `yaml:"logging"`                   // 日志配置
 	Normal                 ModeConfig       `yaml:"normal"`
 	Jito                   ModeConfig       `yaml:"jito"`

@@ -75,13 +75,14 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 	instructions := []solana.Instruction{}
 
 	// 添加计算单元限制指令（通常设置为 200,000 units）
-	instructions = append(instructions, createSetComputeUnitLimitInstruction(200_000))
+	instructions = append(instructions, createSetComputeUnitLimitInstruction(params.TradeParams.FeeConfig.ComputeUnits))
 
 	// 添加优先级费用指令
 	instructions = append(instructions, createSetComputeUnitPriceInstruction(params.TradeParams.FeeConfig.PriorityFee))
 
 	if t.Config.SkipATACheck {
 		// 快速模式：直接添加创建ATA指令
+
 		logger.Infof("快速模式：跳过ATA检查，直接创建ATA账户")
 		createATAIx := associatedtokenaccount.NewCreateInstruction(
 			params.TradeParams.Accounts.User, // payer
@@ -308,7 +309,7 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 	instructions := []solana.Instruction{}
 
 	// 添加计算单元限制指令（通常设置为 200,000 units）
-	instructions = append(instructions, createSetComputeUnitLimitInstruction(200_000))
+	instructions = append(instructions, createSetComputeUnitLimitInstruction(params.TradeParams.FeeConfig.ComputeUnits))
 
 	// 添加优先级费用指令
 	instructions = append(instructions, createSetComputeUnitPriceInstruction(params.TradeParams.FeeConfig.PriorityFee))

@@ -9,6 +9,7 @@ redis_key_prefix: copytrade
 buy_sol_amount: 0
 sell_mode: delay_sell
 sell_delay_time: 0
+#多级卖出配置
 multi_sell_levels:
     - price_percent: 100
       sell_percent: 10
@@ -22,21 +23,32 @@ batch_sell_config:
     num_batches: 0
     thresholds: []
 skip_ata_check: true
+#池子开关
 pump_trade_enable: true
 pump_amm_trade_enable: true
 raydium_trade_enable: true
 launchpad_trade_enable: true
 repeat_trade_enable: false
+#触发买入金额
 min_follow_trigger_amount: 0
 max_follow_trigger_amount: 0
+#池子大小
 min_pool_size: 0
 max_pool_size: 0
+#买入滑点
 buy_slippage: 0
+#卖出滑点
 sell_slippage: 0
+#买入优先级费用
 buy_priority_fee: 0
+#买入Tip费用
 buy_tip_fee: 0
+#卖出优先级费用
 sell_priority_fee: 0
+#卖出Tip费用
 sell_tip_fee: 0
+# 计算单元
+compute_units: 130000
 logging:
     level: info
     format: text
