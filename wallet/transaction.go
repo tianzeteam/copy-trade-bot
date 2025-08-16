@@ -454,7 +454,7 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 		pumpAccounts.BondingCurve,
 		specailScheme.BuySolAmount,
 		virtualSolReserves,
-		global.GetConfig().BuySlippage,
+		specailScheme.BuySlippage,
 	)
 
 	if err != nil {
