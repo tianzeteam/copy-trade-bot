@@ -8,6 +8,7 @@ import (
 
 	"copytrade/core"
 	"copytrade/logger"
+	"copytrade/sdk"
 	"copytrade/utils"
 
 	"github.com/blocto/solana-go-sdk/client"
@@ -20,6 +21,7 @@ type Bot struct {
 	Trader      *core.TraderImpl
 	rpcClient   *rpc.Client
 	nonceClient *client.Client
+	sdkClient   *sdk.TradeSubscriptionClient
 
 	privateKey solana.PrivateKey
 
@@ -111,7 +113,7 @@ func (c *Coin) SetTokensHeld(tokensHeld int64) {
 }
 
 // NewBot creates a new bot struct that we use to buy & sell coins
-func NewBot(config *utils.Config) (*Bot, error) {
+func NewBot(config *utils.Config, sdkClient *sdk.TradeSubscriptionClient) (*Bot, error) {
 	// create trader
 	privateKey, err := solana.PrivateKeyFromBase58(config.PrivateKey)
 	if err != nil {
@@ -130,6 +132,7 @@ func NewBot(config *utils.Config) (*Bot, error) {
 		Trader:      trader,
 		rpcClient:   rpcClient,
 		nonceClient: nonceClient,
+		sdkClient:   sdkClient,
 
 		// Convert BuyPriorityFee from SOL to lamports (1 SOL = 10^9 lamports)
 		feeMicroLamport: uint64(config.BuyPriorityFee * 1e9),

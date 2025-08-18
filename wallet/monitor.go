@@ -383,9 +383,11 @@ func (m *WalletMonitor) refreshParamSchemes() {
 	m.ParamSchemes = newParamSchemes       // 更新（钱包地址 -> 模板）的映射
 	m.DefaultSchemeID = defaultSchemeID
 	m.ParamSchemesMux.Unlock()
+
 	global.UpdateConfigField("wallet_param_schemes", newParamSchemes)
 
 	logger.Infof("刷新参数模板列表，共 %d 个参数模板，默认参数模板 ID: %s", len(schemeIDs), defaultSchemeID)
 	logger.Infof("成功缓存 %d 个参数模板到内存", len(newSchemeTemplates))
 	logger.Infof("成功建立 %d 个钱包地址到参数模板的映射", len(newParamSchemes))
+
 }

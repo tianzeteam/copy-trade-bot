@@ -9,6 +9,7 @@ import (
 	"copytrade/logger"
 	"copytrade/pump"
 	"copytrade/queue"
+	"copytrade/types"
 	yellowstone_geyser_pb "copytrade/yellowstone_geyser/pb"
 
 	"github.com/gagliardetto/solana-go"
@@ -156,7 +157,7 @@ func (b *Bot) PhotonRouterPumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 
 	// 比较判别器
 	switch discriminator {
-	case pumpamm.Instruction_Buy:
+	case pump.Instruction_Buy:
 
 		accountList := b.GetAccountList(out)
 		//user := accountList[currentInstruction.Accounts[1]]
@@ -172,7 +173,7 @@ func (b *Bot) PhotonRouterPumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 
 		logger.Debugf("_signature: %s", _signature)
 		logger.Debugf("-------------------------------------------")
-	case pumpamm.Instruction_Sell:
+	case pump.Instruction_Sell:
 		accountList := b.GetAccountList(out)
 		//user := accountList[currentInstruction.Accounts[1]]
 		mintAddress = accountList[currentInstruction.Accounts[3]]
@@ -185,8 +186,6 @@ func (b *Bot) PhotonRouterPumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 
 		logger.Debugf("_signature: %s", _signature)
 		logger.Debugf("-------------------------------------------")
-	case pumpamm.CreateDiscriminator:
-		logger.Debug("匹配 Mint 判别器")
 	default:
 		logger.Debug("未匹配判别器")
 	}
@@ -251,7 +250,7 @@ func (b *Bot) PhotonRouterPumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 						tradeEvent.TokenAmount,
 						6,
 					)
-					assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+					_, ok := global.GetPendingHoldAsset(mintAddress)
 					if ok {
 						assetManager := asset.GetHoldingsManager()
 						wallets := assetManager.GetWalletsByMint(mintAddress)
@@ -265,16 +264,23 @@ func (b *Bot) PhotonRouterPumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 							logger.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
 							return nil
 						}
-						go queue.SendTokenToSellChannel(specialScheme.SellDelayTime, assetInfo, tradeEvent.TokenAmount, entryPrice, "pumpfun", "delay_sell", "延迟卖出")
+						message := types.ClosePositionMessage{
+							MintAddress:  mintAddress,
+							CurrentPrice: tradeInfo.CurrentPrice,
+							Platform:     "pumpfun",
+							MessageType:  "delay_sell",
+							Reason:       "延迟卖出",
+						}
+						go b.sdkClient.PublishDelayedCPMessage(b.Config.TradeChannel, message, specialScheme.SellDelayTime)
 					}
 
 					//买入记录处理
 
 				} else {
 					//卖出记录处理
-					assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+					_, ok := global.GetPendingHoldAsset(mintAddress)
 					if ok {
-						logger.Debugf("bot 钱包卖出记录处理: %s, %v, %d, %d", mintAddress, ok, assetInfo.Amount, tradeEvent.TokenAmount)
+						logger.Debugf("bot 钱包卖出记录处理: %s, %v, %d", mintAddress, ok, tradeEvent.TokenAmount)
 						global.DelPendingHoldAssetWithAmount(mintAddress, tradeEvent.TokenAmount)
 					}
 
@@ -403,7 +409,7 @@ func (b *Bot) PhotonRouterAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, c
 				tradeInfo.TokenAmount,
 				6,
 			)
-			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+			_, ok := global.GetPendingHoldAsset(mintAddress)
 			if ok {
 				assetManager := asset.GetHoldingsManager()
 				wallets := assetManager.GetWalletsByMint(mintAddress)
@@ -417,12 +423,19 @@ func (b *Bot) PhotonRouterAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, c
 					logger.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
 					return nil
 				}
-				go queue.SendTokenToSellChannel(specialScheme.SellDelayTime, assetInfo, tradeInfo.TokenAmount, entryPrice, "pumpamm", "delay_sell", "延迟卖出")
+				message := types.ClosePositionMessage{
+					MintAddress:  mintAddress,
+					CurrentPrice: tradeInfo.CurrentPrice,
+					Platform:     "pumpamm",
+					MessageType:  "delay_sell",
+					Reason:       "延迟卖出",
+				}
+				go b.sdkClient.PublishDelayedCPMessage(b.Config.TradeChannel, message, specialScheme.SellDelayTime)
 			}
 		} else {
-			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+			_, ok := global.GetPendingHoldAsset(mintAddress)
 			if ok {
-				logger.Infof("bot 钱包卖出记录处理: %s, %v, %d, %d", mintAddress, ok, assetInfo.Amount, tradeInfo.TokenAmount)
+				logger.Infof("bot 钱包卖出记录处理: %s, %v, %d", mintAddress, ok, tradeInfo.TokenAmount)
 				global.DelPendingHoldAssetWithAmount(mintAddress, tradeInfo.TokenAmount)
 			}
 		}

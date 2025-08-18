@@ -13,6 +13,7 @@ import (
 	"copytrade/logger"
 	"copytrade/pump"
 	"copytrade/queue"
+	"copytrade/types"
 
 	goyser "copytrade/yellowstone_geyser"
 	yellowstone_geyser_pb "copytrade/yellowstone_geyser/pb"
@@ -274,7 +275,7 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx context.
 						tradeEvent.TokenAmount,
 						6,
 					)
-					assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+					_, ok := global.GetPendingHoldAsset(mintAddress)
 					if ok {
 						assetManager := asset.GetHoldingsManager()
 						wallets := assetManager.GetWalletsByMint(mintAddress)
@@ -288,18 +289,25 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx context.
 							logger.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
 							return nil
 						}
-						go queue.SendTokenToSellChannel(specialScheme.SellDelayTime, assetInfo, tradeEvent.TokenAmount, currentPrice, "pumpfun", "delay_sell", "延迟卖出")
+						message := types.ClosePositionMessage{
+							MintAddress:  mintAddress,
+							CurrentPrice: currentPrice,
+							Platform:     "pumpfun",
+							MessageType:  "delay_sell",
+							Reason:       "延迟卖出",
+						}
+						go b.sdkClient.PublishDelayedCPMessage(b.Config.TradeChannel, message, specialScheme.SellDelayTime)
 					}
 
 					//买入记录处理
 
 				} else {
 					//卖出记录处理
-					assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+					_, ok := global.GetPendingHoldAsset(mintAddress)
 
 					logger.Debugf("bot 钱包卖出记录处理: %s, %v", mintAddress, ok)
 					if ok {
-						logger.Debugf("bot 钱包卖出记录处理: %s, %d, %d", mintAddress, assetInfo.Amount, tradeEvent.TokenAmount)
+						logger.Debugf("bot 钱包卖出记录处理: %s, %d", mintAddress, tradeEvent.TokenAmount)
 						global.DelPendingHoldAssetWithAmount(mintAddress, tradeEvent.TokenAmount)
 					}
 

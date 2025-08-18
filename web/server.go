@@ -51,23 +51,8 @@ func NewWebServer(configPath string, redisService *wallet.RedisWalletService) *W
 }
 
 // StartServer 启动Web服务器
-func StartServer(configPath string, redisService *wallet.RedisWalletService) {
-	// 创建Redis服务
-	/* redisAddr := os.Getenv("REDIS_ADDR")
-	if redisAddr == "" {
-		redisAddr = "localhost:6379" // 默认Redis地址
-	}
+func StartServer(config *utils.Config, configPath string, redisService *wallet.RedisWalletService) {
 
-	redisDB := 0                  // 默认使用DB 0
-	redisKeyPrefix := "copytrade" // 默认键前缀
-
-	// 创建Redis服务
-	redisService, err := wallet.NewRedisWalletService(redisAddr, redisDB, redisKeyPrefix)
-	if err != nil {
-		logger.Errorf("创建Redis服务失败: %v", err)
-		return
-	}
-	*/
 	// 创建参数模板服务
 	paramSchemeService := NewParamSchemeService(redisService.Client, redisService.KeyPrefix)
 
@@ -96,7 +81,7 @@ func StartServer(configPath string, redisService *wallet.RedisWalletService) {
 	server.RegisterRoutes()
 
 	// 启动服务器
-	port := 3000
+	port := config.WebPort
 	logger.Infof("启动Web服务器，监听端口 %d...", port)
 	if err := server.Router.Run(fmt.Sprintf(":%d", port)); err != nil {
 		logger.Errorf("启动Web服务器失败: %v", err)

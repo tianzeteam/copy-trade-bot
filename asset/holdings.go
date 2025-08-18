@@ -1,7 +1,6 @@
 package asset
 
 import (
-	"copytrade/global"
 	"copytrade/logger"
 	"sync"
 	"time"
@@ -77,40 +76,74 @@ func (hm *HoldingsManager) GetWalletHoldings(walletAddress string) *WalletHoldin
 }
 
 // RecordTokenTransaction 记录代币交易
-func (hm *HoldingsManager) RecordTokenTransaction(tradeInfo *global.TradeEventInfo) {
+func (hm *HoldingsManager) RecordTokenTransaction(walletAddress string, mintAddress string, isBuy bool, tokenAmount uint64, currentPrice float64) {
 	// 获取钱包持仓
-	walletHoldings := hm.GetWalletHoldings(tradeInfo.UserAddress)
+	walletHoldings := hm.GetWalletHoldings(walletAddress)
 
 	// 记录交易
-	walletHoldings.RecordTransaction(tradeInfo)
+	walletHoldings.RecordTransaction(mintAddress, isBuy, tokenAmount, currentPrice)
 
 	// 更新代币持有钱包映射
-	hm.updateMintToWallets(tradeInfo.IsBuy, tradeInfo.MintAddress, tradeInfo.UserAddress)
+	hm.updateMintToWallets(isBuy, mintAddress, walletAddress)
 }
 
 // updateMintToWallets 更新代币持有钱包映射
 func (hm *HoldingsManager) updateMintToWallets(isBuy bool, mintAddress string, walletAddress string) {
-	if !isBuy {
-		return
+	hm.mutex.Lock()
+	defer hm.mutex.Unlock()
+
+	if isBuy {
+		// 买入操作，添加钱包到映射
+		wallets, ok := hm.mintToWallets[mintAddress]
+		if !ok {
+			hm.mintToWallets[mintAddress] = []string{walletAddress}
+			return
+		}
+
+		// 检查钱包是否已经存在
+		for _, wallet := range wallets {
+			if wallet == walletAddress {
+				return
+			}
+		}
+
+		// 添加钱包到列表
+		hm.mintToWallets[mintAddress] = append(hm.mintToWallets[mintAddress], walletAddress)
+	} else {
+		// 卖出操作，检查钱包是否还有该代币的余额
+		holdings, ok := hm.walletHoldings[walletAddress]
+		if !ok {
+			// 钱包没有任何持有记录，从映射中移除
+			hm.removeWalletFromMint(mintAddress, walletAddress)
+			return
+		}
+
+		// 检查钱包是否还有该代币的余额
+		holding, ok := holdings.Holdings[mintAddress]
+		if !ok || holding.Amount <= 0 {
+			// 钱包没有该代币的余额或余额为零，从映射中移除
+			hm.removeWalletFromMint(mintAddress, walletAddress)
+		}
 	}
+}
+
+// removeWalletFromMint 从代币持有钱包映射中移除钱包
+func (hm *HoldingsManager) removeWalletFromMint(mintAddress string, walletAddress string) {
 	hm.mutex.Lock()
 	defer hm.mutex.Unlock()
 
 	wallets, ok := hm.mintToWallets[mintAddress]
 	if !ok {
-		hm.mintToWallets[mintAddress] = []string{walletAddress}
 		return
 	}
 
-	// 检查钱包是否已经存在
-	for _, wallet := range wallets {
+	// 查找钱包并移除
+	for i, wallet := range wallets {
 		if wallet == walletAddress {
+			hm.mintToWallets[mintAddress] = append(wallets[:i], wallets[i+1:]...)
 			return
 		}
 	}
-
-	// 添加钱包到列表
-	hm.mintToWallets[mintAddress] = append(wallets, walletAddress)
 }
 
 // GetWalletsByMint 获取持有特定代币的钱包列表
@@ -130,24 +163,21 @@ func (hm *HoldingsManager) GetWalletsByMint(mintAddress string) []string {
 }
 
 // RecordTransaction 记录代币交易到钱包持仓
-func (wh *WalletHoldings) RecordTransaction(tradeInfo *global.TradeEventInfo) {
+func (wh *WalletHoldings) RecordTransaction(mintAddress string, isBuy bool, tokenAmount uint64, currentPrice float64) {
 	wh.mutex.Lock()
 	defer wh.mutex.Unlock()
 
-	mintAddress := tradeInfo.MintAddress
-	currentPrice := tradeInfo.CurrentPrice
-
-	if tradeInfo.IsBuy {
+	if isBuy {
 		// 买入交易
 		holding, ok := wh.Holdings[mintAddress]
 		if ok {
 			// 已有持仓，更新平均买入价和数量
-			totalAmount := holding.Amount + tradeInfo.TokenAmount
-			totalValue := (float64(holding.Amount) * holding.BuyPrice) + (float64(tradeInfo.TokenAmount) * currentPrice)
+			totalAmount := holding.Amount + tokenAmount
+			totalValue := (float64(holding.Amount) * holding.BuyPrice) + (float64(tokenAmount) * currentPrice)
 			averagePrice := totalValue / float64(totalAmount)
 
 			// 更新总买入量
-			totalBuyAmount := holding.TotalBuyAmount + tradeInfo.TokenAmount
+			totalBuyAmount := holding.TotalBuyAmount + tokenAmount
 
 			holding.Amount = totalAmount
 			holding.TotalBuyAmount = totalBuyAmount
@@ -162,15 +192,15 @@ func (wh *WalletHoldings) RecordTransaction(tradeInfo *global.TradeEventInfo) {
 			// 新建持仓
 			wh.Holdings[mintAddress] = TokenHolding{
 				MintAddress:    mintAddress,
-				Amount:         tradeInfo.TokenAmount,
-				TotalBuyAmount: tradeInfo.TokenAmount, // 初始总买入量等于首次买入数量
+				Amount:         tokenAmount,
+				TotalBuyAmount: tokenAmount, // 初始总买入量等于首次买入数量
 				BuyPrice:       currentPrice,
 				CurrentPrice:   currentPrice,
 				LastUpdated:    time.Now(),
 			}
 
 			logger.Infof("新增钱包 %s 的代币持仓: 代币=%s, 数量=%d, 买入价=%.8f SOL",
-				wh.WalletAddress, mintAddress, tradeInfo.TokenAmount, currentPrice)
+				wh.WalletAddress, mintAddress, tokenAmount, currentPrice)
 		}
 	} else {
 		// 卖出交易
@@ -181,13 +211,13 @@ func (wh *WalletHoldings) RecordTransaction(tradeInfo *global.TradeEventInfo) {
 		}
 
 		// 更新持仓数量
-		if holding.Amount <= tradeInfo.TokenAmount {
+		if holding.Amount <= tokenAmount {
 			// 全部卖出
 			delete(wh.Holdings, mintAddress)
 			logger.Infof("钱包 %s 已清空代币持仓: 代币=%s", wh.WalletAddress, mintAddress)
 		} else {
 			// 部分卖出
-			holding.Amount -= tradeInfo.TokenAmount
+			holding.Amount -= tokenAmount
 			holding.CurrentPrice = currentPrice
 			holding.LastUpdated = time.Now()
 			wh.Holdings[mintAddress] = holding

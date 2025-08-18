@@ -420,10 +420,10 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 		logger.Errorf("Failed to calculate buy amounts: %v", err)
 		return
 	}
-	global.PendingHoldAssetLock.RLock()
-	myBuyMap := global.PendingHoldAsset[mintAddress]
-	global.PendingHoldAssetLock.RUnlock()
-	if myBuyMap == nil {
+
+	_, ok := global.GetPendingHoldAsset(tokenInfo.Mint.String())
+
+	if !ok {
 		logger.Errorf("未找到代币 %s 的买入信息，无法执行卖出操作", mintAddress)
 		return
 	}

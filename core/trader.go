@@ -814,7 +814,11 @@ func (t *TraderImpl) RaydiumLaunchpadSell(ctx context.Context, params types.Orde
 	logger.Infof("Mint地址: %s", mintAddress)
 	logger.Infof("卖出数量: %d", params.TradeParams.Amount)
 	logger.Infof("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
-
+	// 检查是否可以卖出（3秒内同一个币最多卖出一次）
+	if !global.CanSellToken(mintAddress) {
+		logger.Warnf("代币 %s 卖出频率过高，3秒内只能卖出一次", mintAddress)
+		return "", fmt.Errorf("代币 %s 卖出频率过高，3秒内只能卖出一次", mintAddress)
+	}
 	// 构建交易指令
 	instructions := []solana.Instruction{}
 
@@ -1026,7 +1030,11 @@ func (t *TraderImpl) RaydiumV4Sell(ctx context.Context, params types.OrderParams
 	logger.Infof("Mint地址: %s", mintAddress)
 	logger.Infof("卖出数量: %d", params.TradeParams.Amount)
 	logger.Infof("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
-
+	// 检查是否可以卖出（3秒内同一个币最多卖出一次）
+	if !global.CanSellToken(mintAddress) {
+		logger.Warnf("代币 %s 卖出频率过高，3秒内只能卖出一次", mintAddress)
+		return "", fmt.Errorf("代币 %s 卖出频率过高，3秒内只能卖出一次", mintAddress)
+	}
 	// 构建交易指令
 	instructions := []solana.Instruction{}
 
@@ -1257,8 +1265,8 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 
 	// 检查是否可以卖出（5秒内同一个币最多卖出一次）
 	if !global.CanSellToken(mintAddress) {
-		logger.Warnf("代币 %s 卖出频率过高，5秒内只能卖出一次", mintAddress)
-		return "", fmt.Errorf("代币 %s 卖出频率过高，5秒内只能卖出一次", mintAddress)
+		logger.Warnf("代币 %s 卖出频率过高，3秒内只能卖出一次", mintAddress)
+		return "", fmt.Errorf("代币 %s 卖出频率过高，3秒内只能卖出一次", mintAddress)
 	}
 
 	// 构建交易指令
@@ -1490,10 +1498,10 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 	logger.Infof("Mint地址: %s, 卖出数量: %d, 最小获得: %.6f SOL, time: %v",
 		mintAddress, params.TradeParams.Amount, float64(params.TradeParams.Cost)/1e9, time.Now().Format("2006-01-02 15:04:05.000000"))
 
-	// 检查是否可以卖出（5秒内同一个币最多卖出一次）
+	// 检查是否可以卖出（3秒内同一个币最多卖出一次）
 	if !global.CanSellToken(mintAddress) {
-		logger.Warnf("代币 %s 卖出频率过高，5秒内只能卖出一次", mintAddress)
-		return "", fmt.Errorf("代币 %s 卖出频率过高，5秒内只能卖出一次", mintAddress)
+		logger.Warnf("代币 %s 卖出频率过高，3秒内只能卖出一次", mintAddress)
+		return "", fmt.Errorf("代币 %s 卖出频率过高，3秒内只能卖出一次", mintAddress)
 	}
 
 	// 构建交易指令
@@ -2227,7 +2235,11 @@ func (t *TraderImpl) RaydiumCPMMSell(ctx context.Context, params types.OrderPara
 	logger.Infof("Mint地址: %s", mintAddress)
 	logger.Infof("卖出数量: %d", params.TradeParams.Amount)
 	logger.Infof("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
-
+	// 检查是否可以卖出（3秒内同一个币最多卖出一次）
+	if !global.CanSellToken(mintAddress) {
+		logger.Warnf("代币 %s 卖出频率过高，3秒内只能卖出一次", mintAddress)
+		return "", fmt.Errorf("代币 %s 卖出频率过高，3秒内只能卖出一次", mintAddress)
+	}
 	// 构建交易指令
 	instructions := []solana.Instruction{}
 

@@ -15,6 +15,7 @@ import (
 	"copytrade/logger"
 	"copytrade/queue"
 	"copytrade/raydium_launchpad"
+	"copytrade/types"
 	yellowstone_geyser_pb "copytrade/yellowstone_geyser/pb"
 )
 
@@ -228,7 +229,7 @@ func (b *Bot) WrapLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 				tradeInfo.TokenAmount,
 				6,
 			)
-			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+			_, ok := global.GetPendingHoldAsset(mintAddress)
 			if ok {
 				assetManager := asset.GetHoldingsManager()
 				wallets := assetManager.GetWalletsByMint(mintAddress)
@@ -242,12 +243,18 @@ func (b *Bot) WrapLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 					logger.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
 					return nil
 				}
-				go queue.SendTokenToSellChannel(specialScheme.SellDelayTime, assetInfo, tradeInfo.TokenAmount, tradeInfo.CurrentPrice, "launchpad", "delay_sell", "延迟卖出")
+				go b.sdkClient.PublishDelayedCPMessage(b.Config.TradeChannel, types.ClosePositionMessage{
+					MintAddress:  mintAddress,
+					CurrentPrice: tradeInfo.CurrentPrice,
+					Platform:     "launchpad",
+					MessageType:  "delay_sell",
+					Reason:       "延迟卖出",
+				}, specialScheme.SellDelayTime)
 			}
 		} else {
-			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+			_, ok := global.GetPendingHoldAsset(mintAddress)
 			if ok {
-				logger.Infof("bot 钱包卖出记录处理: %s, %v, %d, %d", mintAddress, ok, assetInfo.Amount, tradeInfo.TokenAmount)
+				logger.Infof("bot 钱包卖出记录处理: %s, %v, %d", mintAddress, ok, tradeInfo.TokenAmount)
 				global.DelPendingHoldAssetWithAmount(mintAddress, tradeInfo.TokenAmount)
 			}
 		}
@@ -365,7 +372,7 @@ func (b *Bot) RaydiumLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 					tradeInfo.TokenAmount,
 					6,
 				)
-				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+				_, ok := global.GetPendingHoldAsset(mintAddress)
 				if ok {
 					assetManager := asset.GetHoldingsManager()
 					wallets := assetManager.GetWalletsByMint(mintAddress)
@@ -379,7 +386,14 @@ func (b *Bot) RaydiumLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 						logger.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
 						return nil
 					}
-					go queue.SendTokenToSellChannel(specialScheme.SellDelayTime, assetInfo, tradeInfo.TokenAmount, tradeInfo.CurrentPrice, "launchpad", "delay_sell", "延迟卖出")
+					message := types.ClosePositionMessage{
+						MintAddress:  mintAddress,
+						CurrentPrice: tradeInfo.CurrentPrice,
+						Platform:     "launchpad",
+						MessageType:  "delay_sell",
+						Reason:       "延迟卖出",
+					}
+					go b.sdkClient.PublishDelayedCPMessage(b.Config.TradeChannel, message, specialScheme.SellDelayTime)
 				}
 			} else {
 				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)

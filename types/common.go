@@ -289,3 +289,19 @@ type OrderParams struct {
 	ZeroslotParams   *ZeroslotParams   // Zeroslot 特有参数
 	BlockrazorParams *BlockrazorParams // Blockrazor 特有参数
 }
+
+// TradeMessage 交易消息结构
+type TradeMessage struct {
+	Action   string `json:"action"`   // 操作类型：buy, sell
+	Mint     string `json:"mint"`     // 代币地址
+	Platform string `json:"platform"` // 平台：pump, pumpamm, raydiumV4, cpmm, launchpad
+}
+
+// ClosePositionMessage 平仓消息结构
+type ClosePositionMessage struct {
+	MintAddress  string  `json:"mint_address"`  // 代币地址
+	CurrentPrice float64 `json:"current_price"` // 当前价格
+	Platform     string  `json:"platform"`      // 平台：pump, pumpamm, raydiumV4, cpmm, launchpad
+	MessageType  string  `json:"message_type"`  // 消息类型：delay_sell, stop_loss, take_profit
+	Reason       string  `json:"reason"`        // 平仓原因
+}

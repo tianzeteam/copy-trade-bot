@@ -185,8 +185,9 @@ var (
 	RaydiumPoolLayouts     = make(map[string]*layouts.LIQUIDITY_STATE_LAYOUT_V4)
 	RaydiumPoolLayoutsLock = &sync.RWMutex{} // 用于保护映射表的读写锁
 
-	// 代币卖出时间间隔限制，默认10秒
-	SellIntervalLimit = 10 * time.Second
+	// 代币卖出时间间隔限制，默认2秒
+
+	SellIntervalLimit = 2 * time.Second
 )
 
 // GetTradeInfo 获取指定代币的交易信息
@@ -202,14 +203,6 @@ func SetTradeInfo(mintAddress string, info *TradeEventInfo) {
 	defer TradeInfoMapLock.Unlock()
 	TradeInfoMap[mintAddress] = info
 
-	// 打印当前设置的交易信息
-	//logger.Debugf("设置交易信息: Mint=%s, 价格=%.8f, 用户=%s",mintAddress, info.CurrentPrice, info.UserAddress)
-
-	// 打印TradeInfoMap中的所有元素
-	//logger.Debugf("当前TradeInfoMap包含 %d 个元素", len(TradeInfoMap))
-	/* for mint, tradeInfo := range TradeInfoMap {
-		logger.Debugf("TradeInfoMap[%s]: 价格=%.8f, 用户=%s, 时间=%s", mint, tradeInfo.CurrentPrice, tradeInfo.UserAddress, tradeInfo.TradeTime)
-	} */
 }
 
 // GetPendingHoldAsset 获取指定代币的持有资产信息
@@ -356,7 +349,7 @@ func CanSellToken(mintAddress string) bool {
 	// 检查上次卖出时间是否超过限制时间
 	elapsed := time.Since(limiter.LastSellTime)
 
-	return elapsed > SellIntervalLimit
+	return elapsed > time.Duration(GetConfig().SellIntervalLimit)*time.Second
 }
 
 // UpdateTokenSellTime 更新代币卖出时间

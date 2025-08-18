@@ -69,7 +69,7 @@ func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo
 
 	// 记录跟单钱包的交易资产数据持仓
 	holdingsManager := asset.GetHoldingsManager()
-	holdingsManager.RecordTokenTransaction(tradeInfo)
+	holdingsManager.RecordTokenTransaction(copyAddress.String(), tradeInfo.MintAddress, tradeInfo.IsBuy, tradeInfo.TokenAmount, tradeInfo.CurrentPrice)
 
 	// 执行跟单交易
 	m.executeCopyTrade(tradeInfo, copyAddress, specailScheme)
@@ -105,14 +105,14 @@ func (m *TransactionMonitor) ProcessSellTransaction(tradeInfo *global.TradeEvent
 	}
 	// 处理跟单钱包的交易资产卖出
 	holdingsManager := asset.GetHoldingsManager()
-	holdingsManager.RecordTokenTransaction(tradeInfo)
+	holdingsManager.RecordTokenTransaction(copyAddress.String(), tradeInfo.MintAddress, tradeInfo.IsBuy, tradeInfo.TokenAmount, tradeInfo.CurrentPrice)
 
 	// 计算跟单的同比例卖出
 	// 1. 获取监控钱包的总买入量（多笔买入累计，不减去卖出量）
 	// 从资产持仓管理器中获取监控钱包的总买入量
 	// 注意：这里需要使用资产持仓管理器中的数据
 	// 如果没有记录，则使用当前卖出量作为估计值
-	walletHoldings := holdingsManager.GetWalletHoldings(tradeInfo.UserAddress)
+	walletHoldings := holdingsManager.GetWalletHoldings(copyAddress.String())
 	monitoredWalletTotalBuyAmount := uint64(0)
 	if tokenHolding, exists := walletHoldings.GetTokenHolding(tradeInfo.MintAddress); exists {
 		// 使用记录的总买入量
@@ -184,6 +184,9 @@ func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *types.AmmRay
 		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
 
 	// 执行跟单交易
+	// 记录跟单钱包的交易资产数据持仓
+	holdingsManager := asset.GetHoldingsManager()
+	holdingsManager.RecordTokenTransaction(copyAddress.String(), tradeInfo.MintAddress.String(), tradeInfo.IsBuy, tradeInfo.TokenAmount, tradeInfo.CurrentPrice)
 
 	m.executeRaydiumV4CopyTrade(tradeInfo, marketLayout, poolLayout, copyAddress, tradeInfo.TokenAmount, specailScheme)
 }
@@ -218,16 +221,7 @@ func (m *TransactionMonitor) ProcessRaydiumV4SellTransaction(tradeInfo *types.Am
 	// 处理跟单钱包的交易资产卖出
 	holdingsManager := asset.GetHoldingsManager()
 
-	// 创建一个与 ProcessSellTransaction 兼容的 TradeEventInfo 结构
-	tradeEventInfo := &global.TradeEventInfo{
-		UserAddress:  copyAddress.String(),
-		MintAddress:  mintAddressStr,
-		TokenAmount:  tradeInfo.TokenAmount,
-		IsBuy:        false,
-		CurrentPrice: tradeInfo.CurrentPrice,
-	}
-
-	holdingsManager.RecordTokenTransaction(tradeEventInfo)
+	holdingsManager.RecordTokenTransaction(copyAddress.String(), tradeInfo.MintAddress.String(), tradeInfo.IsBuy, tradeInfo.TokenAmount, tradeInfo.CurrentPrice)
 
 	// 计算跟单的同比例卖出
 	// 1. 获取监控钱包的总买入量（多笔买入累计，不减去卖出量）
@@ -302,6 +296,9 @@ func (m *TransactionMonitor) ProcessAmmTransaction(tradeInfo *global.AmmTradeEve
 	}
 	logger.Infof("检测到监控钱包AMM交易: 钱包=%s (%s), 代币=%s, 数量=%d, time: %v",
 		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
+	// 记录跟单钱包的交易资产数据持仓
+	holdingsManager := asset.GetHoldingsManager()
+	holdingsManager.RecordTokenTransaction(copyAddress.String(), tradeInfo.MintAddress.String(), tradeInfo.IsBuy, tradeInfo.TokenAmount, tradeInfo.CurrentPrice)
 
 	// 执行跟单交易
 	m.executeAmmCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount, specailScheme)
@@ -338,16 +335,7 @@ func (m *TransactionMonitor) ProcessAmmSellTransaction(tradeInfo *global.AmmTrad
 	// 处理跟单钱包的交易资产卖出
 	holdingsManager := asset.GetHoldingsManager()
 
-	// 创建一个与 ProcessSellTransaction 兼容的 TradeEventInfo 结构
-	tradeEventInfo := &global.TradeEventInfo{
-		UserAddress:  copyAddress.String(),
-		MintAddress:  mintAddressStr,
-		TokenAmount:  tradeInfo.TokenAmount,
-		IsBuy:        false,
-		CurrentPrice: tradeInfo.CurrentPrice,
-	}
-
-	holdingsManager.RecordTokenTransaction(tradeEventInfo)
+	holdingsManager.RecordTokenTransaction(copyAddress.String(), tradeInfo.MintAddress.String(), tradeInfo.IsBuy, tradeInfo.TokenAmount, tradeInfo.CurrentPrice)
 
 	// 计算跟单的同比例卖出
 	// 1. 获取监控钱包的总买入量（多笔买入累计，不减去卖出量）
@@ -385,7 +373,7 @@ func (m *TransactionMonitor) ProcessAmmSellTransaction(tradeInfo *global.AmmTrad
 		mintAddressStr, assetInfo.Amount, amountToSell, sellRatio*100)
 
 	// 执行跟单卖出
-	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, tradeInfo.Router, walletSettings.Name, "follow_sell")
+	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, "pumpamm", walletSettings.Name, "follow_sell")
 }
 
 // TODO executeCopyTrade 执行跟单交易
@@ -768,6 +756,9 @@ func (m *TransactionMonitor) ProcessLaunchpadTransaction(tradeInfo *global.Launc
 	}
 	logger.Infof("检测到监控钱包Launchpad 交易: 钱包=%s (%s), 代币=%s, 数量=%d, time: %v",
 		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
+	// 记录跟单钱包的交易资产数据持仓
+	holdingsManager := asset.GetHoldingsManager()
+	holdingsManager.RecordTokenTransaction(copyAddress.String(), tradeInfo.MintAddress.String(), tradeInfo.IsBuy, tradeInfo.TokenAmount, tradeInfo.CurrentPrice)
 
 	// 执行跟单交易
 
@@ -803,16 +794,7 @@ func (m *TransactionMonitor) ProcessLaunchpadSellTransaction(tradeInfo *global.L
 	// 处理跟单钱包的交易资产卖出
 	holdingsManager := asset.GetHoldingsManager()
 
-	// 创建一个与 ProcessSellTransaction 兼容的 TradeEventInfo 结构
-	tradeEventInfo := &global.TradeEventInfo{
-		UserAddress:  copyAddress.String(),
-		MintAddress:  mintAddressStr,
-		TokenAmount:  tradeInfo.TokenAmount,
-		IsBuy:        false,
-		CurrentPrice: tradeInfo.CurrentPrice,
-	}
-
-	holdingsManager.RecordTokenTransaction(tradeEventInfo)
+	holdingsManager.RecordTokenTransaction(copyAddress.String(), tradeInfo.MintAddress.String(), tradeInfo.IsBuy, tradeInfo.TokenAmount, tradeInfo.CurrentPrice)
 
 	// 计算跟单的同比例卖出
 	// 1. 获取监控钱包的总买入量（多笔买入累计，不减去卖出量）
@@ -985,6 +967,9 @@ func (m *TransactionMonitor) ProcessCpmmTransaction(tradeInfo *global.CPMMTradeE
 	}
 	logger.Infof("检测到监控钱包CPMM 交易: 钱包=%s (%s), 代币=%s, 数量=%d, time: %v",
 		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
+	// 记录跟单钱包的交易资产数据持仓
+	holdingsManager := asset.GetHoldingsManager()
+	holdingsManager.RecordTokenTransaction(copyAddress.String(), tradeInfo.MintAddress.String(), tradeInfo.IsBuy, tradeInfo.TokenAmount, tradeInfo.CurrentPrice)
 
 	// 执行跟单交易
 
@@ -1021,16 +1006,7 @@ func (m *TransactionMonitor) ProcessCpmmSellTransaction(tradeInfo *global.CPMMTr
 	// 处理跟单钱包的交易资产卖出
 	holdingsManager := asset.GetHoldingsManager()
 
-	// 创建一个与 ProcessSellTransaction 兼容的 TradeEventInfo 结构
-	tradeEventInfo := &global.TradeEventInfo{
-		UserAddress:  copyAddress.String(),
-		MintAddress:  mintAddressStr,
-		TokenAmount:  tradeInfo.TokenAmount,
-		IsBuy:        false,
-		CurrentPrice: tradeInfo.CurrentPrice,
-	}
-
-	holdingsManager.RecordTokenTransaction(tradeEventInfo)
+	holdingsManager.RecordTokenTransaction(copyAddress.String(), tradeInfo.MintAddress.String(), false, tradeInfo.TokenAmount, tradeInfo.CurrentPrice)
 
 	// 计算跟单的同比例卖出
 	// 1. 获取监控钱包的总买入量（多笔买入累计，不减去卖出量）

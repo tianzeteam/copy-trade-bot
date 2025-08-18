@@ -8,6 +8,7 @@ import (
 	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/queue"
+	"copytrade/types"
 	yellowstone_geyser_pb "copytrade/yellowstone_geyser/pb"
 
 	"github.com/gagliardetto/solana-go"
@@ -235,7 +236,7 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx conte
 				6,
 			)
 
-			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+			_, ok := global.GetPendingHoldAsset(mintAddress)
 			if ok {
 				assetManager := asset.GetHoldingsManager()
 				wallets := assetManager.GetWalletsByMint(mintAddress)
@@ -249,13 +250,39 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx conte
 					logger.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
 					return nil
 				}
-				go queue.SendTokenToSellChannel(specialScheme.SellDelayTime, assetInfo, tradeInfo.TokenAmount, tradeInfo.CurrentPrice, "pumpamm", "delay_sell", "延迟卖出")
+				// 打印参数模板的所有key value
+				logger.Infof("参数模板 ID: %s", specialScheme.ID)
+				logger.Infof("  名称: %s", specialScheme.Name)
+				logger.Infof("  描述: %s", specialScheme.Description)
+				logger.Infof("  是否默认: %v", specialScheme.IsDefault)
+				logger.Infof("  创建时间: %v", specialScheme.CreatedAt)
+				logger.Infof("  更新时间: %v", specialScheme.UpdatedAt)
+				logger.Infof("  卖出延迟时间: %d 毫秒", specialScheme.SellDelayTime)
+				logger.Infof("  最小触发买入金额: %.4f SOL", specialScheme.MinFollowTriggerAmount)
+				logger.Infof("  最大触发买入金额: %.4f SOL", specialScheme.MaxFollowTriggerAmount)
+				logger.Infof("  最小池子大小: %.4f SOL", specialScheme.MinPoolSize)
+				logger.Infof("  最大池子大小: %.4f SOL", specialScheme.MaxPoolSize)
+				logger.Infof("  买入金额: %.4f SOL", specialScheme.BuySolAmount)
+				logger.Infof("  买入滑点: %.2f%%", specialScheme.BuySlippage*100)
+				logger.Infof("  卖出滑点: %.2f%%", specialScheme.SellSlippage*100)
+				logger.Infof("  买入优先费: %.6f", specialScheme.BuyPriorityFee)
+				logger.Infof("  买入小费: %.4f", specialScheme.BuyTipFee)
+				logger.Infof("  卖出优先费: %.6f", specialScheme.SellPriorityFee)
+				logger.Infof("  卖出小费: %.4f", specialScheme.SellTipFee)
+				message := types.ClosePositionMessage{
+					MintAddress:  mintAddress,
+					CurrentPrice: tradeInfo.CurrentPrice,
+					Platform:     "pumpamm",
+					MessageType:  "delay_sell",
+					Reason:       "延迟卖出",
+				}
+				go b.sdkClient.PublishDelayedCPMessage(b.Config.TradeChannel, message, specialScheme.SellDelayTime)
 			}
 
 		} else {
-			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+			_, ok := global.GetPendingHoldAsset(mintAddress)
 			if ok {
-				logger.Debugf("bot 钱包卖出记录处理: %s, %v, %d, %d", mintAddress, ok, assetInfo.Amount, tradeInfo.TokenAmount)
+				logger.Debugf("bot 钱包卖出记录处理: %s, %v, %d", mintAddress, ok, tradeInfo.TokenAmount)
 				global.DelPendingHoldAssetWithAmount(mintAddress, tradeInfo.TokenAmount)
 			}
 		}

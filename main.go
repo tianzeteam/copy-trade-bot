@@ -13,6 +13,10 @@ import (
 	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/queue"
+	"copytrade/sdk"
+
+	//"copytrade/sdk"
+	"copytrade/subscribe"
 	"copytrade/utils"
 	"copytrade/wallet"
 	"copytrade/web"
@@ -23,6 +27,7 @@ import (
 	"slices"
 
 	"github.com/gagliardetto/solana-go"
+	"github.com/go-redis/redis/v8"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/mr-tron/base58"
 )
@@ -127,6 +132,18 @@ func main() {
 	redisDB := config.RedisDb               // 默认使用DB 0
 	redisKeyPrefix := config.RedisKeyPrefix // 默认键前缀
 
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     redisAddr,
+		Password: "", // Redis没有密码
+		DB:       redisDB,
+	})
+
+	subscriptionClient, err := sdk.NewTradeSubscriptionClient(redisClient)
+	if err != nil {
+		logger.Errorf("创建交易订阅客户端失败: %v", err)
+		os.Exit(1)
+	}
+
 	logger.Infof("使用Redis创建钱包监控器: %s", redisAddr)
 	walletMonitor, err = wallet.CreateWalletMonitorFromRedis(redisAddr, redisDB, redisKeyPrefix)
 	if err != nil {
@@ -147,7 +164,7 @@ func main() {
 		logger.Fatalf("创建geyser客户端失败: %v", err)
 	}
 
-	tradeBot, err = bot.NewBot(config)
+	tradeBot, err = bot.NewBot(config, subscriptionClient)
 	if err != nil {
 		logger.Fatalf("创建交易机器人失败: %v", err)
 	}
@@ -163,6 +180,24 @@ func main() {
 
 	// 启动处理卖出请求的goroutine
 	go processWaitingSellTokens(tradeBot)
+
+	// 创建Redis发布/订阅服务
+	tradeChannel := config.TradeChannel
+	if tradeChannel == "" {
+		tradeChannel = "flashtrade:trade" // 默认交易通道
+	}
+
+	logger.Infof("创建Redis发布/订阅服务: %s, 通道: %s", redisAddr, tradeChannel)
+	pubSubService, err := subscribe.NewRedisPubSubService(redisClient, tradeChannel, transactionMonitor)
+	if err != nil {
+		logger.Errorf("创建Redis发布/订阅服务失败: %v", err)
+		os.Exit(1)
+	}
+	// 启动Redis交易消息订阅服务
+	go func() {
+		logger.Infof("启动Redis交易消息订阅服务...")
+		pubSubService.StartSubscription()
+	}()
 
 	// 初始化全局配置到内存中
 	// 获取钱包参数模板映射
@@ -201,7 +236,7 @@ func main() {
 	logger.Infof("启动钱包监控服务，监控 %d 个钱包", len(walletMonitor.Wallets))
 
 	// 启动Web服务器（在单独的goroutine中运行）
-	go web.StartServer(configPath, walletMonitor.RedisService)
+	go web.StartServer(config, configPath, walletMonitor.RedisService)
 
 	if err = client.AddStreamClient(ctx, "mint_stream", yellowstone_geyser_pb.CommitmentLevel_PROCESSED); err != nil {
 		logger.Fatalf("添加流客户端失败: %v", err)

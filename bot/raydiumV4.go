@@ -288,7 +288,7 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx con
 					tradeInfo.TokenAmount,
 					tradeInfo.Decimal,
 				)
-				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+				_, ok := global.GetPendingHoldAsset(mintAddress)
 				if ok {
 					assetManager := asset.GetHoldingsManager()
 					wallets := assetManager.GetWalletsByMint(mintAddress)
@@ -302,12 +302,19 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx con
 						logger.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
 						return nil
 					}
-					go queue.SendTokenToSellChannel(specialScheme.SellDelayTime, assetInfo, tradeInfo.TokenAmount, entryPrice, "raydiumV4", "delay_sell", "延迟卖出")
+					message := types.ClosePositionMessage{
+						MintAddress:  mintAddress,
+						CurrentPrice: tradeInfo.CurrentPrice,
+						Platform:     "raydiumV4",
+						MessageType:  "delay_sell",
+						Reason:       "延迟卖出",
+					}
+					go b.sdkClient.PublishDelayedCPMessage(b.Config.TradeChannel, message, specialScheme.SellDelayTime)
 				}
 			} else {
-				assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+				_, ok := global.GetPendingHoldAsset(mintAddress)
 				if ok {
-					logger.Debugf("bot 钱包卖出记录处理: %s, %v, %d, %d", mintAddress, ok, assetInfo.Amount, tradeInfo.TokenAmount)
+					logger.Debugf("bot 钱包卖出记录处理: %s, %v, %d", mintAddress, ok, tradeInfo.TokenAmount)
 					global.DelPendingHoldAssetWithAmount(mintAddress, tradeInfo.TokenAmount)
 				}
 			}

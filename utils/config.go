@@ -47,7 +47,10 @@ type Config struct {
 	RPCUrl                 string           `yaml:"rpc_url"`
 	RedisDb                int              `yaml:"redis_db"`
 	RedisKeyPrefix         string           `yaml:"redis_key_prefix"`
+	TradeChannel           string           `yaml:"trade_channel"`
+	WebPort                int              `yaml:"web_port"`
 	BuySolAmount           float64          `yaml:"buy_sol_amount"`
+	SellIntervalLimit      int              `yaml:"sell_interval_limit"`
 	SellMode               string           `yaml:"sell_mode"`
 	SellDelayTime          int              `yaml:"sell_delay_time"`
 	MultiSellLevels        []MultiSellLevel `yaml:"multi_sell_levels"`

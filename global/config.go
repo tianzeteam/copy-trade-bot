@@ -15,6 +15,7 @@ type GlobalConfig struct {
 	LaunchpadTradeEnable bool `json:"launchpad_trade_enable"` // Launchpad交易启用状态
 	RepeatTradeEnable    bool `json:"repeat_trade_enable"`    // 重复交易启用状态
 	SellDelayTime        int  `json:"sell_delay_time"`        // 延迟卖出时间（ms）
+	SellIntervalLimit    int  `json:"sell_interval_limit"`    // 卖出时间间隔限制（秒）
 	// 交易触发和池子大小参数
 	MinFollowTriggerAmount float64 `json:"min_follow_trigger_amount"` // 最小触发买入数量 (SOL)
 	MaxFollowTriggerAmount float64 `json:"max_follow_trigger_amount"` // 最大触发买入数量 (SOL)
@@ -132,6 +133,7 @@ func InitConfig(config map[string]any) {
 		RaydiumTradeEnable:   getBoolValue(config, "raydium_trade_enable", false),
 		LaunchpadTradeEnable: getBoolValue(config, "launchpad_trade_enable", false),
 		RepeatTradeEnable:    getBoolValue(config, "repeat_trade_enable", false),
+		SellIntervalLimit:    getIntValue(config, "sell_interval_limit", 2),
 		// 钱包参数模板
 		WalletParamSchemes: getWalletParamSchemes(config),
 
