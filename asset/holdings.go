@@ -2,6 +2,7 @@ package asset
 
 import (
 	"copytrade/logger"
+	"slices"
 	"sync"
 	"time"
 )
@@ -57,8 +58,6 @@ func GetHoldingsManager() *HoldingsManager {
 
 // GetWalletHoldings 获取指定钱包的持仓信息，如果不存在则创建
 func (hm *HoldingsManager) GetWalletHoldings(walletAddress string) *WalletHoldings {
-	hm.mutex.RLock()
-	defer hm.mutex.RUnlock()
 	holdings, ok := hm.walletHoldings[walletAddress]
 
 	if !ok {
@@ -75,7 +74,7 @@ func (hm *HoldingsManager) GetWalletHoldings(walletAddress string) *WalletHoldin
 	return holdings
 }
 
-// RecordTokenTransaction 记录代币交易
+// RecordTokenTransaction 记录聪明钱包持仓数据
 func (hm *HoldingsManager) RecordTokenTransaction(walletAddress string, mintAddress string, isBuy bool, tokenAmount uint64, currentPrice float64) {
 	// 获取钱包持仓
 	walletHoldings := hm.GetWalletHoldings(walletAddress)
@@ -101,10 +100,8 @@ func (hm *HoldingsManager) updateMintToWallets(isBuy bool, mintAddress string, w
 		}
 
 		// 检查钱包是否已经存在
-		for _, wallet := range wallets {
-			if wallet == walletAddress {
-				return
-			}
+		if slices.Contains(wallets, walletAddress) {
+			return
 		}
 
 		// 添加钱包到列表
@@ -129,8 +126,6 @@ func (hm *HoldingsManager) updateMintToWallets(isBuy bool, mintAddress string, w
 
 // removeWalletFromMint 从代币持有钱包映射中移除钱包
 func (hm *HoldingsManager) removeWalletFromMint(mintAddress string, walletAddress string) {
-	hm.mutex.Lock()
-	defer hm.mutex.Unlock()
 
 	wallets, ok := hm.mintToWallets[mintAddress]
 	if !ok {
@@ -212,9 +207,12 @@ func (wh *WalletHoldings) RecordTransaction(mintAddress string, isBuy bool, toke
 
 		// 更新持仓数量
 		if holding.Amount <= tokenAmount {
-			// 全部卖出
-			delete(wh.Holdings, mintAddress)
-			logger.Infof("钱包 %s 已清空代币持仓: 代币=%s", wh.WalletAddress, mintAddress)
+			// 全部卖出 - 保留记录但将数量设为0
+			holding.Amount = 0
+			holding.CurrentPrice = currentPrice
+			holding.LastUpdated = time.Now()
+			wh.Holdings[mintAddress] = holding
+			logger.Infof("钱包 %s 已全部卖出代币: 代币=%s, 保留持仓记录", wh.WalletAddress, mintAddress)
 		} else {
 			// 部分卖出
 			holding.Amount -= tokenAmount

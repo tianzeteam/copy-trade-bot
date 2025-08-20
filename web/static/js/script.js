@@ -12,7 +12,7 @@ const walletAddress = document.getElementById('walletAddress');
 const walletType = document.getElementById('walletType');
 const takeProfitPct = document.getElementById('takeProfitPct');
 const stopLossPct = document.getElementById('stopLossPct');
-const exitTimeSec = document.getElementById('exitTimeSec');
+
 const walletEnabled = document.getElementById('walletEnabled');
 const deleteWalletBtn = document.getElementById('deleteWalletBtn');
 const updateWalletBtn = document.getElementById('updateWalletBtn');
@@ -26,7 +26,6 @@ const newWalletName = document.getElementById('newWalletName');
 const newWalletType = document.getElementById('newWalletType');
 const newTakeProfitPct = document.getElementById('newTakeProfitPct');
 const newStopLossPct = document.getElementById('newStopLossPct');
-const newExitTimeSec = document.getElementById('newExitTimeSec');
 const newWalletEnabled = document.getElementById('newWalletEnabled');
 const addWalletModal = new bootstrap.Modal(document.getElementById('addWalletModal'));
 
@@ -132,7 +131,6 @@ function displayWalletInfo(wallet) {
     walletType.textContent = wallet.type === 'high_frequency' ? '高频交易' : '低频交易';
     takeProfitPct.value = wallet.take_profit_pct;
     stopLossPct.value = wallet.stop_loss_pct;
-    exitTimeSec.value = wallet.exit_time_sec;
     walletEnabled.checked = wallet.enabled;
 }
 
@@ -157,7 +155,6 @@ updateWalletBtn.addEventListener('click', async () => {
             type: currentWallet.type,
             take_profit_pct: parseInt(takeProfitPct.value),
             stop_loss_pct: parseInt(stopLossPct.value),
-            exit_time_sec: parseInt(exitTimeSec.value),
             enabled: walletEnabled.checked,
             timestamp: new Date().getTime() // 添加时间戳确保每次请求唯一
         };
@@ -233,7 +230,6 @@ saveNewWalletBtn.addEventListener('click', async () => {
             type: newWalletType.value,
             take_profit_pct: parseInt(newTakeProfitPct.value),
             stop_loss_pct: parseInt(newStopLossPct.value),
-            exit_time_sec: parseInt(newExitTimeSec.value),
             enabled: newWalletEnabled.checked,
             timestamp: new Date().getTime() // 添加时间戳确保每次请求唯一
         };
@@ -308,12 +304,6 @@ function validateNewWalletForm() {
         return false;
     }
     
-    // 验证持仓时间
-    const exitTimeSec = parseInt(newExitTimeSec.value);
-    if (isNaN(exitTimeSec) || exitTimeSec <= 0) {
-        showAlert(errorAlert, '请输入有效的持仓时间');
-        return false;
-    }
     
     return true;
 }

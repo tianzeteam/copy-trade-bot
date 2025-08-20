@@ -383,9 +383,9 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 		return
 	}
 	assetManager := asset.GetHoldingsManager()
-	wallets := assetManager.GetWalletsByMint(tokenInfo.Mint.String())
+	wallets := assetManager.GetWalletsByMint(mintAddress)
 	if len(wallets) == 0 {
-		logger.Errorf("未找到代币 %s 的持仓", tokenInfo.Mint.String())
+		logger.Errorf("未找到代币 %s 的持仓", mintAddress)
 		return
 	}
 	walletAddress := wallets[0]
@@ -417,7 +417,7 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 	)
 
 	if err != nil {
-		logger.Errorf("Failed to calculate buy amounts: %v", err)
+		logger.Errorf("计算卖出金额失败: %v", err)
 		return
 	}
 

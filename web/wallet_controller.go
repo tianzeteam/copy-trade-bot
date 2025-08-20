@@ -66,7 +66,6 @@ type WalletResponse struct {
 	Type          string `json:"type"`
 	TakeProfitPct int    `json:"take_profit_pct"`
 	StopLossPct   int    `json:"stop_loss_pct"`
-	ExitTimeSec   int    `json:"exit_time_sec"`
 	Enabled       bool   `json:"enabled"`
 	FollowSell    bool   `json:"follow_sell"`     // 是否跟卖
 	ParamSchemeID string `json:"param_scheme_id"` // 参数方案ID
@@ -95,7 +94,6 @@ func (c *WalletController) GetAllWallets(ctx *gin.Context) {
 			Type:          string(w.Type),
 			TakeProfitPct: w.TakeProfitPct,
 			StopLossPct:   w.StopLossPct,
-			ExitTimeSec:   w.ExitTimeSec,
 			Enabled:       w.Enabled, // 从Redis获取的钱包都是已启用的
 			FollowSell:    w.IsFollowSell,
 			ParamSchemeID: w.ParamSchemeID,
@@ -133,7 +131,6 @@ func (c *WalletController) GetWallet(ctx *gin.Context) {
 		Type:          string(w.Type),
 		TakeProfitPct: w.TakeProfitPct,
 		StopLossPct:   w.StopLossPct,
-		ExitTimeSec:   w.ExitTimeSec,
 		Enabled:       w.Enabled,
 		FollowSell:    w.IsFollowSell,
 		ParamSchemeID: w.ParamSchemeID,
@@ -165,7 +162,6 @@ func (c *WalletController) CreateWallet(ctx *gin.Context) {
 		Type:          request.Type,
 		TakeProfitPct: request.TakeProfitPct,
 		StopLossPct:   request.StopLossPct,
-		ExitTimeSec:   request.ExitTimeSec,
 		Enabled:       request.Enabled,
 		FollowSell:    request.FollowSell,
 	}
@@ -208,8 +204,8 @@ func (c *WalletController) UpdateWallet(ctx *gin.Context) {
 		return
 	}
 	// 记录请求数据
-	logger.Infof("钱包更新请求数据: 地址=%s, 名称=%s, 类型=%s, 止盈=%d, 止损=%d, 退出时间=%d, 启用=%v, 参数模版id=%s",
-		request.Address, request.Name, request.Type, request.TakeProfitPct, request.StopLossPct, request.ExitTimeSec, request.Enabled, request.ParamSchemeID)
+	logger.Infof("钱包更新请求数据: 地址=%s, 名称=%s, 类型=%s, 止盈=%d, 止损=%d, 启用=%v, 参数模版id=%s",
+		request.Address, request.Name, request.Type, request.TakeProfitPct, request.StopLossPct, request.Enabled, request.ParamSchemeID)
 
 	// 确保地址匹配
 	if address != request.Address {
@@ -225,7 +221,6 @@ func (c *WalletController) UpdateWallet(ctx *gin.Context) {
 		Type:          request.Type,
 		TakeProfitPct: request.TakeProfitPct,
 		StopLossPct:   request.StopLossPct,
-		ExitTimeSec:   request.ExitTimeSec,
 		Enabled:       request.Enabled,
 		FollowSell:    request.FollowSell,
 		ParamSchemeID: request.ParamSchemeID,

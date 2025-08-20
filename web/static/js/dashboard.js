@@ -238,7 +238,6 @@ function loadWalletDetails(address) {
         document.getElementById('walletType').textContent = data.type === 'high_frequency' ? '高频交易' : '低频交易';
         document.getElementById('takeProfitPct').value = data.take_profit_pct;
         document.getElementById('stopLossPct').value = data.stop_loss_pct;
-        document.getElementById('exitTimeSec').value = data.exit_time_sec;
         document.getElementById('walletEnabled').checked = data.enabled;
         document.getElementById('walletFollowSell').checked = data.follow_sell;
         
@@ -313,7 +312,6 @@ function updateWallet() {
         type: document.getElementById('walletType').textContent === '高频交易' ? 'high_frequency' : 'low_frequency',
         take_profit_pct: parseFloat(document.getElementById('takeProfitPct').value),
         stop_loss_pct: parseFloat(document.getElementById('stopLossPct').value),
-        exit_time_sec: parseInt(document.getElementById('exitTimeSec').value),
         enabled: document.getElementById('walletEnabled').checked,
         follow_sell: document.getElementById('walletFollowSell').checked,
         param_scheme_id: document.getElementById('walletParamScheme').value || null
@@ -402,7 +400,6 @@ function addNewWallet() {
         type: document.getElementById('newWalletType').value,
         take_profit_pct: parseFloat(document.getElementById('newTakeProfitPct').value),
         stop_loss_pct: parseFloat(document.getElementById('newStopLossPct').value),
-        exit_time_sec: parseInt(document.getElementById('newExitTimeSec').value),
         enabled: document.getElementById('newWalletEnabled').checked,
         follow_sell: document.getElementById('newWalletFollowSell').checked
     };

@@ -7,61 +7,205 @@
     <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         body {
-            background-color: #f8f9fa;
+            background: linear-gradient(135deg, #0d47a1, #1565c0, #1976d2);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Poppins', sans-serif;
         }
         .login-container {
-            max-width: 400px;
-            margin: 100px auto;
+            max-width: 450px;
+            width: 90%;
+            margin: 20px auto;
         }
         .login-card {
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            overflow: hidden;
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
         }
         .login-header {
-            background-color: #f1f8ff;
-            border-bottom: 1px solid #e3f2fd;
-            border-radius: 10px 10px 0 0;
+            background: linear-gradient(135deg, #2196f3, #0d47a1);
+            color: white;
+            padding: 25px 20px;
+            border-radius: 16px 16px 0 0;
+            position: relative;
+        }
+        .login-header h3 {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .login-header p {
+            opacity: 0.9;
+        }
+        .login-logo {
+            width: 80px;
+            height: 80px;
+            background-color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .login-logo i {
+            font-size: 40px;
+            color: #0d47a1;
+        }
+        .form-control, .input-group-text {
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .input-group-text {
+            background-color: #f8f9fa;
+            border-right: none;
+            border-radius: 8px 0 0 8px;
+        }
+        .form-control:focus {
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+            border-color: #86b7fe;
+        }
+        .input-group .form-control {
+            border-left: none;
+            border-radius: 0 8px 8px 0;
+        }
+        .form-label {
+            font-weight: 500;
+            color: #495057;
         }
         .btn-login {
+            background: linear-gradient(135deg, #2196f3, #0d47a1);
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+            background: linear-gradient(135deg, #1976d2, #0a3d8f);
+        }
+        .alert-danger {
+            border-radius: 8px;
+            border-left: 4px solid #dc3545;
+        }
+        .form-check-input:checked {
             background-color: #0d6efd;
             border-color: #0d6efd;
+        }
+        .form-floating {
+            margin-bottom: 1rem;
+        }
+        
+        /* Loading animation */
+        body.loading::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(3px);
+            z-index: 9999;
+        }
+        
+        /* Page load animation */
+        body {
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        
+        body.loaded {
+            opacity: 1;
+        }
+        
+        /* Input focus effect */
+        .input-group-focus {
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        /* Button hover animation */
+        .btn-login {
+            transition: all 0.3s ease;
+        }
+        
+        /* Card animation */
+        .login-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .login-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.25);
         }
     </style>
 </head>
 <body>
     <div class="container login-container">
         <div class="card login-card">
-            <div class="card-header login-header text-center py-3">
-                <h3>Copy Trade Bot</h3>
-                <p class="text-muted mb-0">请登录以继续</p>
-            </div>
-            <div class="card-body p-4">
-                <div class="alert alert-danger d-none" id="loginError">
-                    用户名或密码错误，请重试。
+            <div class="card-header login-header text-center py-4">
+                <div class="login-logo">
+                    <i class="bi bi-graph-up"></i>
                 </div>
-                <form id="loginForm">
-                    <div class="mb-3">
+                <h3>BeyondJeet CopyTrade</h3>
+             
+            </div>
+            <div class="card-body p-4 p-lg-5">
+                <div class="alert alert-danger d-flex align-items-center d-none" id="loginError">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <div>
+                        用户名或密码错误，请重试。
+                    </div>
+                </div>
+                
+                <form id="loginForm" class="mt-4">
+                    <div class="mb-4">
                         <label for="username" class="form-label">用户名</label>
-                        <div class="input-group">
+                        <div class="input-group input-group-lg shadow-sm">
                             <span class="input-group-text"><i class="bi bi-person-fill"></i></span>
-                            <input type="text" class="form-control" id="username" name="username" required>
+                            <input type="text" class="form-control" id="username" name="username" placeholder="输入用户名" required>
                         </div>
                     </div>
-                    <div class="mb-3">
+                    
+                    <div class="mb-4">
                         <label for="password" class="form-label">密码</label>
-                        <div class="input-group">
+                        <div class="input-group input-group-lg shadow-sm">
                             <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
-                            <input type="password" class="form-control" id="password" name="password" required>
+                            <input type="password" class="form-control" id="password" name="password" placeholder="输入密码" required>
+                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                <i class="bi bi-eye-slash-fill" id="toggleIcon"></i>
+                            </button>
                         </div>
                     </div>
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="rememberMe" name="rememberMe">
-                        <label class="form-check-label" for="rememberMe">记住我</label>
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="rememberMe" name="rememberMe">
+                            <label class="form-check-label" for="rememberMe">记住我</label>
+                        </div>
                     </div>
-                    <button type="submit" class="btn btn-primary btn-login">登录</button>
+                    
+                    <button type="submit" class="btn btn-primary btn-login btn-lg">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>登录
+                    </button>
+                    
+                    <div class="text-center mt-4">
+                        <p class="text-muted"><i class="bi bi-shield-lock me-1"></i> 安全加密登录</p>
+                    </div>
                 </form>
             </div>
         </div>
@@ -70,9 +214,17 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // 页面加载动画
+            setTimeout(() => {
+                document.body.classList.add('loaded');
+            }, 300);
+            
             // 检查是否已登录
             const token = localStorage.getItem('auth_token');
             if (token) {
+                // 显示加载指示器
+                showLoading();
+                
                 // 验证token有效性
                 fetch('/api/auth/verify', {
                     method: 'POST',
@@ -84,21 +236,60 @@
                 .then(response => {
                     if (response.ok) {
                         window.location.href = '/dashboard';
+                    } else {
+                        hideLoading();
                     }
                 })
                 .catch(error => {
                     console.error('验证失败:', error);
                     localStorage.removeItem('auth_token');
+                    hideLoading();
+                });
+            }
+            
+            // 密码显示/隐藏切换
+            const togglePassword = document.getElementById('togglePassword');
+            const passwordInput = document.getElementById('password');
+            const toggleIcon = document.getElementById('toggleIcon');
+            
+            if (togglePassword) {
+                togglePassword.addEventListener('click', function() {
+                    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                    passwordInput.setAttribute('type', type);
+                    
+                    // 切换图标
+                    if (type === 'password') {
+                        toggleIcon.classList.remove('bi-eye-fill');
+                        toggleIcon.classList.add('bi-eye-slash-fill');
+                    } else {
+                        toggleIcon.classList.remove('bi-eye-slash-fill');
+                        toggleIcon.classList.add('bi-eye-fill');
+                    }
                 });
             }
 
             // 登录表单提交
-            document.getElementById('loginForm').addEventListener('submit', function(e) {
+            const loginForm = document.getElementById('loginForm');
+            const loginError = document.getElementById('loginError');
+            
+            loginForm.addEventListener('submit', function(e) {
                 e.preventDefault();
+                
+                // 隐藏之前的错误信息
+                loginError.classList.add('d-none');
+                
+                // 显示加载指示器
+                showLoading();
                 
                 const username = document.getElementById('username').value;
                 const password = document.getElementById('password').value;
                 const rememberMe = document.getElementById('rememberMe').checked;
+                
+                // 禁用登录按钮
+                const submitButton = loginForm.querySelector('button[type="submit"]');
+                const originalButtonText = submitButton.innerHTML;
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>登录中...';
                 
                 fetch('/api/auth/login', {
                     method: 'POST',
@@ -123,12 +314,43 @@
                         window.location.href = '/dashboard';
                     } else {
                         // 显示错误信息
-                        document.getElementById('loginError').classList.remove('d-none');
+                        loginError.classList.remove('d-none');
+                        // 重置按钮
+                        submitButton.disabled = false;
+                        submitButton.innerHTML = originalButtonText;
+                        hideLoading();
                     }
                 })
                 .catch(error => {
                     console.error('登录失败:', error);
-                    document.getElementById('loginError').classList.remove('d-none');
+                    loginError.classList.remove('d-none');
+                    // 重置按钮
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                    hideLoading();
+                });
+            });
+            
+            // 辅助函数 - 显示加载指示器
+            function showLoading() {
+                // 可以添加全局加载指示器
+                document.body.classList.add('loading');
+            }
+            
+            // 辅助函数 - 隐藏加载指示器
+            function hideLoading() {
+                document.body.classList.remove('loading');
+            }
+            
+            // 输入字段动画效果
+            const formInputs = document.querySelectorAll('.form-control');
+            formInputs.forEach(input => {
+                input.addEventListener('focus', function() {
+                    this.parentElement.classList.add('input-group-focus');
+                });
+                
+                input.addEventListener('blur', function() {
+                    this.parentElement.classList.remove('input-group-focus');
                 });
             });
         });

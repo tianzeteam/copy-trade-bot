@@ -628,7 +628,7 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress.String(), originalWallet, m.BotWallet, tradeInfo.CurrentPrice)
 }
 
-// executeRaydiumV4CopyTrade
+// executeRaydiumV4CopyTrade 执行RAYDIUM POOL V4 跟单交易
 func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *types.AmmRaydiumV4TradeInfo, marketLayout *types.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4, originalWallet solana.PublicKey, originalAmount uint64, specailScheme *types.ParamScheme) {
 	// 检查是否已经交易过该代币
 	m.WalletMonitor.Mux.RLock()
@@ -846,7 +846,7 @@ func (m *TransactionMonitor) executeLaunchpadCopyTrade(tradeInfo *global.Launchp
 	}
 
 	// 发送买入请求
-	logger.Infof("执行RAYDIUM LAUNCHPAD 跟单买入: 代币=%s, 金额=%f SOL", tradeInfo.MintAddress, m.BuySolAmount)
+	logger.Infof("执行RAYDIUM LAUNCHPAD 跟单买入: 代币=%s, 金额=%.6f SOL", tradeInfo.MintAddress, specailScheme.BuySolAmount)
 
 	// 先记录原始交易者的交易
 	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress.String(), originalWallet, tradeInfo.CurrentPrice, originalAmount)
