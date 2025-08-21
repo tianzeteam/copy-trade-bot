@@ -304,4 +304,5 @@ type ClosePositionMessage struct {
 	Platform     string  `json:"platform"`      // 平台：pump, pumpamm, raydiumV4, cpmm, launchpad
 	MessageType  string  `json:"message_type"`  // 消息类型：delay_sell, stop_loss, take_profit
 	Reason       string  `json:"reason"`        // 平仓原因
+	CopyAddress  string  `json:"copy_address"`  // 跟单钱包地址
 }

@@ -84,11 +84,12 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		// 快速模式：直接添加创建ATA指令
 
 		logger.Infof("快速模式：跳过ATA检查，直接创建ATA账户")
-		createATAIx := associatedtokenaccount.NewCreateInstruction(
-			params.TradeParams.Accounts.User, // payer
-			params.TradeParams.Accounts.User, // owner
-			params.TradeParams.Accounts.Mint, // mint
-		).Build()
+		createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
+			SetPayer(params.TradeParams.Accounts.User).
+			SetWallet(params.TradeParams.Accounts.User).
+			SetMint(params.TradeParams.Accounts.Mint).
+			Build()
+
 		instructions = append(instructions, createATAIx)
 	} else {
 		// 安全模式：先检查再创建

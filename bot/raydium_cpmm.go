@@ -325,6 +325,7 @@ func (b *Bot) UniversalCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 					Platform:     "cpmm",
 					MessageType:  "delay_sell",
 					Reason:       "延迟卖出",
+					CopyAddress:  walletAddress,
 				}
 				go b.sdkClient.PublishDelayedCPMessage(b.Config.TradeChannel, message, specialScheme.SellDelayTime)
 			}
@@ -481,6 +482,7 @@ func (b *Bot) RaydiumCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx c
 						Platform:     "cpmm",
 						MessageType:  "delay_sell",
 						Reason:       "延迟卖出",
+						CopyAddress:  walletAddress,
 					}
 					go b.sdkClient.PublishDelayedCPMessage(b.Config.TradeChannel, message, specialScheme.SellDelayTime)
 				}

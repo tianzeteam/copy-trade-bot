@@ -308,6 +308,7 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx con
 						Platform:     "raydiumV4",
 						MessageType:  "delay_sell",
 						Reason:       "延迟卖出",
+						CopyAddress:  walletAddress,
 					}
 					go b.sdkClient.PublishDelayedCPMessage(b.Config.TradeChannel, message, specialScheme.SellDelayTime)
 				}

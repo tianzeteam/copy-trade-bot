@@ -249,6 +249,7 @@ func (b *Bot) WrapLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 					Platform:     "launchpad",
 					MessageType:  "delay_sell",
 					Reason:       "延迟卖出",
+					CopyAddress:  walletAddress,
 				}, specialScheme.SellDelayTime)
 			}
 		} else {
@@ -392,6 +393,7 @@ func (b *Bot) RaydiumLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 						Platform:     "launchpad",
 						MessageType:  "delay_sell",
 						Reason:       "延迟卖出",
+						CopyAddress:  walletAddress,
 					}
 					go b.sdkClient.PublishDelayedCPMessage(b.Config.TradeChannel, message, specialScheme.SellDelayTime)
 				}

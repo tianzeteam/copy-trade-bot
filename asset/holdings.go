@@ -187,7 +187,7 @@ func (wh *WalletHoldings) RecordTransaction(mintAddress string, isBuy bool, toke
 			holding.LastUpdated = time.Now()
 			wh.Holdings[mintAddress] = holding
 
-			logger.Infof("更新钱包 %s 的代币持仓: 代币=%s, 当前数量=%d, 总买入量=%d, 平均买入价=%.8f SOL",
+			logger.Infof("买入场景:更新钱包 %s 的代币持仓: 代币=%s, 当前数量=%d, 总买入量=%d, 平均买入价=%.8f SOL",
 				wh.WalletAddress, mintAddress, totalAmount, totalBuyAmount, averagePrice)
 		} else {
 			// 新建持仓
@@ -200,8 +200,8 @@ func (wh *WalletHoldings) RecordTransaction(mintAddress string, isBuy bool, toke
 				LastUpdated:    time.Now(),
 			}
 
-			logger.Infof("新增钱包 %s 的代币持仓: 代币=%s, 数量=%d, 买入价=%.8f SOL",
-				wh.WalletAddress, mintAddress, tokenAmount, currentPrice)
+			logger.Infof("买入场景:新增钱包 %s 的代币持仓: 代币=%s, 新增数量=%d,目前总数量=%d, 买入价=%.8f SOL",
+				wh.WalletAddress, mintAddress, tokenAmount, tokenAmount, currentPrice)
 		}
 	} else {
 		// 卖出交易
@@ -213,13 +213,26 @@ func (wh *WalletHoldings) RecordTransaction(mintAddress string, isBuy bool, toke
 
 		// 更新持仓数量
 		if holding.Amount <= tokenAmount {
-			// 全部卖出 - 保留记录但将数量设为0
-			holding.Amount = 0
-			holding.TotalBuyAmount = 0
-			holding.CurrentPrice = currentPrice
-			holding.LastUpdated = time.Now()
-			wh.Holdings[mintAddress] = holding
-			logger.Infof("钱包 %s 已全部卖出代币: 代币=%s, 保留持仓记录", wh.WalletAddress, mintAddress)
+			// 全部卖出 - 异步处理，保留记录但将数量设为0
+			go func(wAddress, mAddress string, cPrice float64) {
+				// 短暂延时，确保其他操作完成
+				time.Sleep(2 * time.Millisecond)
+
+				// 再次检查持仓是否存在
+				h, exists := wh.Holdings[mAddress]
+				if !exists {
+					return
+				}
+
+				// 更新持仓信息
+				h.Amount = 0
+				h.TotalBuyAmount = 0
+				h.CurrentPrice = cPrice
+				h.LastUpdated = time.Now()
+				wh.Holdings[mAddress] = h
+
+				logger.Infof("卖出场景:钱包 %s 已全部卖出代币: 代币=%s, 保留持仓记录", wAddress, mAddress)
+			}(wh.WalletAddress, mintAddress, currentPrice)
 		} else {
 			// 部分卖出
 			holding.Amount -= tokenAmount
@@ -227,7 +240,7 @@ func (wh *WalletHoldings) RecordTransaction(mintAddress string, isBuy bool, toke
 			holding.LastUpdated = time.Now()
 			wh.Holdings[mintAddress] = holding
 
-			logger.Infof("减少钱包 %s 的代币持仓: 代币=%s, 剩余数量=%d, 当前价格=%.8f SOL",
+			logger.Infof("卖出场景:减少钱包 %s 的代币持仓: 代币=%s, 剩余数量=%d, 当前价格=%.8f SOL",
 				wh.WalletAddress, mintAddress, holding.Amount, currentPrice)
 		}
 	}

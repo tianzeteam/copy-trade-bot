@@ -437,11 +437,11 @@ func SetTradeAsset(mintAddress string, creator solana.PublicKey, userAddress str
 		// 计算新的总成本和总数量
 		totalCost := existingAsset.EntryPrice*float64(existingAsset.Amount) + _entryPrice*float64(amount)
 		totalAmount := existingAsset.Amount + amount
-		initBuyAmount := existingAsset.InitBuyAmount + amount
+		initBuyAmountAfter := existingAsset.InitBuyAmount + amount
 
 		// 更新资产信息
 		existingAsset.Amount = totalAmount
-		existingAsset.InitBuyAmount = initBuyAmount
+		existingAsset.InitBuyAmount = initBuyAmountAfter
 		if totalAmount > 0 {
 			existingAsset.EntryPrice = totalCost / float64(totalAmount)
 		}
@@ -461,9 +461,10 @@ func SetTradeAsset(mintAddress string, creator solana.PublicKey, userAddress str
 		Creator:       creator,
 		EntryPrice:    _entryPrice,
 		InitBuyAmount: amount,
-		Amount:        amount,
-		SoldLevels:    make(map[int]bool),
-		TimeStamp:     time.Now().Unix(),
+
+		Amount:     amount,
+		SoldLevels: make(map[int]bool),
+		TimeStamp:  time.Now().Unix(),
 	}
 
 	logger.Infof("持仓资产新增： %s 的交易资产, 价格=%.8f, 数量=%d", mintAddress, _entryPrice, amount)

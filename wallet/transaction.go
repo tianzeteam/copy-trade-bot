@@ -133,7 +133,7 @@ func (m *TransactionMonitor) ProcessSellTransaction(tradeInfo *global.TradeEvent
 	logger.Infof("监控钱包 %s 卖出比例: %.2f%%", tradeInfo.UserAddress, sellRatio*100)
 
 	// 3. 根据比例计算我们需要卖出的数量
-	amountToSell := uint64(float64(assetInfo.Amount) * sellRatio)
+	amountToSell := uint64(float64(assetInfo.InitBuyAmount) * sellRatio)
 	if amountToSell == 0 {
 		logger.Warnf("计算得到的卖出数量为0，使用最小卖出单位1")
 		return
@@ -246,7 +246,7 @@ func (m *TransactionMonitor) ProcessRaydiumV4SellTransaction(tradeInfo *types.Am
 	logger.Infof("监控钱包 %s 卖出比例: %.2f%%", copyAddress.String(), sellRatio*100)
 
 	// 3. 根据比例计算我们需要卖出的数量
-	amountToSell := uint64(float64(assetInfo.Amount) * sellRatio)
+	amountToSell := uint64(float64(assetInfo.InitBuyAmount) * sellRatio)
 	if amountToSell == 0 {
 		logger.Warnf("计算得到的卖出数量为0，取消卖出")
 		return
@@ -360,7 +360,7 @@ func (m *TransactionMonitor) ProcessAmmSellTransaction(tradeInfo *global.AmmTrad
 	logger.Infof("监控钱包 %s 卖出比例: %.2f%%", copyAddress.String(), sellRatio*100)
 
 	// 3. 根据比例计算我们需要卖出的数量
-	amountToSell := uint64(float64(assetInfo.Amount) * sellRatio)
+	amountToSell := uint64(float64(assetInfo.InitBuyAmount) * sellRatio)
 	if amountToSell == 0 {
 		logger.Warnf("计算得到的卖出数量为0，取消卖出")
 		return
@@ -819,7 +819,7 @@ func (m *TransactionMonitor) ProcessLaunchpadSellTransaction(tradeInfo *global.L
 	logger.Infof("监控钱包 %s 卖出比例: %.2f%%", copyAddress.String(), sellRatio*100)
 
 	// 3. 根据比例计算我们需要卖出的数量
-	amountToSell := uint64(float64(assetInfo.Amount) * sellRatio)
+	amountToSell := uint64(float64(assetInfo.InitBuyAmount) * sellRatio)
 	if amountToSell == 0 {
 		logger.Warnf("计算得到的卖出数量为0，取消卖出")
 		return
@@ -1031,7 +1031,7 @@ func (m *TransactionMonitor) ProcessCpmmSellTransaction(tradeInfo *global.CPMMTr
 	logger.Infof("监控钱包 %s 卖出比例: %.2f%%", copyAddress.String(), sellRatio*100)
 
 	// 3. 根据比例计算我们需要卖出的数量
-	amountToSell := uint64(float64(assetInfo.Amount) * sellRatio)
+	amountToSell := uint64(float64(assetInfo.InitBuyAmount) * sellRatio)
 	if amountToSell == 0 {
 		logger.Warnf("计算得到的卖出数量为0，取消卖出")
 		return

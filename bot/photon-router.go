@@ -270,6 +270,7 @@ func (b *Bot) PhotonRouterPumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 							Platform:     "pumpfun",
 							MessageType:  "delay_sell",
 							Reason:       "延迟卖出",
+							CopyAddress:  walletAddress,
 						}
 						go b.sdkClient.PublishDelayedCPMessage(b.Config.TradeChannel, message, specialScheme.SellDelayTime)
 					}
@@ -429,6 +430,7 @@ func (b *Bot) PhotonRouterAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, c
 					Platform:     "pumpamm",
 					MessageType:  "delay_sell",
 					Reason:       "延迟卖出",
+					CopyAddress:  walletAddress,
 				}
 				go b.sdkClient.PublishDelayedCPMessage(b.Config.TradeChannel, message, specialScheme.SellDelayTime)
 			}
