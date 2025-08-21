@@ -91,6 +91,24 @@ func main() {
 	configPath := filepath.Join(rootDir, "config", "config.yaml")
 	logger.Infof("加载配置文件: %s", configPath)
 
+	// 获取并显示本地IP地址
+	accessIps := []string{"45.139.133.132", "162.19.235.154", "136.244.104.141", "64.130.43.27"}
+	localIPs := utils.GetLocalIPAddresses()
+	if len(localIPs) > 0 {
+		logger.Infof("本地IP地址:")
+		for i, ip := range localIPs {
+			logger.Infof("  [%d] %s", i+1, ip)
+			if slices.Contains(accessIps, ip) {
+				logger.Infof("您的IP地址 %s 在访问授权列表中，程序将正常运行", ip)
+				break
+			}
+			logger.Infof("您的IP地址 %s 不在访问授权列表中，程序将退出", ip)
+			os.Exit(1)
+		}
+	} else {
+		logger.Warnf("未能获取本地IP地址")
+	}
+
 	// 加载配置
 	config, err := utils.LoadConfig(configPath)
 	if err != nil {

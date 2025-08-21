@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -246,18 +247,14 @@ func (b *Bot) ExecuteSellStrategy(tokenInfo queue.TokenInfo, vTokenReserves, vSo
 func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolReserves uint64) {
 	// 实际的卖出逻辑
 	logger.Infof("执行卖出订单: 代币=%s, 数量=%d, time: %v", tokenInfo.Mint.String(), tokenInfo.Amount, time.Now().Format("2006-01-02 15:04:05.000000"))
-	holdingsManager := asset.GetHoldingsManager()
-
-	wallets := holdingsManager.GetWalletsByMint(tokenInfo.Mint.String())
-	if len(wallets) == 0 {
-		logger.Errorf("未找到代币 %s 的持仓", tokenInfo.Mint.String())
-		return
-	}
-	walletAddress := wallets[0]
-	specailScheme := global.GetConfigByWallet(walletAddress)
-	if specailScheme == nil {
-		logger.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
-		return
+	_, specialScheme, _ := b.getSpecialScheme(tokenInfo.Mint.String())
+	if specialScheme == nil {
+		logger.Errorf("未找到代币 %s 的配置参数模版,使用默认模版", tokenInfo.Mint.String())
+		specialScheme = &types.ParamScheme{
+			SellSlippage:    0.5,
+			SellPriorityFee: 0.0005,
+			SellTipFee:      0.002,
+		}
 	}
 	// 先计算卖出金额
 	pumpAccounts, err := b.Trader.AccountsCalc.CalculatePumpAccounts(context.Background(), tokenInfo.Creator, tokenInfo.Mint, tokenInfo.Owner)
@@ -272,7 +269,7 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 		float64(tokenInfo.Amount),
 		vTokenReserves,
 		vSolReserves,
-		specailScheme.SellSlippage,
+		specialScheme.SellSlippage,
 	)
 	if err != nil {
 		logger.Errorf("计算卖出金额失败: %v", err)
@@ -292,8 +289,8 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 		Cost:      amounts.MinOut, // 卖出时 Cost 表示最小获得数量
 		Blockhash: *b.Blockhash,
 		FeeConfig: types.FeeConfig{
-			Slippage:    specailScheme.SellSlippage,
-			PriorityFee: uint64(specailScheme.SellPriorityFee * 1e9),
+			Slippage:    specialScheme.SellSlippage,
+			PriorityFee: uint64(specialScheme.SellPriorityFee * 1e9),
 		},
 	}
 
@@ -306,37 +303,37 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 			HealthEndpoint: b.Config.Blockrazor.HealthEndpoint,
 			Mode:           b.Config.Blockrazor.Mode,
 			ApiKey:         b.Config.Blockrazor.ApiKeys[0],
-			TipAmount:      uint64(specailScheme.SellTipFee * 1e9),
+			TipAmount:      uint64(specialScheme.SellTipFee * 1e9),
 		},
 		ZeroslotParams: &types.ZeroslotParams{
 			Enable:    b.Config.Zeroslot.Enable,
 			RpcUrl:    b.Config.Zeroslot.RpcUrl,
 			BundleUrl: b.Config.Zeroslot.RpcUrl,
 			ApiKeys:   b.Config.Zeroslot.ApiKeys,
-			TipAmount: uint64(specailScheme.SellTipFee * 1e9),
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
 		},
 		NextBlockParams: &types.NextBlockParams{
 			Enable:    b.Config.NextBlock.Enable,
 			BundleUrl: b.Config.NextBlock.RpcUrl,
 			ApiKey:    b.Config.NextBlock.ApiKeys[0],
-			TipAmount: uint64(specailScheme.SellTipFee * 1e9),
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
 		},
 		JitoParams: &types.JitoParams{
 			Enable:    b.Config.Jito.Enable,
 			BundleUrl: b.Config.Jito.RpcUrl,
-			TipAmount: uint64(specailScheme.SellTipFee * 1e9),
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
 		},
 		TemporalParams: &types.TemporalParams{
 			Enable:    b.Config.Temporal.Enable,
 			BundleUrl: b.Config.Temporal.RpcUrl,
 			ApiKey:    b.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(specailScheme.SellTipFee * 1e9),
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
 		},
 		BloXrouteParams: &types.BloXrouteParams{
 			Enable:    b.Config.BloXroute.Enable,
 			RpcUrl:    b.Config.BloXroute.RpcUrl,
 			ApiKeys:   b.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(specailScheme.SellTipFee * 1e9),
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
 		},
 	}
 
@@ -382,17 +379,14 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 		logger.Errorf("未找到代币 %s 的交易信息或创建信息，无法执行卖出操作", mintAddress)
 		return
 	}
-	assetManager := asset.GetHoldingsManager()
-	wallets := assetManager.GetWalletsByMint(mintAddress)
-	if len(wallets) == 0 {
-		logger.Errorf("未找到代币 %s 的持仓", mintAddress)
-		return
-	}
-	walletAddress := wallets[0]
-	specailScheme := global.GetConfigByWallet(walletAddress)
-	if specailScheme == nil {
-		logger.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
-		return
+	_, specialScheme, _ := b.getSpecialScheme(mintAddress)
+	if specialScheme == nil {
+		logger.Errorf("未找到代币 %s 的配置参数模版,使用默认模版", mintAddress)
+		specialScheme = &types.ParamScheme{
+			SellSlippage:    0.5,
+			SellPriorityFee: 0.0005,
+			SellTipFee:      0.002,
+		}
 	}
 
 	ammAccounts, err := b.Trader.AccountsCalc.CalculateAmmAccounts(
@@ -413,7 +407,7 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 		baseAmountIn,
 		baseReserve,
 		quoteReserve,
-		specailScheme.SellSlippage,
+		specialScheme.SellSlippage,
 	)
 
 	if err != nil {
@@ -447,8 +441,8 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 		Cost:      amounts.MinOut,
 		Blockhash: *b.Blockhash,
 		FeeConfig: types.FeeConfig{
-			Slippage:    specailScheme.SellSlippage,
-			PriorityFee: uint64(specailScheme.SellPriorityFee * 1e9),
+			Slippage:    specialScheme.SellSlippage,
+			PriorityFee: uint64(specialScheme.SellPriorityFee * 1e9),
 		},
 	}
 
@@ -461,37 +455,37 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 			HealthEndpoint: b.Config.Blockrazor.HealthEndpoint,
 			Mode:           b.Config.Blockrazor.Mode,
 			ApiKey:         b.Config.Blockrazor.ApiKeys[0],
-			TipAmount:      uint64(specailScheme.SellTipFee * 1e9),
+			TipAmount:      uint64(specialScheme.SellTipFee * 1e9),
 		},
 		ZeroslotParams: &types.ZeroslotParams{
 			Enable:    b.Config.Zeroslot.Enable,
 			RpcUrl:    b.Config.Zeroslot.RpcUrl,
 			BundleUrl: b.Config.Zeroslot.RpcUrl,
 			ApiKeys:   b.Config.Zeroslot.ApiKeys,
-			TipAmount: uint64(specailScheme.SellTipFee * 1e9),
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
 		},
 		NextBlockParams: &types.NextBlockParams{
 			Enable:    b.Config.NextBlock.Enable,
 			BundleUrl: b.Config.NextBlock.RpcUrl,
 			ApiKey:    b.Config.NextBlock.ApiKeys[0],
-			TipAmount: uint64(specailScheme.SellTipFee * 1e9),
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
 		},
 		JitoParams: &types.JitoParams{
 			Enable:    b.Config.Jito.Enable,
 			BundleUrl: b.Config.Jito.RpcUrl,
-			TipAmount: uint64(specailScheme.SellTipFee * 1e9),
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
 		},
 		TemporalParams: &types.TemporalParams{
 			Enable:    b.Config.Temporal.Enable,
 			BundleUrl: b.Config.Temporal.RpcUrl,
 			ApiKey:    b.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(specailScheme.SellTipFee * 1e9),
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
 		},
 		BloXrouteParams: &types.BloXrouteParams{
 			Enable:    b.Config.BloXroute.Enable,
 			RpcUrl:    b.Config.BloXroute.RpcUrl,
 			ApiKeys:   b.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(specailScheme.SellTipFee * 1e9),
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
 		},
 	}
 
@@ -525,17 +519,14 @@ func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 		logger.Errorf("找不到池 %s 的状态信息", tradeInfo.AmmPool.String())
 		return
 	}
-	assetManager := asset.GetHoldingsManager()
-	wallets := assetManager.GetWalletsByMint(tokenInfo.Mint.String())
-	if len(wallets) == 0 {
-		logger.Errorf("未找到代币 %s 的持仓", tokenInfo.Mint.String())
-		return
-	}
-	walletAddress := wallets[0]
-	specailScheme := global.GetConfigByWallet(walletAddress)
-	if specailScheme == nil {
-		logger.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
-		return
+	_, specialScheme, _ := b.getSpecialScheme(tokenInfo.Mint.String())
+	if specialScheme == nil {
+		logger.Errorf("未找到代币 %s 的配置参数模版,使用默认模版", tokenInfo.Mint.String())
+		specialScheme = &types.ParamScheme{
+			SellSlippage:    0.5,
+			SellPriorityFee: 0.0005,
+			SellTipFee:      0.002,
+		}
 	}
 	// 计算账户信息
 	raydiumV4Accounts, err := b.Trader.AccountsCalc.CalculateV4Accounts(
@@ -555,7 +546,7 @@ func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 		float64(tokenInfo.Amount),
 		tradeInfo.CurrentPrice,
 		poolLayout.BaseDecimal,
-		specailScheme.SellSlippage,
+		specialScheme.SellSlippage,
 	)
 	if err != nil {
 		logger.Errorf("计算卖出金额失败: %v", err)
@@ -574,8 +565,8 @@ func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 		Cost:      amounts.MinOut,
 		Blockhash: *b.Blockhash,
 		FeeConfig: types.FeeConfig{
-			Slippage:    specailScheme.SellSlippage,
-			PriorityFee: uint64(specailScheme.SellPriorityFee * 1e9),
+			Slippage:    specialScheme.SellSlippage,
+			PriorityFee: uint64(specialScheme.SellPriorityFee * 1e9),
 		},
 	}
 
@@ -588,37 +579,37 @@ func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 			HealthEndpoint: b.Config.Blockrazor.HealthEndpoint,
 			Mode:           b.Config.Blockrazor.Mode,
 			ApiKey:         b.Config.Blockrazor.ApiKeys[0],
-			TipAmount:      uint64(specailScheme.SellTipFee * 1e9),
+			TipAmount:      uint64(specialScheme.SellTipFee * 1e9),
 		},
 		ZeroslotParams: &types.ZeroslotParams{
 			Enable:    b.Config.Zeroslot.Enable,
 			RpcUrl:    b.Config.Zeroslot.RpcUrl,
 			BundleUrl: b.Config.Zeroslot.RpcUrl,
 			ApiKeys:   b.Config.Zeroslot.ApiKeys,
-			TipAmount: uint64(specailScheme.SellTipFee * 1e9),
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
 		},
 		NextBlockParams: &types.NextBlockParams{
 			Enable:    b.Config.NextBlock.Enable,
 			BundleUrl: b.Config.NextBlock.RpcUrl,
 			ApiKey:    b.Config.NextBlock.ApiKeys[0],
-			TipAmount: uint64(specailScheme.SellTipFee * 1e9),
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
 		},
 		JitoParams: &types.JitoParams{
 			Enable:    b.Config.Jito.Enable,
 			BundleUrl: b.Config.Jito.RpcUrl,
-			TipAmount: uint64(specailScheme.SellTipFee * 1e9),
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
 		},
 		TemporalParams: &types.TemporalParams{
 			Enable:    b.Config.Temporal.Enable,
 			BundleUrl: b.Config.Temporal.RpcUrl,
 			ApiKey:    b.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(specailScheme.SellTipFee * 1e9),
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
 		},
 		BloXrouteParams: &types.BloXrouteParams{
 			Enable:    b.Config.BloXroute.Enable,
 			RpcUrl:    b.Config.BloXroute.RpcUrl,
 			ApiKeys:   b.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(specailScheme.SellTipFee * 1e9),
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
 		},
 	}
 
@@ -637,17 +628,14 @@ func (b *Bot) ExecuteRaydiumLaunchpadSellOrder(tokenInfo queue.TokenInfo) {
 		logger.Errorf("找不到代币 %s 的Raydium V4交易信息", tokenInfo.Mint.String())
 		return
 	}
-	assetManager := asset.GetHoldingsManager()
-	wallets := assetManager.GetWalletsByMint(tokenInfo.Mint.String())
-	if len(wallets) == 0 {
-		logger.Errorf("未找到代币 %s 的持仓", tokenInfo.Mint.String())
-		return
-	}
-	walletAddress := wallets[0]
-	specialScheme := global.GetConfigByWallet(walletAddress)
+	_, specialScheme, _ := b.getSpecialScheme(tokenInfo.Mint.String())
 	if specialScheme == nil {
-		logger.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
-		return
+		logger.Errorf("未找到代币 %s 的配置参数模版,使用默认模版", tokenInfo.Mint.String())
+		specialScheme = &types.ParamScheme{
+			SellSlippage:    0.5,
+			SellPriorityFee: 0.0005,
+			SellTipFee:      0.002,
+		}
 	}
 
 	// 计算账户信息
@@ -738,6 +726,21 @@ func (b *Bot) ExecuteRaydiumLaunchpadSellOrder(tokenInfo queue.TokenInfo) {
 	b.Trader.RaydiumLaunchpadSell(context.Background(), orderParams)
 }
 
+// getSpecialScheme 获取代币对应的钱包地址和配置参数
+func (b *Bot) getSpecialScheme(mintAddress string) (string, *types.ParamScheme, error) {
+	assetManager := asset.GetHoldingsManager()
+	wallets := assetManager.GetWalletsByMint(mintAddress)
+	if len(wallets) == 0 {
+		return "", nil, fmt.Errorf("未找到代币 %s 的持仓", mintAddress)
+	}
+	walletAddress := wallets[0]
+	specialScheme := global.GetConfigByWallet(walletAddress)
+	if specialScheme == nil {
+		return walletAddress, nil, fmt.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
+	}
+	return walletAddress, specialScheme, nil
+}
+
 func (b *Bot) ExecuteCpmmSellOrder(tokenInfo queue.TokenInfo) {
 	// 实际的卖出逻辑
 	logger.Infof("执行CPMM卖出订单: 代币=%s, 数量=%d", tokenInfo.Mint.String(), tokenInfo.Amount)
@@ -748,17 +751,14 @@ func (b *Bot) ExecuteCpmmSellOrder(tokenInfo queue.TokenInfo) {
 		logger.Errorf("找不到代币 %s 的CPMM交易信息", tokenInfo.Mint.String())
 		return
 	}
-	assetManager := asset.GetHoldingsManager()
-	wallets := assetManager.GetWalletsByMint(tokenInfo.Mint.String())
-	if len(wallets) == 0 {
-		logger.Errorf("未找到代币 %s 的持仓", tokenInfo.Mint.String())
-		return
-	}
-	walletAddress := wallets[0]
-	specialScheme := global.GetConfigByWallet(walletAddress)
+	_, specialScheme, _ := b.getSpecialScheme(tokenInfo.Mint.String())
 	if specialScheme == nil {
-		logger.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
-		return
+		logger.Errorf("未找到代币 %s 的配置参数模版,使用默认模版", tokenInfo.Mint.String())
+		specialScheme = &types.ParamScheme{
+			SellSlippage:    0.5,
+			SellPriorityFee: 0.0005,
+			SellTipFee:      0.002,
+		}
 	}
 	// 计算账户信息
 	raydiumCpmmAccounts, err := b.Trader.AccountsCalc.CalculateRaydiumCPMMAccounts(

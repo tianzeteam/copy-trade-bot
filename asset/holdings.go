@@ -125,20 +125,26 @@ func (hm *HoldingsManager) updateMintToWallets(isBuy bool, mintAddress string, w
 }
 
 // removeWalletFromMint 从代币持有钱包映射中移除钱包
+// 异步执行删除操作，不会阻塞调用者
 func (hm *HoldingsManager) removeWalletFromMint(mintAddress string, walletAddress string) {
+	// 使用协程异步处理删除操作
+	go func(mint, wallet string) {
+		// 等待一小段时间，确保其他操作完成
+		time.Sleep(2 * time.Millisecond)
 
-	wallets, ok := hm.mintToWallets[mintAddress]
-	if !ok {
-		return
-	}
-
-	// 查找钱包并移除
-	for i, wallet := range wallets {
-		if wallet == walletAddress {
-			hm.mintToWallets[mintAddress] = append(wallets[:i], wallets[i+1:]...)
+		wallets, ok := hm.mintToWallets[mint]
+		if !ok {
 			return
 		}
-	}
+
+		// 查找钱包并移除
+		for i, w := range wallets {
+			if w == wallet {
+				hm.mintToWallets[mint] = append(wallets[:i], wallets[i+1:]...)
+				return
+			}
+		}
+	}(mintAddress, walletAddress)
 }
 
 // GetWalletsByMint 获取持有特定代币的钱包列表
@@ -209,6 +215,7 @@ func (wh *WalletHoldings) RecordTransaction(mintAddress string, isBuy bool, toke
 		if holding.Amount <= tokenAmount {
 			// 全部卖出 - 保留记录但将数量设为0
 			holding.Amount = 0
+			holding.TotalBuyAmount = 0
 			holding.CurrentPrice = currentPrice
 			holding.LastUpdated = time.Now()
 			wh.Holdings[mintAddress] = holding

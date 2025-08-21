@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"net"
 	"os"
+	"strings"
 )
 
 func GetRootDir() string {
@@ -13,4 +15,56 @@ func GetRootDir() string {
 		return "."
 	}
 	return wd
+}
+
+// GetLocalIPAddresses 获取本地所有非回环IP地址
+func GetLocalIPAddresses() []string {
+	var ips []string
+
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return ips
+	}
+
+	for _, iface := range interfaces {
+		// 跳过禁用的接口
+		if iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+		
+		// 跳过回环接口
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+
+			// 跳过IPv6地址
+			if ip == nil || ip.To4() == nil {
+				continue
+			}
+
+			ipStr := ip.String()
+			// 跳过本地链路地址
+			if strings.HasPrefix(ipStr, "169.254.") {
+				continue
+			}
+
+			ips = append(ips, ipStr)
+		}
+	}
+
+	return ips
 }

@@ -31,14 +31,15 @@ type TradeEventInfo struct {
 
 // MyBuyMap 存储买入信息
 type MyBuyMap struct {
-	Decimal     uint32
-	UserAddress string
-	MintAddress string
-	Creator     solana.PublicKey
-	EntryPrice  float64
-	Amount      uint64
-	SoldLevels  map[int]bool // 记录已经卖出的价格档位
-	TimeStamp   int64
+	Decimal       uint32
+	UserAddress   string
+	MintAddress   string
+	Creator       solana.PublicKey
+	EntryPrice    float64
+	InitBuyAmount uint64
+	Amount        uint64
+	SoldLevels    map[int]bool // 记录已经卖出的价格档位
+	TimeStamp     int64
 }
 
 // CreateEventInfo 存储代币创建事件信息
@@ -436,9 +437,11 @@ func SetTradeAsset(mintAddress string, creator solana.PublicKey, userAddress str
 		// 计算新的总成本和总数量
 		totalCost := existingAsset.EntryPrice*float64(existingAsset.Amount) + _entryPrice*float64(amount)
 		totalAmount := existingAsset.Amount + amount
+		initBuyAmount := existingAsset.InitBuyAmount + amount
 
 		// 更新资产信息
 		existingAsset.Amount = totalAmount
+		existingAsset.InitBuyAmount = initBuyAmount
 		if totalAmount > 0 {
 			existingAsset.EntryPrice = totalCost / float64(totalAmount)
 		}
@@ -452,14 +455,15 @@ func SetTradeAsset(mintAddress string, creator solana.PublicKey, userAddress str
 
 	// 创建新的交易资产
 	PendingHoldAsset[mintAddress] = &MyBuyMap{
-		Decimal:     decimal,
-		UserAddress: userAddress,
-		MintAddress: mintAddress,
-		Creator:     creator,
-		EntryPrice:  _entryPrice,
-		Amount:      amount,
-		SoldLevels:  make(map[int]bool),
-		TimeStamp:   time.Now().Unix(),
+		Decimal:       decimal,
+		UserAddress:   userAddress,
+		MintAddress:   mintAddress,
+		Creator:       creator,
+		EntryPrice:    _entryPrice,
+		InitBuyAmount: amount,
+		Amount:        amount,
+		SoldLevels:    make(map[int]bool),
+		TimeStamp:     time.Now().Unix(),
 	}
 
 	logger.Infof("持仓资产新增： %s 的交易资产, 价格=%.8f, 数量=%d", mintAddress, _entryPrice, amount)
