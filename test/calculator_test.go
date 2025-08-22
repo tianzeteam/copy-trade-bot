@@ -76,7 +76,7 @@ func TestCalculateLaunchpadAccounts(t *testing.T) {
 	quoteMint := solana.MustPublicKeyFromBase58("So11111111111111111111111111111111111111112") // WSOL
 
 	// Call the function
-	launchpadAccounts, err := accountsCalc.CalculateLaunchpadAccounts(user, baseMint, quoteMint)
+	launchpadAccounts, err := accountsCalc.CalculateLaunchpadAccounts(user, baseMint, quoteMint, solana.MustPublicKeyFromBase58("So11111111111111111111111111111111111111112"))
 
 	// Assertions
 	assert.NoError(t, err)

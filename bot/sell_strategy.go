@@ -643,6 +643,7 @@ func (b *Bot) ExecuteRaydiumLaunchpadSellOrder(tokenInfo queue.TokenInfo) {
 		b.privateKey.PublicKey(),
 		tokenInfo.Mint,
 		solana.SolMint,
+		tradeInfo.ClaimCreatorFee,
 	)
 	if err != nil {
 		logger.Errorf("计算卖出金额失败: %v", err)

@@ -17,7 +17,6 @@ import (
 // * `amount_in` - Amount of base token to sell
 // * `minimum_amount_out` - Minimum amount of quote token to receive (slippage protection)
 // * `share_fee_rate` - Fee rate for the share
-//
 type SellExactIn struct {
 	AmountIn         *uint64
 	MinimumAmountOut *uint64
@@ -75,13 +74,19 @@ type SellExactIn struct {
 	// [13] = [] event_authority
 	//
 	// [14] = [] program
+	//
+	// [15] = [] system_program
+	//
+	// [16] = [WRITE] claim_platform_fee
+	//
+	// [17] = [WRITE] claim_creator_fee
 	ag_solanago.AccountMetaSlice `bin:"-"`
 }
 
 // NewSellExactInInstructionBuilder creates a new `SellExactIn` instruction builder.
 func NewSellExactInInstructionBuilder() *SellExactIn {
 	nd := &SellExactIn{
-		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 15),
+		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 18),
 	}
 	nd.AccountMetaSlice[12] = ag_solanago.Meta(Addresses["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"])
 	return nd
@@ -90,7 +95,7 @@ func NewSellExactInInstructionBuilder() *SellExactIn {
 // NewSellExactInInstructionBuilderExt creates a new `SellExactIn` instruction builder.
 func NewSellExactInInstructionBuilderExt(remainingAccounts int) *SellExactIn {
 	nd := &SellExactIn{
-		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 15+remainingAccounts),
+		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 18+remainingAccounts),
 	}
 	nd.AccountMetaSlice[12] = ag_solanago.Meta(Addresses["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"])
 	return nd
@@ -409,6 +414,39 @@ func (inst *SellExactIn) GetProgramAccount() *ag_solanago.AccountMeta {
 	return inst.AccountMetaSlice.Get(14)
 }
 
+// SetSystemProgramAccount sets the "system_program" account.
+func (inst *SellExactIn) SetSystemProgramAccount(systemProgram ag_solanago.PublicKey) *SellExactIn {
+	inst.AccountMetaSlice[15] = ag_solanago.Meta(systemProgram)
+	return inst
+}
+
+// GetSystemProgramAccount gets the "system_program" account.
+func (inst *SellExactIn) GetSystemProgramAccount() *ag_solanago.AccountMeta {
+	return inst.AccountMetaSlice.Get(15)
+}
+
+// SetClaimPlatformFeeAccount sets the "claim_platform_fee" account.
+func (inst *SellExactIn) SetClaimPlatformFeeAccount(claimPlatformFee ag_solanago.PublicKey) *SellExactIn {
+	inst.AccountMetaSlice[16] = ag_solanago.Meta(claimPlatformFee).WRITE()
+	return inst
+}
+
+// GetClaimPlatformFeeAccount gets the "claim_platform_fee" account.
+func (inst *SellExactIn) GetClaimPlatformFeeAccount() *ag_solanago.AccountMeta {
+	return inst.AccountMetaSlice.Get(16)
+}
+
+// SetClaimCreatorFeeAccount sets the "claim_creator_fee" account.
+func (inst *SellExactIn) SetClaimCreatorFeeAccount(claimCreatorFee ag_solanago.PublicKey) *SellExactIn {
+	inst.AccountMetaSlice[17] = ag_solanago.Meta(claimCreatorFee).WRITE()
+	return inst
+}
+
+// GetClaimCreatorFeeAccount gets the "claim_creator_fee" account.
+func (inst *SellExactIn) GetClaimCreatorFeeAccount() *ag_solanago.AccountMeta {
+	return inst.AccountMetaSlice.Get(17)
+}
+
 func (inst *SellExactIn) AddRemainingAccounts(remainingAccounts []ag_solanago.PublicKey) *SellExactIn {
 	accounts := 15
 	for i, _ := range remainingAccounts {
@@ -496,6 +534,15 @@ func (inst *SellExactIn) Validate() error {
 		if inst.AccountMetaSlice[14] == nil {
 			return errors.New("accounts.Program is not set")
 		}
+		if inst.AccountMetaSlice[15] == nil {
+			return errors.New("accounts.SystemProgram is not set")
+		}
+		if inst.AccountMetaSlice[16] == nil {
+			return errors.New("accounts.ClaimPlatformFee is not set")
+		}
+		if inst.AccountMetaSlice[17] == nil {
+			return errors.New("accounts.ClaimCreatorFee is not set")
+		}
 	}
 	return nil
 }
@@ -532,6 +579,9 @@ func (inst *SellExactIn) EncodeToTree(parent ag_treeout.Branches) {
 						accountsBranch.Child(ag_format.Meta("quote_token_program", inst.AccountMetaSlice.Get(12)))
 						accountsBranch.Child(ag_format.Meta("    event_authority", inst.AccountMetaSlice.Get(13)))
 						accountsBranch.Child(ag_format.Meta("            program", inst.AccountMetaSlice.Get(14)))
+						accountsBranch.Child(ag_format.Meta("    system_program", inst.AccountMetaSlice.Get(15)))
+						accountsBranch.Child(ag_format.Meta("claim_platform_fee", inst.AccountMetaSlice.Get(16)))
+						accountsBranch.Child(ag_format.Meta("claim_creator_fee", inst.AccountMetaSlice.Get(17)))
 					})
 				})
 		})
@@ -595,7 +645,10 @@ func NewSellExactInInstruction(
 	baseTokenProgram ag_solanago.PublicKey,
 	quoteTokenProgram ag_solanago.PublicKey,
 	eventAuthority ag_solanago.PublicKey,
-	program ag_solanago.PublicKey) *SellExactIn {
+	program ag_solanago.PublicKey,
+	systemProgram ag_solanago.PublicKey,
+	claimPlatformFee ag_solanago.PublicKey,
+	claimCreatorFee ag_solanago.PublicKey) *SellExactIn {
 	return NewSellExactInInstructionBuilder().
 		SetAmountIn(amount_in).
 		SetMinimumAmountOut(minimum_amount_out).
@@ -614,5 +667,8 @@ func NewSellExactInInstruction(
 		SetBaseTokenProgramAccount(baseTokenProgram).
 		SetQuoteTokenProgramAccount(quoteTokenProgram).
 		SetEventAuthorityAccount(eventAuthority).
-		SetProgramAccount(program)
+		SetProgramAccount(program).
+		SetSystemProgramAccount(systemProgram).
+		SetClaimPlatformFeeAccount(claimPlatformFee).
+		SetClaimCreatorFeeAccount(claimCreatorFee)
 }

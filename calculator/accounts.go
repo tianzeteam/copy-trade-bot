@@ -318,7 +318,7 @@ func (c *AccountsCalculator) CalculateAmmAccounts(pool, baseMint, user solana.Pu
 
 }
 
-func (c *AccountsCalculator) CalculateLaunchpadAccounts(user solana.PublicKey, baseMint, quoteMint solana.PublicKey) (*types.RaydiumLaunchpadAccounts, error) {
+func (c *AccountsCalculator) CalculateLaunchpadAccounts(user solana.PublicKey, baseMint, quoteMint solana.PublicKey, claimCreatorFee solana.PublicKey) (*types.RaydiumLaunchpadAccounts, error) {
 
 	authority, _, err := solana.FindProgramAddress(
 		[][]byte{
@@ -402,6 +402,8 @@ func (c *AccountsCalculator) CalculateLaunchpadAccounts(user solana.PublicKey, b
 		QuoteTokenProgram:     solana.TokenProgramID,
 		EventAuthority:        eventAuthority,
 		Program:               RAYDIUM_LAUNCHPAD_PROGRAM_ID,
+		ClaimPlatformFee:      solana.MustPublicKeyFromBase58("AMWjewk8jvQkqyrUv5cowmbQdoS2ChbJopXXPtVqKtch"),
+		ClaimCreatorFee:       claimCreatorFee,
 	}, nil
 }
 

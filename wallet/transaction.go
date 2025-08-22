@@ -856,6 +856,7 @@ func (m *TransactionMonitor) executeLaunchpadCopyTrade(tradeInfo *global.Launchp
 		m.BotWallet,
 		tradeInfo.MintAddress,
 		solana.SolMint,
+		tradeInfo.ClaimCreatorFee,
 	)
 	if err != nil {
 		logger.Errorf("Failed to calculate accounts: %v", err)

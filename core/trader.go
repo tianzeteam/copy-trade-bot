@@ -857,7 +857,10 @@ func (t *TraderImpl) RaydiumLaunchpadSell(ctx context.Context, params types.Orde
 		SetQuoteTokenMintAccount(params.Accounts.LaunchpadAccounts.QuoteTokenMint).
 		SetBaseTokenProgramAccount(solana.TokenProgramID).
 		SetQuoteTokenProgramAccount(solana.TokenProgramID).
-		SetEventAuthorityAccount(params.Accounts.LaunchpadAccounts.EventAuthority)
+		SetEventAuthorityAccount(params.Accounts.LaunchpadAccounts.EventAuthority).
+		SetSystemProgramAccount(solana.SystemProgramID).
+		SetClaimPlatformFeeAccount(params.Accounts.LaunchpadAccounts.ClaimPlatformFee).
+		SetClaimCreatorFeeAccount(params.Accounts.LaunchpadAccounts.ClaimCreatorFee)
 
 	instructions = append(instructions, sellInstruction.Build())
 
@@ -2053,6 +2056,9 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 		SetQuoteTokenProgramAccount(solana.TokenProgramID).
 		SetEventAuthorityAccount(launchpadAccounts.EventAuthority).
 		SetProgramAccount(RAYDIUM_LAUNCHPAD_PROGRAM_ID).
+		SetSystemProgramAccount(solana.SystemProgramID).
+		SetClaimPlatformFeeAccount(launchpadAccounts.ClaimPlatformFee).
+		SetClaimCreatorFeeAccount(launchpadAccounts.ClaimCreatorFee).
 		SetAmountIn(params.TradeParams.Amount).
 		SetMinimumAmountOut(params.TradeParams.Cost).
 		Build()

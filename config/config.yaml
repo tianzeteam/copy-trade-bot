@@ -1,7 +1,7 @@
 create_nonce_account: false
 nonce_account_pubkey: GgTBxk6r1jyi6QUiUCP7ufvonufBDRS6D3RoRUFnZ7go
 simulate_mode: false
-private_key: 4a98pEQpEcYAWRYZ4XTrhnBpDvUT1xc2qvgLPmgt2TjKcATid8rcoLAHZqfug3C9NTwNU2fAYTaWapuPVcyZnpv
+private_key: 5R43ad3yR69PoiiEuM2EX2pQBH7drVXuqEYbXBEdRev5XyVQDqPR254EP6GJt6avNZytDiTMk86dKVESgb7USr5r
 grpc_url: https://solana-yellowstone-grpc.publicnode.com:443
 rpc_url: https://mainnet.helius-rpc.com/?api-key=dc537a21-36c2-4a5f-bcf8-90ae704fbbfc
 redis_db: 0
@@ -53,7 +53,7 @@ sell_priority_fee: 0
 #卖出Tip费用
 sell_tip_fee: 0
 # 计算单元
-compute_units: 130000
+compute_units: 200000
 logging:
     level: info
     format: text
@@ -98,7 +98,7 @@ zeroslot:
 blockrazor:
     buy_tip: 0.001
     sell_tip: 0.001
-    enable: true
+    enable: false
     mode: "fast"
     health_endpoint: http://frankfurt.solana.blockrazor.xyz:443/health
     rpc_url: http://frankfurt.solana.blockrazor.xyz:443/sendTransaction

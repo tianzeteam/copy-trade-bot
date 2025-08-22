@@ -77,18 +77,19 @@ type AmmTradeEventInfo struct {
 
 // LaunchpadTradeEventInfo 存储Launchpad交易事件信息
 type LaunchpadTradeEventInfo struct {
-	UserAddress  solana.PublicKey // 用户地址
-	SolAmount    uint64           // Sol数量
-	TokenAmount  uint64           // Token数量
-	IsBuy        bool             // 是否买入
-	MintAddress  solana.PublicKey // Mint地址
-	PoolState    solana.PublicKey // 池状态地址
-	SolReserve   uint64           // SOL储备
-	BaseReserve  uint64           // 基础代币储备
-	QuoteReserve uint64           // 报价代币储备
-	ReceivedAt   time.Time        // 接收时间
-	CurrentPrice float64          // 当前价格
-	Router       string
+	UserAddress     solana.PublicKey // 用户地址
+	SolAmount       uint64           // Sol数量
+	TokenAmount     uint64           // Token数量
+	IsBuy           bool             // 是否买入
+	MintAddress     solana.PublicKey // Mint地址
+	PoolState       solana.PublicKey // 池状态地址
+	SolReserve      uint64           // SOL储备
+	BaseReserve     uint64           // 基础代币储备
+	QuoteReserve    uint64           // 报价代币储备
+	ReceivedAt      time.Time        // 接收时间
+	CurrentPrice    float64          // 当前价格
+	Router          string
+	ClaimCreatorFee solana.PublicKey
 }
 
 // CPMMTradeEventInfo 存储CPMM交易事件信息

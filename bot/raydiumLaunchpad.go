@@ -29,7 +29,7 @@ const (
 	QuoteVaultIdx = 8  // #4 - Quote Vault
 	BaseMintIdx   = 9  // #5 - Base Mint
 	QuoteMintIdx  = 10 // #6 - Quote Mint
-
+	CreatorFeeIdx = 17 // #17 - Creator Fee
 )
 
 type LaunchpadSwapData struct {
@@ -39,7 +39,7 @@ type LaunchpadSwapData struct {
 }
 
 // parseLaunchpadTransaction 解析AMM交易事件
-func (b *Bot) parseLaunchpadTransaction(accountList []string, innerInstructions []*yellowstone_geyser_pb.InnerInstructions, mintAddress string, userAddress solana.PublicKey, isBuy bool, _signature string) *global.LaunchpadTradeEventInfo {
+func (b *Bot) parseLaunchpadTransaction(accountList []string, innerInstructions []*yellowstone_geyser_pb.InnerInstructions, mintAddress string, claimCreatorFee string, userAddress solana.PublicKey, isBuy bool, _signature string) *global.LaunchpadTradeEventInfo {
 	var eventBinaries [][]byte
 	var err error
 	for _, parsedIx := range innerInstructions {
@@ -87,22 +87,23 @@ func (b *Bot) parseLaunchpadTransaction(accountList []string, innerInstructions 
 
 				_amountIn := tradeEvent.AmountIn
 				_amountOut := tradeEvent.AmountOut
-				if tradeDirection == "Sell" {
+				if !isBuy {
 					_amountIn = tradeEvent.AmountOut
 					_amountOut = tradeEvent.AmountIn
 				}
 
 				tradeInfo := &global.LaunchpadTradeEventInfo{
-					UserAddress:  userAddress,
-					SolAmount:    _amountIn,
-					TokenAmount:  _amountOut,
-					IsBuy:        tradeDirection == "Buy",
-					MintAddress:  solana.MustPublicKeyFromBase58(mintAddress),
-					PoolState:    tradeEvent.PoolState,
-					BaseReserve:  _baseReserve,
-					QuoteReserve: _realQuoteAfter,
-					SolReserve:   _realQuoteAfter, // For launchpad, quote is usually SOL
-					ReceivedAt:   time.Now(),
+					UserAddress:     userAddress,
+					SolAmount:       _amountIn,
+					TokenAmount:     _amountOut,
+					IsBuy:           isBuy,
+					MintAddress:     solana.MustPublicKeyFromBase58(mintAddress),
+					PoolState:       tradeEvent.PoolState,
+					BaseReserve:     _baseReserve,
+					QuoteReserve:    _realQuoteAfter,
+					SolReserve:      _realQuoteAfter, // For launchpad, quote is usually SOL
+					ReceivedAt:      time.Now(),
+					ClaimCreatorFee: solana.MustPublicKeyFromBase58(claimCreatorFee),
 				}
 				numerator := float64(_virtualQuote) + float64(_realQuoteAfter)
 				denominator := (float64(_virtualBase) - float64(_realBaseAfter)) * 1e3
@@ -144,7 +145,7 @@ func (b *Bot) WrapLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 
 	_signature := base58.Encode(txn.Transaction.Transaction.Signatures[0])
 
-	var mintAddress, userAddress string
+	var mintAddress, userAddress, claimCreatorFee string
 
 	// 安全检查：确保数据长度足够
 
@@ -164,6 +165,7 @@ func (b *Bot) WrapLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 	case raydium_launchpad.Instruction_BuyExactIn:
 		userAddress = accountList[currentInstruction.Accounts[PayerIdx]] // #18 - User Source Owner
 		mintAddress = accountList[currentInstruction.Accounts[BaseMintIdx]]
+		claimCreatorFee = accountList[currentInstruction.Accounts[CreatorFeeIdx]]
 
 		if mintAddress == solana.SolMint.String() {
 			logger.Debugf("跳过 SOL 交易 %s", _signature)
@@ -177,6 +179,7 @@ func (b *Bot) WrapLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 
 		userAddress = accountList[currentInstruction.Accounts[0]]
 		mintAddress = accountList[currentInstruction.Accounts[9]]
+		claimCreatorFee = accountList[currentInstruction.Accounts[CreatorFeeIdx]]
 		if mintAddress == solana.SolMint.String() {
 			logger.Debugf("跳过 SOL 交易 %s", _signature)
 			return nil
@@ -200,7 +203,7 @@ func (b *Bot) WrapLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 	userPubkey := solana.MustPublicKeyFromBase58(userAddress)
 	innerInstructions := out.GetTransaction().Transaction.Meta.InnerInstructions
 
-	tradeInfo := b.parseLaunchpadTransaction(accountList, innerInstructions, mintAddress, userPubkey, isBuy, _signature)
+	tradeInfo := b.parseLaunchpadTransaction(accountList, innerInstructions, mintAddress, claimCreatorFee, userPubkey, isBuy, _signature)
 	botWallet := b.privateKey.PublicKey()
 
 	if tradeInfo == nil {
@@ -284,7 +287,7 @@ func (b *Bot) RaydiumLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 	instructions := messages.Instructions
 	_signature := base58.Encode(txn.Transaction.Transaction.Signatures[0])
 
-	var mintAddress, userAddress string
+	var mintAddress, userAddress, claimCreatorFee string
 	var isBuy bool = true
 	var tradeInfo *global.LaunchpadTradeEventInfo
 	accountList := b.GetAccountList(out)
@@ -314,20 +317,22 @@ func (b *Bot) RaydiumLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 
 			userAddress = accountList[accounts[PayerIdx]] // #18 - User Source Owner
 			mintAddress = accountList[accounts[BaseMintIdx]]
+			claimCreatorFee = accountList[accounts[CreatorFeeIdx]]
 
 			// Get balance changes
 			//solChange := GetSwapBalances(txn, BaseVault, QuoteVault, accountList)
-			//logger.Infof("mintAddress: %s, solAmount: %.8f, solReserve: %.8f", mintAddress, solChange.SolChangeAmount, solChange.SolReserve)
+			//logger.Infof("mintAddress: %s,claimCreatorFee: %s", mintAddress, claimCreatorFee)
 
 		case raydium_launchpad.Instruction_SellExactIn:
 
 			// Extract account information using the optimized function
-			_mintAddress, _poolState, _BaseVault, _QuoteVault, _userAddress := b.extractLaunchpadAccountInfo(accounts, accountList)
+			_mintAddress, _poolState, _BaseVault, _QuoteVault, _userAddress, _claimCreatorFee := b.extractLaunchpadAccountInfo(accounts, accountList)
 			mintAddress = _mintAddress
 			userAddress = _userAddress
+			claimCreatorFee = _claimCreatorFee
 			isBuy = false
-			logger.Debugf("naive Raydium Launchpad SellExactIn: User=%s, Mint=%s, AmmPool=%s, BaseVault=%s, QuoteVault=%s",
-				_userAddress, _mintAddress, _poolState, _BaseVault, _QuoteVault)
+			logger.Debugf("naive Raydium Launchpad SellExactIn: User=%s, Mint=%s, AmmPool=%s, BaseVault=%s, QuoteVault=%s, CreatorFee=%s",
+				_userAddress, _mintAddress, _poolState, _BaseVault, _QuoteVault, _claimCreatorFee)
 
 			// Create trade info using the helper function
 
@@ -345,7 +350,7 @@ func (b *Bot) RaydiumLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 	userPk := solana.MustPublicKeyFromBase58(userAddress)
 	innerInstructions := out.GetTransaction().Transaction.Meta.InnerInstructions
 
-	tradeInfo = b.parseLaunchpadTransaction(accountList, innerInstructions, mintAddress, userPk, isBuy, _signature)
+	tradeInfo = b.parseLaunchpadTransaction(accountList, innerInstructions, mintAddress, claimCreatorFee, userPk, isBuy, _signature)
 
 	// 处理AMM交易信息
 	botWallet := b.privateKey.PublicKey()
@@ -420,7 +425,7 @@ func (b *Bot) RaydiumLaunchpadSell(tokenInfo queue.TokenInfo) {
 }
 
 // extractLaunchpadAccountInfo extracts and returns the account information from instruction accounts
-func (b *Bot) extractLaunchpadAccountInfo(accounts []byte, accountList []string) (mintAddress, poolState, BaseVault, QuoteVault, userOwner string) {
+func (b *Bot) extractLaunchpadAccountInfo(accounts []byte, accountList []string) (mintAddress, poolState, BaseVault, QuoteVault, userOwner, claimCreatorFee string) {
 	// First determine the version based on account count
 	if len(accounts) >= 15 {
 		// Extract accounts for V4
@@ -429,6 +434,7 @@ func (b *Bot) extractLaunchpadAccountInfo(accounts []byte, accountList []string)
 		QuoteVault = accountList[accounts[QuoteVaultIdx]] // #7 - Pool Pc Token Account (shifted due to target orders)
 		userOwner = accountList[accounts[PayerIdx]]       // #18 - User Source Owner
 		mintAddress = accountList[accounts[BaseMintIdx]]
+		claimCreatorFee = accountList[accounts[CreatorFeeIdx]]
 	}
 	return
 }

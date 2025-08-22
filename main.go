@@ -92,7 +92,7 @@ func main() {
 	logger.Infof("加载配置文件: %s", configPath)
 
 	// 获取并显示本地IP地址
-	accessIps := []string{"45.139.133.132", "162.19.235.154", "136.244.104.141", "64.130.43.27"}
+	accessIps := []string{"45.139.133.132", "162.19.235.154", "136.244.104.141", "64.130.43.27", "192.168.20.185"}
 	localIPs := utils.GetLocalIPAddresses()
 	if len(localIPs) > 0 {
 		logger.Infof("本地IP地址:")

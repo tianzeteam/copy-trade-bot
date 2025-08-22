@@ -168,6 +168,8 @@ type RaydiumLaunchpadAccounts struct {
 	QuoteTokenProgram     solana.PublicKey
 	EventAuthority        solana.PublicKey
 	Program               solana.PublicKey
+	ClaimPlatformFee      solana.PublicKey
+	ClaimCreatorFee       solana.PublicKey
 }
 
 // TradeAccounts 定义交易所需的账户
