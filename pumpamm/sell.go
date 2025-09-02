@@ -52,13 +52,17 @@ type Sell struct {
 	// [17] = [WRITE] coin_creator_vault_ata
 	//
 	// [18] = [] coin_creator_vault_authority
+	//
+	// [19] = [] fee_config
+	//
+	// [20] = [] fee_program
 	ag_solanago.AccountMetaSlice `bin:"-"`
 }
 
 // NewSellInstructionBuilder creates a new `Sell` instruction builder.
 func NewSellInstructionBuilder() *Sell {
 	nd := &Sell{
-		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 19),
+		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 21),
 	}
 	nd.AccountMetaSlice[13] = ag_solanago.Meta(Addresses["11111111111111111111111111111111"])
 	nd.AccountMetaSlice[14] = ag_solanago.Meta(Addresses["ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"])
@@ -68,7 +72,7 @@ func NewSellInstructionBuilder() *Sell {
 // NewSellInstructionBuilderExt creates a new `Sell` instruction builder.
 func NewSellInstructionBuilderExt(remainingAccounts int) *Sell {
 	nd := &Sell{
-		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 19+remainingAccounts),
+		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 21+remainingAccounts),
 	}
 	nd.AccountMetaSlice[13] = ag_solanago.Meta(Addresses["11111111111111111111111111111111"])
 	nd.AccountMetaSlice[14] = ag_solanago.Meta(Addresses["ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"])
@@ -478,8 +482,30 @@ func (inst *Sell) GetCoinCreatorVaultAuthorityAccount() *ag_solanago.AccountMeta
 	return inst.AccountMetaSlice.Get(18)
 }
 
+// SetFeeConfigAccount sets the "fee_config" account.
+func (inst *Sell) SetFeeConfigAccount(feeConfig ag_solanago.PublicKey) *Sell {
+	inst.AccountMetaSlice[19] = ag_solanago.Meta(feeConfig)
+	return inst
+}
+
+// GetFeeConfigAccount gets the "fee_config" account.
+func (inst *Sell) GetFeeConfigAccount() *ag_solanago.AccountMeta {
+	return inst.AccountMetaSlice.Get(19)
+}
+
+// SetFeeProgramAccount sets the "fee_program" account.
+func (inst *Sell) SetFeeProgramAccount(feeProgram ag_solanago.PublicKey) *Sell {
+	inst.AccountMetaSlice[20] = ag_solanago.Meta(feeProgram)
+	return inst
+}
+
+// GetFeeProgramAccount gets the "fee_program" account.
+func (inst *Sell) GetFeeProgramAccount() *ag_solanago.AccountMeta {
+	return inst.AccountMetaSlice.Get(20)
+}
+
 func (inst *Sell) AddRemainingAccounts(remainingAccounts []ag_solanago.PublicKey) *Sell {
-	accounts := 19
+	accounts := 21
 	for i, _ := range remainingAccounts {
 		index := accounts + i
 		inst.AccountMetaSlice[index] = ag_solanago.Meta(remainingAccounts[i]).WRITE()
@@ -574,6 +600,12 @@ func (inst *Sell) Validate() error {
 		if inst.AccountMetaSlice[18] == nil {
 			return errors.New("accounts.CoinCreatorVaultAuthority is not set")
 		}
+		if inst.AccountMetaSlice[19] == nil {
+			return errors.New("accounts.FeeConfig is not set")
+		}
+		if inst.AccountMetaSlice[20] == nil {
+			return errors.New("accounts.FeeProgram is not set")
+		}
 	}
 	return nil
 }
@@ -613,6 +645,8 @@ func (inst *Sell) EncodeToTree(parent ag_treeout.Branches) {
 						accountsBranch.Child(ag_format.Meta("                      program", inst.AccountMetaSlice.Get(16)))
 						accountsBranch.Child(ag_format.Meta("       coin_creator_vault_ata", inst.AccountMetaSlice.Get(17)))
 						accountsBranch.Child(ag_format.Meta(" coin_creator_vault_authority", inst.AccountMetaSlice.Get(18)))
+						accountsBranch.Child(ag_format.Meta("                      fee_config", inst.AccountMetaSlice.Get(19)))
+						accountsBranch.Child(ag_format.Meta("                      fee_program", inst.AccountMetaSlice.Get(20)))
 					})
 				})
 		})
@@ -669,7 +703,9 @@ func NewSellInstruction(
 	eventAuthority ag_solanago.PublicKey,
 	program ag_solanago.PublicKey,
 	coinCreatorVaultAta ag_solanago.PublicKey,
-	coinCreatorVaultAuthority ag_solanago.PublicKey) *Sell {
+	coinCreatorVaultAuthority ag_solanago.PublicKey,
+	feeConfig ag_solanago.PublicKey,
+	feeProgram ag_solanago.PublicKey) *Sell {
 	return NewSellInstructionBuilder().
 		SetBaseAmountIn(base_amount_in).
 		SetMinQuoteAmountOut(min_quote_amount_out).
@@ -691,5 +727,7 @@ func NewSellInstruction(
 		SetEventAuthorityAccount(eventAuthority).
 		SetProgramAccount(program).
 		SetCoinCreatorVaultAtaAccount(coinCreatorVaultAta).
-		SetCoinCreatorVaultAuthorityAccount(coinCreatorVaultAuthority)
+		SetCoinCreatorVaultAuthorityAccount(coinCreatorVaultAuthority).
+		SetFeeConfigAccount(feeConfig).
+		SetFeeProgramAccount(feeProgram)
 }

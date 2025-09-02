@@ -43,13 +43,17 @@ type Buy struct {
 	// [12] = [] global_volume_accumulator
 	//
 	// [13] = [WRITE] user_volume_accumulator
+	//
+	// [14] = [] fee_config
+	//
+	// [15] = [] fee_program
 	ag_solanago.AccountMetaSlice `bin:"-"`
 }
 
 // NewBuyInstructionBuilder creates a new `Buy` instruction builder.
 func NewBuyInstructionBuilder() *Buy {
 	nd := &Buy{
-		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 14),
+		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 16),
 	}
 	nd.AccountMetaSlice[7] = ag_solanago.Meta(Addresses["11111111111111111111111111111111"])
 	nd.AccountMetaSlice[8] = ag_solanago.Meta(Addresses["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"])
@@ -59,7 +63,7 @@ func NewBuyInstructionBuilder() *Buy {
 // NewBuyInstructionBuilderExt creates a new `Buy` instruction builder.
 func NewBuyInstructionBuilderExt(remainingAccounts int) *Buy {
 	nd := &Buy{
-		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 12+remainingAccounts),
+		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 16+remainingAccounts),
 	}
 	nd.AccountMetaSlice[7] = ag_solanago.Meta(Addresses["11111111111111111111111111111111"])
 	nd.AccountMetaSlice[8] = ag_solanago.Meta(Addresses["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"])
@@ -452,8 +456,29 @@ func (inst *Buy) GetUserVolumeAccumulatorAccount() *ag_solanago.AccountMeta {
 	return inst.AccountMetaSlice.Get(13)
 }
 
+// SetFeeConfigAccount sets the "fee_config" account.
+func (inst *Buy) SetFeeConfigAccount(feeConfig ag_solanago.PublicKey) *Buy {
+	inst.AccountMetaSlice[14] = ag_solanago.Meta(feeConfig).WRITE()
+	return inst
+}
+
+// GetFeeConfigAccount gets the "fee_config" account.
+func (inst *Buy) GetFeeConfigAccount() *ag_solanago.AccountMeta {
+	return inst.AccountMetaSlice.Get(14)
+}
+
+// SetFeeProgramAccount sets the "fee_program" account.
+func (inst *Buy) SetFeeProgramAccount(feeProgram ag_solanago.PublicKey) *Buy {
+	inst.AccountMetaSlice[15] = ag_solanago.Meta(feeProgram).WRITE()
+	return inst
+}
+
+// GetFeeProgramAccount gets the "fee_program" account.
+func (inst *Buy) GetFeeProgramAccount() *ag_solanago.AccountMeta {
+	return inst.AccountMetaSlice.Get(15)
+}
 func (inst *Buy) AddRemainingAccounts(remainingAccounts []ag_solanago.PublicKey) *Buy {
-	accounts := 12
+	accounts := 16
 	for i, _ := range remainingAccounts {
 		index := accounts + i
 		inst.AccountMetaSlice[index] = ag_solanago.Meta(remainingAccounts[i]).WRITE()
@@ -527,6 +552,18 @@ func (inst *Buy) Validate() error {
 		if inst.AccountMetaSlice[11] == nil {
 			return errors.New("accounts.Program is not set")
 		}
+		if inst.AccountMetaSlice[12] == nil {
+			return errors.New("accounts.GlobalVolumeAccumulator is not set")
+		}
+		if inst.AccountMetaSlice[13] == nil {
+			return errors.New("accounts.UserVolumeAccumulator is not set")
+		}
+		if inst.AccountMetaSlice[14] == nil {
+			return errors.New("accounts.FeeConfig is not set")
+		}
+		if inst.AccountMetaSlice[15] == nil {
+			return errors.New("accounts.FeeProgram is not set")
+		}
 	}
 	return nil
 }
@@ -546,7 +583,7 @@ func (inst *Buy) EncodeToTree(parent ag_treeout.Branches) {
 					})
 
 					// Accounts of the instruction:
-					instructionBranch.Child("Accounts[len=12]").ParentFunc(func(accountsBranch ag_treeout.Branches) {
+					instructionBranch.Child("Accounts[len=16]").ParentFunc(func(accountsBranch ag_treeout.Branches) {
 						accountsBranch.Child(ag_format.Meta("                  global", inst.AccountMetaSlice.Get(0)))
 						accountsBranch.Child(ag_format.Meta("           fee_recipient", inst.AccountMetaSlice.Get(1)))
 						accountsBranch.Child(ag_format.Meta("                    mint", inst.AccountMetaSlice.Get(2)))
@@ -559,6 +596,10 @@ func (inst *Buy) EncodeToTree(parent ag_treeout.Branches) {
 						accountsBranch.Child(ag_format.Meta("           creator_vault", inst.AccountMetaSlice.Get(9)))
 						accountsBranch.Child(ag_format.Meta("         event_authority", inst.AccountMetaSlice.Get(10)))
 						accountsBranch.Child(ag_format.Meta("                 program", inst.AccountMetaSlice.Get(11)))
+						accountsBranch.Child(ag_format.Meta("         global_volume_accumulator", inst.AccountMetaSlice.Get(12)))
+						accountsBranch.Child(ag_format.Meta("         user_volume_accumulator", inst.AccountMetaSlice.Get(13)))
+						accountsBranch.Child(ag_format.Meta("                 fee_config", inst.AccountMetaSlice.Get(14)))
+						accountsBranch.Child(ag_format.Meta("                 fee_program", inst.AccountMetaSlice.Get(15)))
 					})
 				})
 		})

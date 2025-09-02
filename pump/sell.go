@@ -38,13 +38,17 @@ type Sell struct {
 	// [10] = [] event_authority
 	//
 	// [11] = [] program
+	//
+	// [12] = [] fee_config
+	//
+	// [13] = [] fee_program
 	ag_solanago.AccountMetaSlice `bin:"-"`
 }
 
 // NewSellInstructionBuilder creates a new `Sell` instruction builder.
 func NewSellInstructionBuilder() *Sell {
 	nd := &Sell{
-		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 12),
+		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 14),
 	}
 	nd.AccountMetaSlice[7] = ag_solanago.Meta(Addresses["11111111111111111111111111111111"])
 	nd.AccountMetaSlice[9] = ag_solanago.Meta(Addresses["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"])
@@ -54,7 +58,7 @@ func NewSellInstructionBuilder() *Sell {
 // NewSellInstructionBuilderExt creates a new `Sell` instruction builder.
 func NewSellInstructionBuilderExt(remainingAccounts int) *Sell {
 	nd := &Sell{
-		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 12+remainingAccounts),
+		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 14+remainingAccounts),
 	}
 	nd.AccountMetaSlice[7] = ag_solanago.Meta(Addresses["11111111111111111111111111111111"])
 	nd.AccountMetaSlice[9] = ag_solanago.Meta(Addresses["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"])
@@ -425,8 +429,30 @@ func (inst *Sell) GetProgramAccount() *ag_solanago.AccountMeta {
 	return inst.AccountMetaSlice.Get(11)
 }
 
+// SetFeeConfigAccount sets the "fee_config" account.
+func (inst *Sell) SetFeeConfigAccount(feeConfig ag_solanago.PublicKey) *Sell {
+	inst.AccountMetaSlice[12] = ag_solanago.Meta(feeConfig)
+	return inst
+}
+
+// GetFeeConfigAccount gets the "fee_config" account.
+func (inst *Sell) GetFeeConfigAccount() *ag_solanago.AccountMeta {
+	return inst.AccountMetaSlice.Get(12)
+}
+
+// SetFeeProgramAccount sets the "fee_program" account.
+func (inst *Sell) SetFeeProgramAccount(feeProgram ag_solanago.PublicKey) *Sell {
+	inst.AccountMetaSlice[13] = ag_solanago.Meta(feeProgram)
+	return inst
+}
+
+// GetFeeProgramAccount gets the "fee_program" account.
+func (inst *Sell) GetFeeProgramAccount() *ag_solanago.AccountMeta {
+	return inst.AccountMetaSlice.Get(13)
+}
+
 func (inst *Sell) AddRemainingAccounts(remainingAccounts []ag_solanago.PublicKey) *Sell {
-	accounts := 12
+	accounts := 14
 	for i, _ := range remainingAccounts {
 		index := accounts + i
 		inst.AccountMetaSlice[index] = ag_solanago.Meta(remainingAccounts[i]).WRITE()
@@ -500,6 +526,12 @@ func (inst *Sell) Validate() error {
 		if inst.AccountMetaSlice[11] == nil {
 			return errors.New("accounts.Program is not set")
 		}
+		if inst.AccountMetaSlice[12] == nil {
+			return errors.New("accounts.FeeConfig is not set")
+		}
+		if inst.AccountMetaSlice[13] == nil {
+			return errors.New("accounts.FeeProgram is not set")
+		}
 	}
 	return nil
 }
@@ -519,7 +551,7 @@ func (inst *Sell) EncodeToTree(parent ag_treeout.Branches) {
 					})
 
 					// Accounts of the instruction:
-					instructionBranch.Child("Accounts[len=12]").ParentFunc(func(accountsBranch ag_treeout.Branches) {
+					instructionBranch.Child("Accounts[len=14]").ParentFunc(func(accountsBranch ag_treeout.Branches) {
 						accountsBranch.Child(ag_format.Meta("                  global", inst.AccountMetaSlice.Get(0)))
 						accountsBranch.Child(ag_format.Meta("           fee_recipient", inst.AccountMetaSlice.Get(1)))
 						accountsBranch.Child(ag_format.Meta("                    mint", inst.AccountMetaSlice.Get(2)))
@@ -532,6 +564,8 @@ func (inst *Sell) EncodeToTree(parent ag_treeout.Branches) {
 						accountsBranch.Child(ag_format.Meta("           token_program", inst.AccountMetaSlice.Get(9)))
 						accountsBranch.Child(ag_format.Meta("         event_authority", inst.AccountMetaSlice.Get(10)))
 						accountsBranch.Child(ag_format.Meta("                 program", inst.AccountMetaSlice.Get(11)))
+						accountsBranch.Child(ag_format.Meta("           fee_config", inst.AccountMetaSlice.Get(12)))
+						accountsBranch.Child(ag_format.Meta("           fee_program", inst.AccountMetaSlice.Get(13)))
 					})
 				})
 		})

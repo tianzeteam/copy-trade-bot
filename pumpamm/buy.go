@@ -58,13 +58,17 @@ type Buy struct {
 	//
 	// [20] = [] user_volume_accumulator
 	//
+	// [21] = [] fee_config
+	//
+	// [22] = [] fee_program
+	//
 	ag_solanago.AccountMetaSlice `bin:"-"`
 }
 
 // NewBuyInstructionBuilder creates a new `Buy` instruction builder.
 func NewBuyInstructionBuilder() *Buy {
 	nd := &Buy{
-		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 21),
+		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 23),
 	}
 	nd.AccountMetaSlice[13] = ag_solanago.Meta(Addresses["11111111111111111111111111111111"])
 	nd.AccountMetaSlice[14] = ag_solanago.Meta(Addresses["ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"])
@@ -74,7 +78,7 @@ func NewBuyInstructionBuilder() *Buy {
 // NewBuyInstructionBuilderExt creates a new `Buy` instruction builder.
 func NewBuyInstructionBuilderExt(remainingAccounts int) *Buy {
 	nd := &Buy{
-		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 19+remainingAccounts),
+		AccountMetaSlice: make(ag_solanago.AccountMetaSlice, 23+remainingAccounts),
 	}
 	nd.AccountMetaSlice[13] = ag_solanago.Meta(Addresses["11111111111111111111111111111111"])
 	nd.AccountMetaSlice[14] = ag_solanago.Meta(Addresses["ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"])
@@ -506,8 +510,30 @@ func (inst *Buy) GetUserVolumeAccumulatorAccount() *ag_solanago.AccountMeta {
 	return inst.AccountMetaSlice.Get(20)
 }
 
+// SetFeeConfigAccount sets the "fee_config" account.
+func (inst *Buy) SetFeeConfigAccount(feeConfig ag_solanago.PublicKey) *Buy {
+	inst.AccountMetaSlice[21] = ag_solanago.Meta(feeConfig)
+	return inst
+}
+
+// GetFeeConfigAccount gets the "fee_config" account.
+func (inst *Buy) GetFeeConfigAccount() *ag_solanago.AccountMeta {
+	return inst.AccountMetaSlice.Get(21)
+}
+
+// SetFeeProgramAccount sets the "fee_program" account.
+func (inst *Buy) SetFeeProgramAccount(feeProgram ag_solanago.PublicKey) *Buy {
+	inst.AccountMetaSlice[22] = ag_solanago.Meta(feeProgram)
+	return inst
+}
+
+// GetFeeProgramAccount gets the "fee_program" account.
+func (inst *Buy) GetFeeProgramAccount() *ag_solanago.AccountMeta {
+	return inst.AccountMetaSlice.Get(22)
+}
+
 func (inst *Buy) AddRemainingAccounts(remainingAccounts []ag_solanago.PublicKey) *Buy {
-	accounts := 20
+	accounts := 22
 	for i, _ := range remainingAccounts {
 		index := accounts + i
 		inst.AccountMetaSlice[index] = ag_solanago.Meta(remainingAccounts[i]).WRITE()
@@ -602,6 +628,18 @@ func (inst *Buy) Validate() error {
 		if inst.AccountMetaSlice[18] == nil {
 			return errors.New("accounts.CoinCreatorVaultAuthority is not set")
 		}
+		if inst.AccountMetaSlice[19] == nil {
+			return errors.New("accounts.GlobalVolumeAccumulator is not set")
+		}
+		if inst.AccountMetaSlice[20] == nil {
+			return errors.New("accounts.UserVolumeAccumulator is not set")
+		}
+		if inst.AccountMetaSlice[21] == nil {
+			return errors.New("accounts.FeeConfig is not set")
+		}
+		if inst.AccountMetaSlice[22] == nil {
+			return errors.New("accounts.FeeProgram is not set")
+		}
 	}
 	return nil
 }
@@ -641,6 +679,10 @@ func (inst *Buy) EncodeToTree(parent ag_treeout.Branches) {
 						accountsBranch.Child(ag_format.Meta("                      program", inst.AccountMetaSlice.Get(16)))
 						accountsBranch.Child(ag_format.Meta("       coin_creator_vault_ata", inst.AccountMetaSlice.Get(17)))
 						accountsBranch.Child(ag_format.Meta(" coin_creator_vault_authority", inst.AccountMetaSlice.Get(18)))
+						accountsBranch.Child(ag_format.Meta("       global_volume_accumulator", inst.AccountMetaSlice.Get(19)))
+						accountsBranch.Child(ag_format.Meta("       user_volume_accumulator", inst.AccountMetaSlice.Get(20)))
+						accountsBranch.Child(ag_format.Meta("                 fee_config", inst.AccountMetaSlice.Get(21)))
+						accountsBranch.Child(ag_format.Meta("                 fee_program", inst.AccountMetaSlice.Get(22)))
 					})
 				})
 		})
@@ -697,7 +739,11 @@ func NewBuyInstruction(
 	eventAuthority ag_solanago.PublicKey,
 	program ag_solanago.PublicKey,
 	coinCreatorVaultAta ag_solanago.PublicKey,
-	coinCreatorVaultAuthority ag_solanago.PublicKey) *Buy {
+	coinCreatorVaultAuthority ag_solanago.PublicKey,
+	globalVolumeAccumulator ag_solanago.PublicKey,
+	userVolumeAccumulator ag_solanago.PublicKey,
+	feeConfig ag_solanago.PublicKey,
+	feeProgram ag_solanago.PublicKey) *Buy {
 	return NewBuyInstructionBuilder().
 		SetBaseAmountOut(base_amount_out).
 		SetMaxQuoteAmountIn(max_quote_amount_in).
@@ -719,5 +765,9 @@ func NewBuyInstruction(
 		SetEventAuthorityAccount(eventAuthority).
 		SetProgramAccount(program).
 		SetCoinCreatorVaultAtaAccount(coinCreatorVaultAta).
-		SetCoinCreatorVaultAuthorityAccount(coinCreatorVaultAuthority)
+		SetCoinCreatorVaultAuthorityAccount(coinCreatorVaultAuthority).
+		SetGlobalVolumeAccumulatorAccount(globalVolumeAccumulator).
+		SetUserVolumeAccumulatorAccount(userVolumeAccumulator).
+		SetFeeConfigAccount(feeConfig).
+		SetFeeProgramAccount(feeProgram)
 }

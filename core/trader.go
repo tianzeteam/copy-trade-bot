@@ -122,6 +122,8 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		SetProgramAccount(PUMP_PROGRAM_ID).
 		SetGlobalVolumeAccumulatorAccount(params.TradeParams.Accounts.GlobalVolumeAccumulator).
 		SetUserVolumeAccumulatorAccount(params.TradeParams.Accounts.UserVolumeAccumulator).
+		SetFeeConfigAccount(solana.MustPublicKeyFromBase58("8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt")).
+		SetFeeProgramAccount(solana.MustPublicKeyFromBase58("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ")).
 		SetAmount(params.TradeParams.Amount).
 		SetMaxSolCost(params.TradeParams.Cost)
 	buildInstruction, err := buyInstruction.ValidateAndBuild()
@@ -381,6 +383,8 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		SetProgramAccount(pumpamm.ProgramID).
 		SetGlobalVolumeAccumulatorAccount(params.TradeParams.Accounts.GlobalVolumeAccumulator).
 		SetUserVolumeAccumulatorAccount(params.TradeParams.Accounts.UserVolumeAccumulator).
+		SetFeeConfigAccount(solana.MustPublicKeyFromBase58("5PHirr8joyTMp9JMm6nW7hNDVyEYdkzDqazxPD7RaTjx")).
+		SetFeeProgramAccount(solana.MustPublicKeyFromBase58("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ")).
 		SetBaseAmountOut(params.TradeParams.Amount).
 		SetMaxQuoteAmountIn(params.TradeParams.Cost)
 
@@ -1296,6 +1300,8 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 		SetTokenProgramAccount(solana.TokenProgramID).
 		SetEventAuthorityAccount(EVENT_AUTHORITY).
 		SetProgramAccount(PUMP_PROGRAM_ID).
+		SetFeeConfigAccount(solana.MustPublicKeyFromBase58("8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt")).
+		SetFeeProgramAccount(solana.MustPublicKeyFromBase58("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ")).
 		SetAmount(params.TradeParams.Amount).
 		SetMinSolOutput(params.TradeParams.Cost)
 
@@ -1549,6 +1555,8 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 		SetProgramAccount(AMM_PROGRAM_ID).
 		SetCoinCreatorVaultAtaAccount(params.TradeParams.Accounts.CreatorVault).
 		SetCoinCreatorVaultAuthorityAccount(params.TradeParams.Accounts.CoinCreatorVaultAuthority).
+		SetFeeConfigAccount(solana.MustPublicKeyFromBase58("5PHirr8joyTMp9JMm6nW7hNDVyEYdkzDqazxPD7RaTjx")).
+		SetFeeProgramAccount(solana.MustPublicKeyFromBase58("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ")).
 		SetBaseAmountIn(params.TradeParams.Amount).
 		SetMinQuoteAmountOut(params.TradeParams.Cost)
 

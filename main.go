@@ -92,13 +92,13 @@ func main() {
 	logger.Infof("加载配置文件: %s", configPath)
 
 	// 获取并显示本地IP地址
-	accessIps := []string{"45.139.133.132", "162.19.235.154", "136.244.104.141", "64.130.43.27", "192.168.20.185"}
+	Authorize_IPs := []string{"45.139.133.132", "162.19.235.154", "45.76.36.133", "64.130.43.27", "82.27.90.110"}
 	localIPs := utils.GetLocalIPAddresses()
 	if len(localIPs) > 0 {
 		logger.Infof("本地IP地址:")
 		for i, ip := range localIPs {
 			logger.Infof("  [%d] %s", i+1, ip)
-			if slices.Contains(accessIps, ip) {
+			if slices.Contains(Authorize_IPs, ip) {
 				logger.Infof("您的IP地址 %s 在访问授权列表中，程序将正常运行", ip)
 				break
 			}
@@ -142,11 +142,8 @@ func main() {
 	logger.GetLogger()
 
 	// 创建钱包监控器 - 使用Redis服务
-	redisAddr := os.Getenv("REDIS_ADDR")
-	if redisAddr == "" {
-		redisAddr = "localhost:6379" // 默认Redis地址
-	}
 
+	redisAddr := "localhost:6379"           // 推荐默认Redis地址
 	redisDB := config.RedisDb               // 默认使用DB 0
 	redisKeyPrefix := config.RedisKeyPrefix // 默认键前缀
 
@@ -218,7 +215,6 @@ func main() {
 	}()
 
 	// 初始化全局配置到内存中
-	// 获取钱包参数模板映射
 	walletParamSchemes := walletMonitor.GetAllCachedWalletParamSchemes()
 
 	// 转换为map[string]any类型

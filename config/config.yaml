@@ -100,6 +100,7 @@ blockrazor:
     sell_tip: 0.001
     enable: false
     mode: "fast"
+    #rpc_url: http://newyork.solana.blockrazor.xyz:443/sendTransaction
     health_endpoint: http://frankfurt.solana.blockrazor.xyz:443/health
     rpc_url: http://frankfurt.solana.blockrazor.xyz:443/sendTransaction
     api_keys:
