@@ -208,7 +208,7 @@ func (b *Bot) WrapLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 	innerInstructions := out.GetTransaction().Transaction.Meta.InnerInstructions
 
 	tradeInfo := b.parseLaunchpadTransaction(accountList, innerInstructions, mintAddress, claimPlatformFee, claimCreatorFee, userPubkey, isBuy, _signature)
-	botWallet := b.privateKey.PublicKey()
+	botWallet := global.GetConfig().TradeWalletKey.PublicKey()
 
 	if tradeInfo == nil {
 		logger.Debugf("未找到交易信息，跳过 %s", _signature)
@@ -359,7 +359,7 @@ func (b *Bot) RaydiumLaunchpadParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 	tradeInfo = b.parseLaunchpadTransaction(accountList, innerInstructions, mintAddress, claimPlatformFee, claimCreatorFee, userPk, isBuy, _signature)
 
 	// 处理AMM交易信息
-	botWallet := b.privateKey.PublicKey()
+	botWallet := global.GetConfig().TradeWalletKey.PublicKey()
 
 	if tradeInfo != nil {
 		global.SetLaunchpadTradeInfo(mintAddress, tradeInfo)

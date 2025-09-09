@@ -27,7 +27,7 @@ func (b *Bot) parsePhotonRouterAmmTransaction(logMessages []string, mintAddress 
 	// 使用pumpamm包中的事件解析功能
 	events, err := pumpamm.DecodeEventsInLogs(logMessages)
 	if err != nil {
-		logger.Errorf("解析PhotonRouter AMM事件失败: %v", err)
+		logger.Debugf("解析PhotonRouter AMM事件失败: %v", err)
 		return nil
 	}
 
@@ -208,7 +208,7 @@ func (b *Bot) PhotonRouterPumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, 
 			}
 
 			// 获取基本信息
-			botWallet := b.privateKey.PublicKey()
+			botWallet := global.GetConfig().TradeWalletKey.PublicKey()
 			mintAddress := tradeEvent.Mint.String()
 			currentPrice := float64(tradeEvent.VirtualSolReserves/1e9) / float64(tradeEvent.VirtualTokenReserves/1e6)
 
@@ -370,7 +370,8 @@ func (b *Bot) PhotonRouterAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, c
 
 	// 处理AMM交易信息
 	tradeInfo := b.parsePhotonRouterAmmTransaction(logMessages, mintAddress)
-	botWallet := b.privateKey.PublicKey()
+
+	botWallet := global.GetConfig().TradeWalletKey.PublicKey()
 
 	if tradeInfo == nil {
 		logger.Debugf("未找到交易信息，跳过 %s", _signature)

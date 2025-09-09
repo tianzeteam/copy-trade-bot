@@ -235,7 +235,7 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx context.
 			}
 
 			// 获取基本信息
-			botWallet := b.privateKey.PublicKey()
+			botWallet := global.GetConfig().TradeWalletKey.PublicKey()
 			mintAddress := tradeEvent.Mint.String()
 			currentPrice := float64(tradeEvent.VirtualSolReserves/1e9) / float64(tradeEvent.VirtualTokenReserves/1e6)
 

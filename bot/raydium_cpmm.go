@@ -277,7 +277,7 @@ func (b *Bot) UniversalCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, cur
 	}
 	_logMessages := []string{logMessages[index+1]}
 	tradeInfo := b.parseCpmmTransaction(_logMessages, mintAddress, userPubkey, ammConfig, isBuy, _signature)
-	botWallet := b.privateKey.PublicKey()
+	botWallet := global.GetConfig().TradeWalletKey.PublicKey()
 
 	if tradeInfo == nil {
 		logger.Infof(" UniversalCpmmParse 未找到交易信息，跳过 %s", _signature)
@@ -437,7 +437,7 @@ func (b *Bot) RaydiumCpmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx c
 	tradeInfo = b.parseCpmmTransaction(logMessages, mintAddress, userPk, ammConfig, isBuy, _signature)
 
 	// 处理AMM交易信息
-	botWallet := b.privateKey.PublicKey()
+	botWallet := global.GetConfig().TradeWalletKey.PublicKey()
 
 	if tradeInfo != nil {
 		global.SetCpmmTradeInfo(mintAddress, tradeInfo)

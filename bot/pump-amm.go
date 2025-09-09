@@ -209,7 +209,7 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx conte
 	// 处理AMM交易信息
 	tradeInfo := b.parseAmmTransaction(logMessages, mintAddress, tradeDirection)
 
-	botWallet := b.privateKey.PublicKey()
+	botWallet := global.GetConfig().TradeWalletKey.PublicKey()
 
 	if tradeInfo == nil {
 		return nil

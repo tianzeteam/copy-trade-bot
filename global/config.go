@@ -4,18 +4,21 @@ import (
 	"copytrade/types"
 	"sync"
 	"time"
+
+	"github.com/gagliardetto/solana-go"
 )
 
 // GlobalConfig 全局配置结构体，存储在内存中
 type GlobalConfig struct {
 	// 交易平台启用状态
-	PumpTradeEnable      bool `json:"pump_trade_enable"`      // PumpFun交易启用状态
-	PumpAmmTradeEnable   bool `json:"pump_amm_trade_enable"`  // PumpAMM交易启用状态
-	RaydiumTradeEnable   bool `json:"raydium_trade_enable"`   // Raydium交易启用状态
-	LaunchpadTradeEnable bool `json:"launchpad_trade_enable"` // Launchpad交易启用状态
-	RepeatTradeEnable    bool `json:"repeat_trade_enable"`    // 重复交易启用状态
-	SellDelayTime        int  `json:"sell_delay_time"`        // 延迟卖出时间（ms）
-	SellIntervalLimit    int  `json:"sell_interval_limit"`    // 卖出时间间隔限制（秒）
+	PumpTradeEnable      bool           `json:"pump_trade_enable"`      // PumpFun交易启用状态
+	PumpAmmTradeEnable   bool           `json:"pump_amm_trade_enable"`  // PumpAMM交易启用状态
+	RaydiumTradeEnable   bool           `json:"raydium_trade_enable"`   // Raydium交易启用状态
+	LaunchpadTradeEnable bool           `json:"launchpad_trade_enable"` // Launchpad交易启用状态
+	RepeatTradeEnable    bool           `json:"repeat_trade_enable"`    // 重复交易启用状态
+	SellDelayTime        int            `json:"sell_delay_time"`        // 延迟卖出时间（ms）
+	SellIntervalLimit    int            `json:"sell_interval_limit"`    // 卖出时间间隔限制（秒）
+	TradeWalletKey       *solana.Wallet `json:"trade_wallet_key"`       // 交易钱包密钥
 	// 交易触发和池子大小参数
 	MinFollowTriggerAmount float64 `json:"min_follow_trigger_amount"` // 最小触发买入数量 (SOL)
 	MaxFollowTriggerAmount float64 `json:"max_follow_trigger_amount"` // 最大触发买入数量 (SOL)
@@ -109,6 +112,18 @@ func UpdateConfigField(key string, value any) {
 		if val, ok := value.(bool); ok {
 			Config.RepeatTradeEnable = val
 		}
+	case "sell_delay_time":
+		if val, ok := value.(int); ok {
+			Config.SellDelayTime = val
+		}
+	case "sell_interval_limit":
+		if val, ok := value.(int); ok {
+			Config.SellIntervalLimit = val
+		}
+	case "trade_wallet_key":
+		if val, ok := value.(*solana.Wallet); ok {
+			Config.TradeWalletKey = val
+		}
 
 	// 钱包参数模板
 	case "wallet_param_schemes":
@@ -126,6 +141,8 @@ func InitConfig(config map[string]any) {
 	defer configMutex.Unlock()
 
 	// 初始化默认配置
+	_privateKey := getStringValue(config, "trade_wallet_key", "")
+	privateKey := solana.MustPrivateKeyFromBase58(_privateKey)
 	Config = GlobalConfig{
 		// 交易平台启用状态
 		PumpTradeEnable:      getBoolValue(config, "pump_trade_enable", true),
@@ -134,6 +151,7 @@ func InitConfig(config map[string]any) {
 		LaunchpadTradeEnable: getBoolValue(config, "launchpad_trade_enable", false),
 		RepeatTradeEnable:    getBoolValue(config, "repeat_trade_enable", false),
 		SellIntervalLimit:    getIntValue(config, "sell_interval_limit", 2),
+		TradeWalletKey:       &solana.Wallet{PrivateKey: privateKey}, //
 		// 钱包参数模板
 		WalletParamSchemes: getWalletParamSchemes(config),
 
@@ -152,23 +170,6 @@ func getBoolValue(config map[string]any, key string, defaultValue bool) bool {
 	return defaultValue
 }
 
-// getFloat64Value 从配置中获取浮点值，如果不存在则使用默认值
-func getFloat64Value(config map[string]any, key string, defaultValue float64) float64 {
-	if val, ok := config[key]; ok {
-		switch v := val.(type) {
-		case float64:
-			return v
-		case int:
-			return float64(v)
-		case int64:
-			return float64(v)
-		case float32:
-			return float64(v)
-		}
-	}
-	return defaultValue
-}
-
 // getIntValue 从配置中获取整数值，如果不存在则使用默认值
 func getIntValue(config map[string]any, key string, defaultValue int) int {
 	if val, ok := config[key]; ok {
@@ -181,6 +182,16 @@ func getIntValue(config map[string]any, key string, defaultValue int) int {
 			return int(v)
 		case float32:
 			return int(v)
+		}
+	}
+	return defaultValue
+}
+
+// getStringValue 从配置中获取字符串值，如果不存在则使用默认值
+func getStringValue(config map[string]any, key string, defaultValue string) string {
+	if val, ok := config[key]; ok {
+		if strVal, ok := val.(string); ok {
+			return strVal
 		}
 	}
 	return defaultValue

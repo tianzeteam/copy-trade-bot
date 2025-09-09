@@ -9,27 +9,20 @@ import (
 
 	"copytrade/asset"
 	"copytrade/bot"
-	"copytrade/core"
 	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/queue"
 	"copytrade/sdk"
-
-	//"copytrade/sdk"
+	"copytrade/stream"
 	"copytrade/subscribe"
 	"copytrade/utils"
 	"copytrade/wallet"
 	"copytrade/web"
 
-	goyser "copytrade/yellowstone_geyser"
-	yellowstone_geyser_pb "copytrade/yellowstone_geyser/pb"
-
 	"slices"
 
-	"github.com/gagliardetto/solana-go"
 	"github.com/go-redis/redis/v8"
 	_ "github.com/joho/godotenv/autoload"
-	"github.com/mr-tron/base58"
 )
 
 var (
@@ -55,7 +48,6 @@ func processWaitingSellTokens(tradeBot *bot.Bot) {
 		mintAddress := tokenInfo.Mint.String()
 		platform := tokenInfo.Platform
 		if platform == "pumpamm" {
-			//@TODO 使用多级卖出策略
 			go tradeBot.ExecuteAmmSellOrder(tokenInfo)
 			continue
 		} else if platform == "pumpfun" {
@@ -73,15 +65,12 @@ func processWaitingSellTokens(tradeBot *bot.Bot) {
 			go tradeBot.ExecuteSellOrder(tokenInfo, vTokenReserves, vSolReserves)
 
 		} else if platform == "raydiumV4" {
-
 			go tradeBot.ExecuteRaydiumV4SellOrder(tokenInfo)
-
 		} else if platform == "launchpad" {
 			go tradeBot.ExecuteRaydiumLaunchpadSellOrder(tokenInfo)
 		} else if platform == "cpmm" {
 			go tradeBot.ExecuteCpmmSellOrder(tokenInfo)
 		}
-
 	}
 }
 
@@ -92,7 +81,7 @@ func main() {
 	logger.Infof("加载配置文件: %s", configPath)
 
 	// 获取并显示本地IP地址
-	Authorize_IPs := []string{"45.139.133.132", "162.19.235.154", "45.76.36.133", "64.130.43.27", "82.27.90.110"}
+	Authorize_IPs := []string{"162.19.235.154", "45.76.36.133", "192.168.103.252"}
 	localIPs := utils.GetLocalIPAddresses()
 	if len(localIPs) > 0 {
 		logger.Infof("本地IP地址:")
@@ -141,15 +130,14 @@ func main() {
 	// Initialize global logger
 	logger.GetLogger()
 
-	// 创建钱包监控器 - 使用Redis服务
-
-	redisAddr := "localhost:6379"           // 推荐默认Redis地址
-	redisDB := config.RedisDb               // 默认使用DB 0
-	redisKeyPrefix := config.RedisKeyPrefix // 默认键前缀
+	// 创建Redis客户端
+	redisAddr := "localhost:6379"
+	redisDB := config.RedisDb
+	redisKeyPrefix := config.RedisKeyPrefix
 
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     redisAddr,
-		Password: "", // Redis没有密码
+		Password: "",
 		DB:       redisDB,
 	})
 
@@ -159,6 +147,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// 创建钱包监控器
 	logger.Infof("使用Redis创建钱包监控器: %s", redisAddr)
 	walletMonitor, err = wallet.CreateWalletMonitorFromRedis(redisAddr, redisDB, redisKeyPrefix)
 	if err != nil {
@@ -166,19 +155,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 设置全局钱包监控器实例，供其他包使用
+	// 设置全局钱包监控器实例
 	global.SetWalletMonitor(walletMonitor)
 	logger.Infof("已设置全局钱包监控器实例")
 
-	// get the geyser rpc address
-	grpcUrl := config.GRPCUrl
-
-	// create geyser client
-	client, err := goyser.New(context.Background(), grpcUrl, nil)
-	if err != nil {
-		logger.Fatalf("创建geyser客户端失败: %v", err)
-	}
-
+	// 创建交易机器人
 	tradeBot, err = bot.NewBot(config, subscriptionClient)
 	if err != nil {
 		logger.Fatalf("创建交易机器人失败: %v", err)
@@ -188,377 +169,67 @@ func main() {
 	// 创建交易监控器
 	transactionMonitor = wallet.NewTransactionMonitor(tradeBot, walletMonitor, tradeBot.GetWalletPublicKey(), config.BuySolAmount)
 
-	// 启动钱包监控、参数模板刷新服务
+	// 启动钱包监控
 	ctx := context.Background()
-
 	walletMonitor.StartMonitoring(ctx)
 
 	// 启动处理卖出请求的goroutine
 	go processWaitingSellTokens(tradeBot)
 
-	// 创建Redis发布/订阅服务
+	//---------------------- 启动Redis交易消息订阅服务-------------------------------
 	tradeChannel := config.TradeChannel
 	if tradeChannel == "" {
-		tradeChannel = "flashtrade:trade" // 默认交易通道
+		tradeChannel = "flashtrade:trade"
 	}
-
 	logger.Infof("创建Redis发布/订阅服务: %s, 通道: %s", redisAddr, tradeChannel)
-	pubSubService, err := subscribe.NewRedisPubSubService(redisClient, tradeChannel, transactionMonitor)
+	delayChannelService, err := subscribe.NewRedisPubSubService(redisClient, tradeChannel, transactionMonitor)
 	if err != nil {
 		logger.Errorf("创建Redis发布/订阅服务失败: %v", err)
 		os.Exit(1)
 	}
-	// 启动Redis交易消息订阅服务
-	go func() {
-		logger.Infof("启动Redis交易消息订阅服务...")
-		pubSubService.StartSubscription()
-	}()
 
-	// 初始化全局配置到内存中
+	go delayChannelService.StartSubscription()
+
+	//----------------------- 初始化全局配置到内存中 ----------------------
 	walletParamSchemes := walletMonitor.GetAllCachedWalletParamSchemes()
-
-	// 转换为map[string]any类型
 	walletParamsMap := make(map[string]any)
 	for walletAddr, scheme := range walletParamSchemes {
 		walletParamsMap[walletAddr] = scheme
 	}
 
 	configMap := map[string]any{
-		// 交易平台启用状态
-		"pump_trade_enable":      config.PumpTradeEnable,      // PumpFun交易启用
-		"pump_amm_trade_enable":  config.PumpAmmTradeEnable,   // PumpAMM交易禁用
-		"raydium_trade_enable":   config.RaydiumTradeEnable,   // Raydium交易禁用
-		"launchpad_trade_enable": config.LaunchpadTradeEnable, // Launchpad交易禁用
-		"repeat_trade_enable":    config.RepeatTradeEnable,    // 重复交易禁用
-
-		// 钱包参数模板映射
-		"wallet_param_schemes": walletParamsMap,
+		"pump_trade_enable":      config.PumpTradeEnable,
+		"pump_amm_trade_enable":  config.PumpAmmTradeEnable,
+		"raydium_trade_enable":   config.RaydiumTradeEnable,
+		"launchpad_trade_enable": config.LaunchpadTradeEnable,
+		"repeat_trade_enable":    config.RepeatTradeEnable,
+		"trade_wallet_key":       config.PrivateKey,
+		"wallet_param_schemes":   walletParamsMap,
 	}
 
 	global.InitConfig(configMap)
 	logger.Infof("成功将配置参数初始化到内存中，包含 %d 个钱包参数模板", len(walletParamsMap))
 
-	// 初始化资产管理器并启动自动更新服务
+	//------------------- 初始化资产管理器 ----------------------
 	balanceManager := asset.InitBalanceManager(
 		tradeBot.GetWalletPublicKey().String(),
 		config.RPCUrl,
-		5*time.Minute, // 每5分钟更新一次余额
+		10*time.Minute,
 	)
 	balanceManager.StartAutoUpdate(ctx)
 
-	// 启动交易监控
-	logger.Infof("启动钱包监控服务，监控 %d 个钱包", len(walletMonitor.Wallets))
+	//-------------------创建流管理器 - 交易数据订阅核心组件----------------------
+	streamManager := stream.NewStreamManager(config.GRPCUrl, tradeBot, transactionMonitor, walletMonitor, balanceManager)
 
-	// 启动Web服务器（在单独的goroutine中运行）
+	if err := streamManager.Start(); err != nil {
+		logger.Fatalf("启动流管理器失败: %v", err)
+	}
+	logger.Infof("系统启动完成，流管理器状态: %v", streamManager.GetStatus())
+	//---------------------------------------------------------------------------
+
+	// 启动Web服务器
 	go web.StartServer(config, configPath, walletMonitor.RedisService)
 
-	if err = client.AddStreamClient(ctx, "mint_stream", yellowstone_geyser_pb.CommitmentLevel_PROCESSED); err != nil {
-		logger.Fatalf("添加流客户端失败: %v", err)
-		return
-	}
-
-	// get the stream client
-	mintStreamClient := client.GetStreamClient("mint_stream")
-	if mintStreamClient == nil {
-		logger.Fatal("客户端没有名为mint_stream的流")
-		return
-	}
-
-	isVote := false
-	isFailed := false
-
-	// subscribe to the account you want to see txns from and set a custom filter name to filter them out later
-	if err = mintStreamClient.SubscribeTransaction("transaction_stream", &yellowstone_geyser_pb.SubscribeRequestFilterTransactions{
-		Vote:           &isVote,
-		Failed:         &isFailed,
-		AccountInclude: []string{core.PUMP_PROGRAM_ID.String(), core.AMM_PROGRAM_ID.String(), core.RAYDIUM_V4_PROGRAM_ID.String(), core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String(), core.RAYDIUM_CPMM_PROGRAM_ID.String(), core.PHOTON_ROUTER_PROGRAM_ID.String(), core.OKX_ROUTER_V2_PROGRAM_ID.String()},
-	}); err != nil {
-		logger.Fatalf("订阅交易失败: %v", err)
-		return
-	}
-	startPingService(mintStreamClient)
-	botPrivateKey := solana.MustPrivateKeyFromBase58(config.PrivateKey)
-
-	// 使用goroutine处理mintStreamClient.Ch，避免阻塞主进程
-	go func() {
-		for out := range mintStreamClient.Ch {
-			// Check if out is nil before accessing its methods
-			if out == nil {
-				logger.Warn("Received nil update from stream")
-				continue
-			}
-
-			if out.GetTransaction() == nil {
-				logger.Debugf("Received update with nil transaction")
-				continue
-			}
-
-			innerInstructions := out.GetTransaction().Transaction.Meta.InnerInstructions
-
-			accountsAddress := tradeBot.GetAccountList(out)
-			var innerProgramID string = "nativeProgramID"
-			var currentInstruction *yellowstone_geyser_pb.InnerInstruction
-
-			//_signature := base58.Encode(out.GetTransaction().Transaction.Transaction.Signatures[0])
-
-			for _, innerInstruction := range innerInstructions {
-
-				instructions := innerInstruction.Instructions
-
-				for _, instruction := range instructions {
-
-					programIndex := instruction.ProgramIdIndex
-
-					if programIndex >= uint32(len(accountsAddress)) {
-						logger.Debugf("programIndex >= uint32(len(accountKeys))")
-						continue
-					}
-					innerProgramID = accountsAddress[programIndex]
-					if innerProgramID == core.PUMP_PROGRAM_ID.String() || innerProgramID == core.AMM_PROGRAM_ID.String() || innerProgramID == core.RAYDIUM_V4_PROGRAM_ID.String() || innerProgramID == core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String() || innerProgramID == core.RAYDIUM_CPMM_PROGRAM_ID.String() {
-						currentInstruction = instruction
-						break
-					}
-				}
-			}
-
-			if slices.Contains(accountsAddress, core.PUMP_PROGRAM_ID.String()) || innerProgramID == core.PUMP_PROGRAM_ID.String() {
-				if !global.GetConfig().PumpTradeEnable {
-					logger.Debugf("pump trade is disabled")
-					continue
-				}
-				var tradeInfo *global.TradeEventInfo
-				if innerProgramID == core.PUMP_PROGRAM_ID.String() {
-					tradeInfo = tradeBot.PhotonRouterPumpParse(out, currentInstruction, ctx)
-				} else {
-					tradeInfo = tradeBot.PumpParse(out, ctx)
-				}
-				if tradeInfo != nil && transactionMonitor != nil {
-					if tradeInfo.IsBuy {
-						go transactionMonitor.ProcessTransaction(tradeInfo)
-					} else {
-						go transactionMonitor.ProcessSellTransaction(tradeInfo)
-					}
-					go walletMonitor.CheckExitConditions("pumpfun", tradeInfo.MintAddress, tradeInfo.CurrentPrice)
-
-					continue
-
-				}
-
-			}
-
-			if slices.Contains(accountsAddress, core.AMM_PROGRAM_ID.String()) || innerProgramID == core.AMM_PROGRAM_ID.String() {
-				// 处理AMM交易信息
-				if !global.GetConfig().PumpAmmTradeEnable {
-					logger.Debugf("pumpamm trade is disabled")
-					continue
-				}
-				var ammTradeInfo *global.AmmTradeEventInfo
-				ammTradeInfo = tradeBot.PumpAmmParse(out, ctx)
-
-				if ammTradeInfo == nil && innerProgramID == core.AMM_PROGRAM_ID.String() {
-					ammTradeInfo = tradeBot.PhotonRouterAmmParse(out, currentInstruction, ctx)
-				}
-
-				// 处理钱包监控AMM交易
-				if ammTradeInfo != nil && transactionMonitor != nil {
-					if ammTradeInfo.IsBuy {
-						go transactionMonitor.ProcessAmmTransaction(ammTradeInfo)
-					} else {
-						go transactionMonitor.ProcessAmmSellTransaction(ammTradeInfo)
-					}
-					go walletMonitor.CheckExitConditions("pumpamm", ammTradeInfo.MintAddress.String(), ammTradeInfo.CurrentPrice)
-
-				}
-				continue
-
-			}
-
-			if slices.Contains(accountsAddress, core.RAYDIUM_V4_PROGRAM_ID.String()) {
-				if !global.GetConfig().RaydiumTradeEnable {
-					logger.Debugf("raydium trade is disabled")
-					continue
-				}
-				raydiumV4TradeInfo := tradeBot.RaydiumV4Parse(out, ctx)
-
-				// 处理钱包监控AMM交易
-				if raydiumV4TradeInfo != nil && transactionMonitor != nil {
-					marketId := raydiumV4TradeInfo.MarketId
-					marketLayout := global.GetOpenBookMarketState(marketId.String())
-					if marketLayout == nil {
-						logger.Warnf(" marketLayout dont exist %s", marketId.String())
-						continue
-					}
-					poolId := raydiumV4TradeInfo.AmmPool
-					poolLayout := global.GetRaydiumPoolLayout(poolId.String())
-					if poolLayout == nil {
-						logger.Warnf(" poolLayout dont exist %s", poolId.String())
-						continue
-					}
-					if raydiumV4TradeInfo.IsBuy {
-						go transactionMonitor.ProcessRaydiumV4Transaction(raydiumV4TradeInfo, marketLayout, poolLayout)
-					} else {
-						go transactionMonitor.ProcessRaydiumV4SellTransaction(raydiumV4TradeInfo, marketLayout, poolLayout)
-					}
-					go walletMonitor.CheckExitConditions("raydiumV4", raydiumV4TradeInfo.MintAddress.String(), raydiumV4TradeInfo.CurrentPrice)
-					continue
-				}
-
-			}
-			if slices.Contains(accountsAddress, core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String()) || innerProgramID == core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String() {
-				if !global.GetConfig().LaunchpadTradeEnable {
-					logger.Debugf("launchpad trade is disabled")
-					continue
-				}
-				//logger.Infof("outer 11111交易签名: %s ,%s", _signature, innerProgramID)
-				var launchpadTradeInfo *global.LaunchpadTradeEventInfo
-
-				launchpadTradeInfo = tradeBot.RaydiumLaunchpadParse(out, ctx)
-				if launchpadTradeInfo == nil && innerProgramID == core.RAYDIUM_LAUNCHPAD_PROGRAM_ID.String() {
-					launchpadTradeInfo = tradeBot.WrapLaunchpadParse(out, currentInstruction, ctx)
-				}
-
-				if launchpadTradeInfo != nil && transactionMonitor != nil {
-					if launchpadTradeInfo.IsBuy {
-						go transactionMonitor.ProcessLaunchpadTransaction(launchpadTradeInfo)
-					} else {
-						go transactionMonitor.ProcessLaunchpadSellTransaction(launchpadTradeInfo)
-					}
-					go walletMonitor.CheckExitConditions("launchpad", launchpadTradeInfo.MintAddress.String(), launchpadTradeInfo.CurrentPrice)
-					continue
-
-				}
-
-			}
-			if slices.Contains(accountsAddress, core.RAYDIUM_CPMM_PROGRAM_ID.String()) || innerProgramID == core.RAYDIUM_CPMM_PROGRAM_ID.String() {
-				if !global.GetConfig().LaunchpadTradeEnable {
-					logger.Debugf("cpmm trade is disabled")
-					continue
-				}
-				var cpmmTradeInfo *global.CPMMTradeEventInfo
-
-				if innerProgramID == core.RAYDIUM_CPMM_PROGRAM_ID.String() {
-					cpmmTradeInfo = tradeBot.UniversalCpmmParse(out, currentInstruction, ctx)
-				} else {
-					cpmmTradeInfo = tradeBot.RaydiumCpmmParse(out, ctx)
-				}
-
-				if cpmmTradeInfo != nil && transactionMonitor != nil {
-					if cpmmTradeInfo.IsBuy {
-						go transactionMonitor.ProcessCpmmTransaction(cpmmTradeInfo)
-					} else {
-						go transactionMonitor.ProcessCpmmSellTransaction(cpmmTradeInfo)
-					}
-					go walletMonitor.CheckExitConditions("cpmm", cpmmTradeInfo.MintAddress.String(), cpmmTradeInfo.CurrentPrice)
-					continue
-
-				}
-
-			}
-
-		}
-	}()
-	// -----------------------------------------订阅open market data ----------------------------------
-	tradeBot.SubscribeToOpenBookMarkets(ctx, client, solana.SolMint)
-
-	// -------------------------------------------订阅raydium pool v4 data--------------------------
-	tradeBot.SubscribeToRaydiumPools(ctx, client, solana.SolMint)
-
-	//-----------------------------  监听交易钱包账户变化 --------------------------------------------
-	if err = client.AddStreamClient(ctx, "accounts_stream", yellowstone_geyser_pb.CommitmentLevel_PROCESSED); err != nil {
-		logger.Fatalf("添加账户流客户端失败: %v", err)
-	}
-
-	accountsStreamClient := client.GetStreamClient("accounts_stream")
-	if accountsStreamClient == nil {
-		logger.Fatal("客户端没有名为accounts_stream的流")
-	}
-	logger.Infof("开始监控钱包账号资产变更: %s", botPrivateKey.PublicKey().String())
-
-	// 创建数据大小过滤器 - SPL代币账户的标准大小为165字节
-	datasizeFilter := &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilter{
-		Filter: &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilter_Datasize{
-			Datasize: 165,
-		},
-	}
-
-	// 创建内存比较过滤器 - 检查偏移量32处的所有者是否为我们的钱包
-	memcmpFilter := &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilter{
-		Filter: &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilter_Memcmp{
-			Memcmp: &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilterMemcmp{
-				Offset: 32,
-				Data: &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilterMemcmp_Base58{
-					Base58: botPrivateKey.PublicKey().String(),
-				},
-			},
-		},
-	}
-
-	// 订阅代币账户
-	if err = accountsStreamClient.SubscribeAccounts("token_accounts_stream", &yellowstone_geyser_pb.SubscribeRequestFilterAccounts{
-		Owner: []string{solana.TokenProgramID.String()}, // 只监控Token Program拥有的账户
-		Filters: []*yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilter{
-			datasizeFilter, // 数据大小过滤器
-			memcmpFilter,   // 内存比较过滤器
-		},
-	}); err != nil {
-		logger.Fatalf("订阅账户失败: %v", err)
-	}
-	startPingService(accountsStreamClient)
-	// loop through the stream and print the output
-	go func() {
-		for out := range accountsStreamClient.Ch {
-			account := out.GetAccount()
-			if account == nil {
-				continue
-			}
-			// 获取账户公钥
-			userPubkey := base58.Encode(account.Account.Pubkey)
-			logger.Debugf("收到账户更新: %s", userPubkey)
-			// 获取账户所有者
-			owner := base58.Encode(account.Account.Owner)
-			//logger.Infof("账户所有者: %s", owner)
-			// 获取账户数据
-			accountData := account.Account.GetData()
-			if len(accountData) == 0 {
-				logger.Warnf("账户数据为空: %s", base58.Encode(accountData[:]))
-				continue
-			}
-
-			// 获取账户余额
-			preSolBalance := balanceManager.GetSolBalanceValue()
-			lamports := account.Account.Lamports
-			solBalance := float64(lamports) / 1e9
-			changeSolBalance := preSolBalance - solBalance
-			logger.Debugf("owner:%s ,账号地址:%s,变化前账号余额：%.8f,当前账户余额: %.8f ,sol变化: %.8f SOL (%d lamports)", owner, userPubkey, preSolBalance, solBalance, changeSolBalance, lamports)
-			if changeSolBalance != 0 {
-				balanceManager.UpdateSolBalance()
-			} else {
-				logger.Debugf("SOL余额未变化，跳过更新")
-				continue
-			}
-
-		}
-	}()
-
+	// 保持主程序运行
 	select {}
-}
-
-// startPingService 启动一个定时ping服务，保持与服务器的连接活跃
-func startPingService(streamClient *goyser.StreamClient) {
-	go func() {
-		ticker := time.NewTicker(time.Second * 15)
-		defer ticker.Stop()
-		for range ticker.C {
-			lastPingTime := time.Now()
-			err := streamClient.SendCustomRequest(&yellowstone_geyser_pb.SubscribeRequest{
-				Ping: &yellowstone_geyser_pb.SubscribeRequestPing{},
-			})
-			if err != nil {
-				logger.Errorf("发送 ping 失败: %v", err)
-				continue
-			}
-
-			logger.Infof("发送 ping - 时间:%v", lastPingTime.Format("15:04:05.000"))
-		}
-	}()
 }

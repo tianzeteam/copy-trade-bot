@@ -1,20 +1,17 @@
 create_nonce_account: false
 nonce_account_pubkey: GgTBxk6r1jyi6QUiUCP7ufvonufBDRS6D3RoRUFnZ7go
 simulate_mode: false
-private_key: 5R43ad3yR69PoiiEuM2EX2pQBH7drVXuqEYbXBEdRev5XyVQDqPR254EP6GJt6avNZytDiTMk86dKVESgb7USr5r
+private_key: yZDBsZwwtmUBXTuVCREteDpf6AwyeEoF5TiUYE5Tdxr2Y9SuU1GMSTNVPNcDzLoQKrLtn26rGtNPZJyZcWmWNqU
 grpc_url: https://solana-yellowstone-grpc.publicnode.com:443
 rpc_url: https://mainnet.helius-rpc.com/?api-key=dc537a21-36c2-4a5f-bcf8-90ae704fbbfc
 redis_db: 0
 redis_key_prefix: copytrade
 trade_channel: flashtrade:trade
-#web port
 web_port: 3000
 buy_sol_amount: 0
+sell_interval_limit: 3
 sell_mode: delay_sell
 sell_delay_time: 0
-#卖出时间间隔限制
-sell_interval_limit: 3
-#多级卖出配置
 multi_sell_levels:
     - price_percent: 100
       sell_percent: 10
@@ -28,31 +25,21 @@ batch_sell_config:
     num_batches: 0
     thresholds: []
 skip_ata_check: true
-#池子开关
 pump_trade_enable: true
 pump_amm_trade_enable: true
 raydium_trade_enable: true
 launchpad_trade_enable: true
 repeat_trade_enable: false
-#触发买入金额
 min_follow_trigger_amount: 0
 max_follow_trigger_amount: 0
-#池子大小
 min_pool_size: 0
 max_pool_size: 0
-#买入滑点
 buy_slippage: 0
-#卖出滑点
 sell_slippage: 0
-#买入优先级费用
 buy_priority_fee: 0
-#买入Tip费用
 buy_tip_fee: 0
-#卖出优先级费用
 sell_priority_fee: 0
-#卖出Tip费用
 sell_tip_fee: 0
-# 计算单元
 compute_units: 200000
 logging:
     level: info
@@ -62,15 +49,21 @@ normal:
     buy_tip: 0.001
     sell_tip: 0.001
     enable: false
+    mode: ""
+    health_endpoint: ""
 jito:
     buy_tip: 0.0001
     sell_tip: 0.0001
     enable: false
+    mode: ""
+    health_endpoint: ""
     rpc_url: https://frankfurt.mainnet.block-engine.jito.wtf/api/v1
 nextblock:
     buy_tip: 0.001
     sell_tip: 0.001
     enable: false
+    mode: ""
+    health_endpoint: ""
     rpc_url: https://fra.nextblock.io/api/v2/submit
     api_keys:
         - xxx
@@ -78,6 +71,8 @@ temporal:
     buy_tip: 0.001
     sell_tip: 0.001
     enable: false
+    mode: ""
+    health_endpoint: ""
     rpc_url: http://ams2.nozomi.temporal.xyz/
     api_keys:
         - 164b242f-5eea-4b8c-9edf-ad99ef6faaca
@@ -85,6 +80,8 @@ bloXroute:
     buy_tip: 0.001
     sell_tip: 0.001
     enable: false
+    mode: ""
+    health_endpoint: ""
     rpc_url: https://mainnet.helius-rpc.com/?api-key=fc8353eb-13cb-423e-8d36-49e2b26d3a78
     api_keys:
         - xxx
@@ -92,6 +89,8 @@ zeroslot:
     buy_tip: 0.001
     sell_tip: 0.001
     enable: true
+    mode: ""
+    health_endpoint: ""
     rpc_url: http://ams1.0slot.trade
     api_keys:
         - 04a967a0e03a4ec3a1f10c971be97934
@@ -99,8 +98,7 @@ blockrazor:
     buy_tip: 0.001
     sell_tip: 0.001
     enable: false
-    mode: "fast"
-    #rpc_url: http://newyork.solana.blockrazor.xyz:443/sendTransaction
+    mode: fast
     health_endpoint: http://frankfurt.solana.blockrazor.xyz:443/health
     rpc_url: http://frankfurt.solana.blockrazor.xyz:443/sendTransaction
     api_keys:

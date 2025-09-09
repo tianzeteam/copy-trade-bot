@@ -88,6 +88,16 @@ function registerEventHandlers() {
         addNewWallet();
     });
     
+    // 私钥管理相关事件
+    document.getElementById('privateKeyManagementLink').addEventListener('click', function(e) {
+        e.preventDefault();
+        showSection('privateKeyManagement');
+    });
+    
+    document.getElementById('confirmImportPrivateKeyBtn').addEventListener('click', function() {
+        importPrivateKeyWallet();
+    });
+    
     // 保存交易设置按钮
     document.getElementById('saveTradeSettingsBtn').addEventListener('click', function() {
         saveTradeSettings();
@@ -145,6 +155,7 @@ function registerEventHandlers() {
 function showSection(section) {
     // 隐藏所有部分
     document.getElementById('walletManagementSection').classList.add('d-none');
+    document.getElementById('privateKeyManagementSection').classList.add('d-none');
     document.getElementById('paramSchemeSection').classList.add('d-none');
     document.getElementById('tradeSettingsSection').classList.add('d-none');
     
@@ -158,6 +169,11 @@ function showSection(section) {
         case 'walletManagement':
             document.getElementById('walletManagementSection').classList.remove('d-none');
             document.getElementById('walletManagementLink').classList.add('active');
+            break;
+        case 'privateKeyManagement':
+            document.getElementById('privateKeyManagementSection').classList.remove('d-none');
+            document.getElementById('privateKeyManagementLink').classList.add('active');
+            loadPrivateKeyWallets(); // 加载私钥钱包列表
             break;
         case 'paramScheme':
             document.getElementById('paramSchemeSection').classList.remove('d-none');
@@ -937,4 +953,301 @@ function enforceSlippageRange(input, showMessage = false) {
     if (input.value.indexOf('.') !== -1 && input.value.split('.')[1].length > 2) {
         input.value = value.toFixed(2);
     }
+}
+
+// 验证私钥格式
+function isValidPrivateKey(privateKey) {
+    // 64位十六进制私钥
+    const hexRegex = /^[0-9a-fA-F]{64}$/;
+     
+    return hexRegex.test(privateKey.trim());
+}
+
+// 加载私钥钱包列表
+function loadPrivateKeyWallets() {
+    fetch('/api/wallets/private-keys', {
+        headers: {
+            'Authorization': `Bearer ${authToken}`
+        }
+    })
+    .then(response => {
+        if (response.status === 401) {
+            logout();
+            return;
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (!data) return;
+        
+        const walletList = document.getElementById('privateKeyWalletList');
+        
+        if (data.length === 0) {
+
+            return;
+        }
+        
+        // 隐藏无钱包提示
+        document.getElementById('noPrivateKeyWalletAlert').classList.add('d-none');
+        
+        // 清空现有内容
+        walletList.innerHTML = '';
+        
+        // 创建钱包列表
+        const table = document.createElement('table');
+        table.className = 'table table-hover';
+        table.innerHTML = `
+            <thead>
+                <tr>
+                    <th>钱包名称</th>
+                    <th>钱包地址</th>
+                    
+         
+                </tr>
+            </thead>
+            <tbody id="privateKeyWalletTableBody">
+            </tbody>
+        `;
+        
+        walletList.appendChild(table);
+        
+        const tbody = document.getElementById('privateKeyWalletTableBody');
+        
+        data.forEach(wallet => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${wallet.name}</td>
+                <td>${wallet.address}</td>
+                <td>
+   
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    })
+    .catch(error => {
+        console.error('加载私钥钱包列表失败:', error);
+        showError('加载私钥钱包列表失败，请刷新页面重试');
+    });
+}
+
+// 导入私钥钱包
+function importPrivateKeyWallet() {
+    const privateKey = document.getElementById('privateKeyInput').value.trim();
+    const walletName = document.getElementById('pkWalletName').value.trim();
+    
+    // 验证输入
+    if (!privateKey) {
+        showError('请输入私钥或助记词');
+        return;
+    }
+    
+    
+    if (!walletName) {
+        showError('请输入钱包名称');
+        return;
+    }
+    
+    // 显示加载状态
+    const importBtn = document.getElementById('confirmImportPrivateKeyBtn');
+    const originalText = importBtn.textContent;
+    importBtn.disabled = true;
+    importBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>导入中...';
+    
+    // 构建请求数据，只包含必要字段
+    const walletData = {
+        private_key: privateKey,
+        name: walletName
+    };
+    
+    // 发送导入请求
+    fetch('/api/wallets/import-private-key', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify(walletData)
+    })
+    .then(response => {
+        if (response.status === 401) {
+            logout();
+            return;
+        }
+        return response.json();
+    })
+    .then(data => {
+        // 恢复按钮状态
+        importBtn.disabled = false;
+        importBtn.textContent = originalText;
+        
+        if (!data) return;
+        
+        if (data.status === 'success' || data.message) {
+            // 关闭模态框
+            const modal = bootstrap.Modal.getInstance(document.getElementById('importPrivateKeyModal'));
+            modal.hide();
+            
+            // 清空表单
+            document.getElementById('importPrivateKeyForm').reset();
+            
+            showSuccess(data.message || '钱包导入成功');
+            loadPrivateKeyWallets(); // 重新加载私钥钱包列表
+        } else {
+            showError('导入钱包失败: ' + (data.error || '未知错误'));
+        }
+    })
+    .catch(error => {
+        // 恢复按钮状态
+        importBtn.disabled = false;
+        importBtn.textContent = originalText;
+        
+        console.error('导入钱包失败:', error);
+        showError('导入钱包失败，请重试');
+    });
+}
+
+// 删除私钥钱包
+function deletePrivateKeyWallet(address) {
+    if (!confirm(`确定要删除私钥钱包 ${address.substring(0, 8)}... 吗？此操作不可撤销。`)) {
+        return;
+    }
+    
+    fetch(`/api/wallets/private-key/${address}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${authToken}`
+        }
+    })
+    .then(response => {
+        if (response.status === 401) {
+            logout();
+            return;
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (!data) return;
+        
+        if (data.status === 'success' || data.message) {
+            showSuccess(data.message || '私钥钱包已删除');
+            loadPrivateKeyWallets(); // 重新加载私钥钱包列表
+        } else {
+            showError('删除私钥钱包失败: ' + (data.error || '未知错误'));
+        }
+    })
+    .catch(error => {
+        console.error('删除私钥钱包失败:', error);
+        showError('删除私钥钱包失败，请重试');
+    });
+}
+
+    // 强制滑点范围在0-1之间
+    function enforceSlippageRange(input, showMessage = false) {
+        let value = parseFloat(input.value);
+        
+        // 如果不是数字，设置为0
+        if (isNaN(value)) {
+            input.value = "0";
+            return;
+        }
+        
+        // 如果小于0，设置为0
+        if (value < 0) {
+            input.value = "0";
+            if (showMessage) {
+                showError("滑点不能小于0");
+            }
+            return;
+        }
+        
+        // 如果大于1，设置为1
+        if (value > 1) {
+            input.value = "1";
+            if (showMessage) {
+                showError("滑点不能大于1");
+            }
+            return;
+        }
+        
+        // 保留两位小数
+        if (input.value.indexOf('.') !== -1 && input.value.split('.')[1].length > 2) {
+            
+            // 清空表单
+            document.getElementById('importPrivateKeyForm').reset();
+            
+            showSuccess(data.message || '钱包导入成功');
+            loadPrivateKeyWallets(); // 重新加载私钥钱包列表
+        } else {
+            showError('导入钱包失败: ' + (data.error || '未知错误'));
+        }
+    }
+
+// 删除私钥钱包
+function deletePrivateKeyWallet(address) {
+    if (!confirm(`确定要删除私钥钱包 ${address.substring(0, 8)}... 吗？此操作不可撤销。`)) {
+        return;
+    }
+    
+    fetch(`/api/wallets/private-key/${address}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${authToken}`
+        }
+    })
+    .then(response => {
+        if (response.status === 401) {
+            logout();
+            return;
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (!data) return;
+        
+        if (data.status === 'success' || data.message) {
+            showSuccess(data.message || '私钥钱包已删除');
+            loadPrivateKeyWallets(); // 重新加载私钥钱包列表
+        } else {
+            showError('删除私钥钱包失败: ' + (data.error || '未知错误'));
+        }
+    })
+    .catch(error => {
+        console.error('删除私钥钱包失败:', error);
+        showError('删除私钥钱包失败，请重试');
+    });
+}
+
+// 显示钱包私钥管理界面（可选功能）
+function showPrivateKeyManagement() {
+    // 创建私钥管理模态框（如果需要单独的私钥管理界面）
+    const modalHTML = `
+    <div class="modal fade" id="privateKeyManagementModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">钱包私钥管理</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        您可以在此处管理已导入的钱包私钥。出于安全考虑，私钥只显示部分信息。
+                    </div>
+                    <div id="walletKeysList">
+                        <!-- 动态加载钱包列表 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    
+    // 添加到页面（如果不存在）
+    if (!document.getElementById('privateKeyManagementModal')) {
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
+    
+    // 显示模态框
+    const modal = new bootstrap.Modal(document.getElementById('privateKeyManagementModal'));
+    modal.show();
 }

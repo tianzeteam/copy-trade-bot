@@ -57,9 +57,6 @@ func (b *Bot) SubscribeToOpenBookMarkets(ctx context.Context, client *yellowston
 		return fmt.Errorf("failed to subscribe to OpenBook market accounts: %w", err)
 	}
 
-	// Start ping service to keep the connection alive
-	go b.startPingService(marketStreamClient)
-
 	// Process market updates in a goroutine
 	go b.processOpenBookMarketUpdates(marketStreamClient)
 

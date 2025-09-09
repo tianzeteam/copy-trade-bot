@@ -4,6 +4,7 @@ import (
 	"context"
 	"copytrade/asset"
 	"copytrade/core"
+
 	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/queue"
@@ -393,6 +394,8 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 	m.WalletMonitor.Mux.RUnlock()
 
 	ctx := context.Background()
+	//获取交易机器人钱包地址
+	m.BotWallet = global.GetConfig().TradeWalletKey.PublicKey()
 
 	// Convert mint address string to solana.PublicKey
 	mintAddr, err := solana.PublicKeyFromBase58(tradeInfo.MintAddress)
@@ -528,7 +531,7 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 
 	// 发送买入请求
 	logger.Infof("执行AMM跟单买入: 代币=%s, 金额=%f SOL", tradeInfo.MintAddress, m.BuySolAmount)
-
+	m.BotWallet = global.GetConfig().TradeWalletKey.PublicKey()
 	// 先记录原始交易者的交易
 	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress.String(), originalWallet, tradeInfo.CurrentPrice, originalAmount)
 	m.WalletMonitor.Mux.RUnlock()
@@ -640,7 +643,7 @@ func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *types.AmmRaydi
 
 	// 发送买入请求
 	logger.Infof("执行RAYDIUM POOL V4 跟单买入: 代币=%s, 金额=%f SOL", tradeInfo.MintAddress, m.BuySolAmount)
-
+	m.BotWallet = global.GetConfig().TradeWalletKey.PublicKey()
 	// 先记录原始交易者的交易
 	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress.String(), originalWallet, tradeInfo.CurrentPrice, originalAmount)
 	m.WalletMonitor.Mux.RUnlock()
@@ -847,7 +850,7 @@ func (m *TransactionMonitor) executeLaunchpadCopyTrade(tradeInfo *global.Launchp
 
 	// 发送买入请求
 	logger.Infof("执行RAYDIUM LAUNCHPAD 跟单买入: 代币=%s, 金额=%.6f SOL", tradeInfo.MintAddress, specialScheme.BuySolAmount)
-
+	m.BotWallet = global.GetConfig().TradeWalletKey.PublicKey()
 	// 先记录原始交易者的交易
 	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress.String(), originalWallet, tradeInfo.CurrentPrice, originalAmount)
 	m.WalletMonitor.Mux.RUnlock()
@@ -1060,7 +1063,7 @@ func (m *TransactionMonitor) executeCpmmCopyTrade(tradeInfo *global.CPMMTradeEve
 
 	// 发送买入请求
 	logger.Infof("执行RAYDIUM CPMM 跟单买入: 代币=%s, 金额=%f SOL", tradeInfo.MintAddress, m.BuySolAmount)
-
+	m.BotWallet = global.GetConfig().TradeWalletKey.PublicKey()
 	// 先记录原始交易者的交易
 	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress.String(), originalWallet, tradeInfo.CurrentPrice, originalAmount)
 	m.WalletMonitor.Mux.RUnlock()

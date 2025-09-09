@@ -84,9 +84,6 @@ func (b *Bot) SubscribeToRaydiumPools(ctx context.Context, client *yellowstone_g
 		return fmt.Errorf("failed to subscribe to Raydium pool accounts: %w", err)
 	}
 
-	// Start ping service to keep the connection alive
-	go b.startPingService(poolStreamClient)
-
 	// Process pool updates in a goroutine
 	go b.processRaydiumPoolUpdates(poolStreamClient)
 

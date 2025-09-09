@@ -254,7 +254,7 @@ func (b *Bot) RaydiumV4Parse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx con
 	}
 
 	// 处理AMM交易信息
-	botWallet := b.privateKey.PublicKey()
+	botWallet := global.GetConfig().TradeWalletKey.PublicKey()
 	if tradeInfo != nil {
 		global.SetRaydiumV4TradeInfo(mintAddress, tradeInfo)
 		logger.Debugf("AMM交易信息: 用户=%s, SOL=%d, 代币=%d, 是否买入=%v, 价格=%.8f",

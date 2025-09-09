@@ -56,6 +56,62 @@ body {
     color: white;
 }
 
+/* 模态框优化样式 */
+.modal-dialog {
+    margin: 1.75rem auto;
+}
+
+.modal-lg {
+    max-width: 800px;
+}
+
+.modal-content {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+    border-radius: 12px 12px 0 0;
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    border-radius: 0 0 12px 12px;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #e9ecef;
+}
+
+/* 私钥输入框样式优化 */
+#privateKeyInput {
+    resize: vertical;
+    min-height: 100px;
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+#privateKeyInput:focus {
+    border-color: #ffc107;
+    box-shadow: 0 0 0 0.25rem rgba(255, 193, 7, 0.25);
+}
+
+/* 安全提醒样式 */
+.alert-warning {
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
+    color: #856404;
+}
+
+.alert-warning .alert-heading {
+    color: #856404;
+    font-weight: 600;
+}
+
 /* 响应式调整 */
 @media (max-width: 768px) {
     .container {
@@ -72,6 +128,31 @@ body {
     
     .remove-level-btn {
         width: 100%;
+    }
+    
+    /* 移动端模态框调整 */
+    .modal-dialog {
+        margin: 0.5rem;
+        max-width: calc(100% - 1rem);
+    }
+    
+    .modal-lg {
+        max-width: calc(100% - 1rem);
+    }
+    
+    .modal-body {
+        padding: 1rem;
+    }
+    
+    .modal-header,
+    .modal-footer {
+        padding: 1rem;
+    }
+    
+    /* 移动端表单调整 */
+    .row .col-md-8,
+    .row .col-md-4 {
+        margin-bottom: 1rem;
     }
 }
 

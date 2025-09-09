@@ -22,7 +22,10 @@
                         <a class="nav-link active" href="#"></a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#" id="walletManagementLink">钱包管理</a>
+                        <a class="nav-link" href="#" id="walletManagementLink">聪明钱包管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="privateKeyManagementLink">交易钱包管理</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="#" id="paramSchemeLink">参数模板</a>
@@ -431,6 +434,31 @@
             </div>
         </div>
         
+        <!-- 私钥钱包管理 -->
+        <div class="card mb-4" id="privateKeyManagementSection">
+            <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-key me-2"></i>私钥钱包管理</h5>
+                <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#importPrivateKeyModal">
+                    <i class="bi bi-plus-circle"></i> 导入私钥
+                </button>
+            </div>
+            <div class="card-body">
+                <!-- 私钥钱包列表 -->
+                <div id="privateKeyWalletList">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        私钥钱包用于执行自动交易，私钥将安全存储在服务器端。
+                    </div>
+                    <!-- 私钥钱包列表将通过JS动态加载 -->
+                </div>
+                
+                <!-- 无钱包提示 -->
+                <div id="noPrivateKeyWalletAlert" class="alert alert-warning d-none">
+                    没有私钥钱包。请导入一个私钥钱包。
+                </div>
+            </div>
+        </div>
+        
         <div class="alert alert-success mt-3 d-none" id="successAlert">
             操作成功！
         </div>
@@ -445,7 +473,7 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="addWalletModalLabel">添加新钱包</h5>
+                    <h5 class="modal-title" id="addWalletModalLabel">添加监控钱包</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -453,7 +481,7 @@
                         <div class="mb-3">
                             <label for="newWalletAddress" class="form-label">钱包地址</label>
                             <input type="text" class="form-control" id="newWalletAddress" required>
-                            <div class="form-text">输入有效的Solana钱包地址</div>
+                            <div class="form-text">输入有效的Solana钱包地址进行监控</div>
                         </div>
                         <div class="mb-3">
                             <label for="newWalletName" class="form-label">钱包名称</label>
@@ -467,19 +495,18 @@
                             </select>
                         </div>
                         <div class="row">
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="newTakeProfitPct" class="form-label">止盈 (%)</label>
                                     <input type="number" class="form-control" id="newTakeProfitPct" min="1" value="100" required>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="newStopLossPct" class="form-label">止损 (%)</label>
                                     <input type="number" class="form-control" id="newStopLossPct" min="1" value="10" required>
                                 </div>
                             </div>
-
                         </div>
                         <div class="form-check mb-3">
                             <input class="form-check-input" type="checkbox" id="newWalletEnabled" checked>
@@ -499,6 +526,92 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                     <button type="button" class="btn btn-primary" id="saveNewWalletBtn">添加钱包</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导入私钥模态框 -->
+    <div class="modal fade" id="importPrivateKeyModal" tabindex="-1" aria-labelledby="importPrivateKeyModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning bg-opacity-10">
+                    <h5 class="modal-title" id="importPrivateKeyModalLabel">
+                        <i class="bi bi-key me-2"></i>导入私钥钱包
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning border-warning">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+                            <div>
+                                <h6 class="alert-heading mb-1">安全提醒</h6>
+                                <p class="mb-0">私钥将安全存储在服务器端，请确保使用可信网络环境。</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form id="importPrivateKeyForm">
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="mb-4">
+                                    <label for="privateKeyInput" class="form-label fw-semibold">
+                                        <i class="bi bi-shield-lock me-1"></i>私钥或助记词
+                                    </label>
+                                    <textarea 
+                                        class="form-control" 
+                                        id="privateKeyInput" 
+                                        rows="4" 
+                                        required 
+                                        placeholder="输入64位十六进制私钥或12/24个单词的助记词"
+                                        style="font-family: 'Courier New', monospace; font-size: 0.9rem;"
+                                    ></textarea>
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        <small>支持格式：64位十六进制私钥、助记词短语（空格分隔）</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="pkWalletName" class="form-label fw-semibold">
+                                        <i class="bi bi-tag me-1"></i>钱包名称
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        class="form-control" 
+                                        id="pkWalletName" 
+                                        required
+                                        placeholder="为您的钱包设置一个易识别的名称"
+                                    >
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">
+                                        <i class="bi bi-check-circle me-1"></i>状态
+                                    </label>
+                                    <div class="form-control-plaintext">
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-shield-check me-1"></i>安全导入
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>取消
+                    </button>
+                    <button type="button" class="btn btn-warning" id="confirmImportPrivateKeyBtn">
+                        <i class="bi bi-key me-1"></i>导入私钥
+                    </button>
                 </div>
             </div>
         </div>

@@ -14,6 +14,7 @@ require (
 	github.com/near/borsh-go v0.3.2-0.20220516180422-1ff87d108454
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
+	github.com/tyler-smith/go-bip39 v1.1.0
 	google.golang.org/grpc v1.72.0
 	google.golang.org/protobuf v1.36.6
 
@@ -59,7 +60,7 @@ require (
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/gagliardetto/binary v0.8.0
 	github.com/gagliardetto/treeout v0.1.4
-	github.com/google/uuid v1.6.0 // indirect
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/jito-labs/jito-go-rpc v0.2.0
 	github.com/json-iterator/go v1.1.12 // indirect

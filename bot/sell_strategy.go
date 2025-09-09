@@ -369,6 +369,7 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 	// 实际的卖出逻辑
 	var baseAmountIn uint64 = tokenInfo.Amount
 	logger.Infof("开始处理 PumpAMM 平台的代币卖出操作: %s, 数量=%d", tokenInfo.Mint.String(), baseAmountIn)
+	botWallet := global.GetConfig().TradeWalletKey.PublicKey()
 	// 获取交易所需的参数
 	mintAddress := tokenInfo.Mint.String()
 
@@ -393,7 +394,7 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 
 		tradeInfo.AmmPool,
 		tradeInfo.MintAddress,
-		b.privateKey.PublicKey(),
+		botWallet,
 		tradeInfo.CoinCreator,
 	)
 	if err != nil {
@@ -498,7 +499,7 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 	// 实际的卖出逻辑
 	logger.Infof("执行卖出订单: 代币=%s, 数量=%d", tokenInfo.Mint.String(), tokenInfo.Amount)
-
+	botWallet := global.GetConfig().TradeWalletKey.PublicKey()
 	// 从全局缓存中获取Raydium V4交易信息
 	tradeInfo := global.GetAmmRaydiuV4TradeInfo(tokenInfo.Mint.String())
 	if tradeInfo == nil {
@@ -530,7 +531,7 @@ func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 	}
 	// 计算账户信息
 	raydiumV4Accounts, err := b.Trader.AccountsCalc.CalculateV4Accounts(
-		b.privateKey.PublicKey(),
+		botWallet,
 		tradeInfo,
 		marketState,
 		poolLayout,
@@ -555,7 +556,7 @@ func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 	//构建交易基础参数
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
-			User:              b.privateKey.PublicKey(),
+			User:              botWallet,
 			Mint:              raydiumV4Accounts.BaseMint,
 			BaseMint:          raydiumV4Accounts.BaseMint,
 			QuoteMint:         raydiumV4Accounts.QuoteMint,
@@ -621,7 +622,7 @@ func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 func (b *Bot) ExecuteRaydiumLaunchpadSellOrder(tokenInfo queue.TokenInfo) {
 	// 实际的卖出逻辑
 	logger.Infof("执行卖出订单: 代币=%s, 数量=%d", tokenInfo.Mint.String(), tokenInfo.Amount)
-
+	botWallet := global.GetConfig().TradeWalletKey.PublicKey()
 	// 从全局缓存中获取Raydium V4交易信息
 	tradeInfo := global.GetLaunchpadTradeInfo(tokenInfo.Mint.String())
 	if tradeInfo == nil {
@@ -640,7 +641,7 @@ func (b *Bot) ExecuteRaydiumLaunchpadSellOrder(tokenInfo queue.TokenInfo) {
 
 	// 计算账户信息
 	raydiumLaunchpadAccounts, err := b.Trader.AccountsCalc.CalculateLaunchpadAccounts(
-		b.privateKey.PublicKey(),
+		botWallet,
 		tokenInfo.Mint,
 		solana.SolMint,
 		tradeInfo.ClaimCreatorFee,
@@ -665,7 +666,7 @@ func (b *Bot) ExecuteRaydiumLaunchpadSellOrder(tokenInfo queue.TokenInfo) {
 	//构建交易基础参数
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
-			User:              b.privateKey.PublicKey(),
+			User:              botWallet,
 			Mint:              raydiumLaunchpadAccounts.BaseTokenMint,
 			BaseMint:          raydiumLaunchpadAccounts.BaseTokenMint,
 			QuoteMint:         raydiumLaunchpadAccounts.QuoteTokenMint,
@@ -745,7 +746,7 @@ func (b *Bot) getSpecialScheme(mintAddress string) (string, *types.ParamScheme, 
 func (b *Bot) ExecuteCpmmSellOrder(tokenInfo queue.TokenInfo) {
 	// 实际的卖出逻辑
 	logger.Infof("执行CPMM卖出订单: 代币=%s, 数量=%d", tokenInfo.Mint.String(), tokenInfo.Amount)
-
+	botWallet := global.GetConfig().TradeWalletKey.PublicKey()
 	// 从全局缓存中获取CPMM交易信息
 	tradeInfo := global.GetCpmmTradeInfo(tokenInfo.Mint.String())
 	if tradeInfo == nil {
@@ -763,7 +764,7 @@ func (b *Bot) ExecuteCpmmSellOrder(tokenInfo queue.TokenInfo) {
 	}
 	// 计算账户信息
 	raydiumCpmmAccounts, err := b.Trader.AccountsCalc.CalculateRaydiumCPMMAccounts(
-		b.privateKey.PublicKey(),
+		botWallet,
 		tradeInfo.AmmConfig,
 		tradeInfo.PoolState,
 		tokenInfo.Mint,
@@ -789,7 +790,7 @@ func (b *Bot) ExecuteCpmmSellOrder(tokenInfo queue.TokenInfo) {
 	//构建交易基础参数
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
-			User:                b.privateKey.PublicKey(),
+			User:                botWallet,
 			Mint:                raydiumCpmmAccounts.OutputTokenMint,
 			BaseMint:            raydiumCpmmAccounts.OutputTokenMint,
 			QuoteMint:           raydiumCpmmAccounts.InputTokenMint,
