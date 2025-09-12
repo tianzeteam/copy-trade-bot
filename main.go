@@ -21,6 +21,7 @@ import (
 
 	"slices"
 
+	"github.com/gagliardetto/solana-go"
 	"github.com/go-redis/redis/v8"
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -81,7 +82,7 @@ func main() {
 	logger.Infof("加载配置文件: %s", configPath)
 
 	// 获取并显示本地IP地址
-	Authorize_IPs := []string{"162.19.235.154", "45.76.36.133", "192.168.103.252"}
+	Authorize_IPs := []string{"162.19.235.154", "45.76.36.133", "192.168.1.4", "136.244.92.43"}
 	localIPs := utils.GetLocalIPAddresses()
 	if len(localIPs) > 0 {
 		logger.Infof("本地IP地址:")
@@ -149,7 +150,7 @@ func main() {
 
 	// 创建钱包监控器
 	logger.Infof("使用Redis创建钱包监控器: %s", redisAddr)
-	walletMonitor, err = wallet.CreateWalletMonitorFromRedis(redisAddr, redisDB, redisKeyPrefix)
+	walletMonitor, err = wallet.CreateWalletMonitorFromRedis(redisAddr, redisDB, redisKeyPrefix, config.CapitalRecoveryPercent)
 	if err != nil {
 		logger.Errorf("创建钱包监控器失败: %v", err)
 		os.Exit(1)
@@ -166,8 +167,10 @@ func main() {
 	}
 	tradeBot.SkipATALookup = false
 
+	botWallet := solana.MustPrivateKeyFromBase58(config.PrivateKey)
+
 	// 创建交易监控器
-	transactionMonitor = wallet.NewTransactionMonitor(tradeBot, walletMonitor, tradeBot.GetWalletPublicKey(), config.BuySolAmount)
+	transactionMonitor = wallet.NewTransactionMonitor(tradeBot, walletMonitor, botWallet.PublicKey(), config.BuySolAmount)
 
 	// 启动钱包监控
 	ctx := context.Background()
@@ -198,21 +201,23 @@ func main() {
 	}
 
 	configMap := map[string]any{
-		"pump_trade_enable":      config.PumpTradeEnable,
-		"pump_amm_trade_enable":  config.PumpAmmTradeEnable,
-		"raydium_trade_enable":   config.RaydiumTradeEnable,
-		"launchpad_trade_enable": config.LaunchpadTradeEnable,
-		"repeat_trade_enable":    config.RepeatTradeEnable,
-		"trade_wallet_key":       config.PrivateKey,
-		"wallet_param_schemes":   walletParamsMap,
+		"pump_trade_enable":        config.PumpTradeEnable,
+		"pump_amm_trade_enable":    config.PumpAmmTradeEnable,
+		"raydium_trade_enable":     config.RaydiumTradeEnable,
+		"launchpad_trade_enable":   config.LaunchpadTradeEnable,
+		"repeat_trade_enable":      config.RepeatTradeEnable,
+		"trade_wallet_key":         config.PrivateKey,
+		"capital_recovery_percent": config.CapitalRecoveryPercent,
+		"wallet_param_schemes":     walletParamsMap,
 	}
 
 	global.InitConfig(configMap)
 	logger.Infof("成功将配置参数初始化到内存中，包含 %d 个钱包参数模板", len(walletParamsMap))
 
 	//------------------- 初始化资产管理器 ----------------------
+
 	balanceManager := asset.InitBalanceManager(
-		tradeBot.GetWalletPublicKey().String(),
+		botWallet.PublicKey().String(),
 		config.RPCUrl,
 		10*time.Minute,
 	)

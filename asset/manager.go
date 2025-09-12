@@ -45,6 +45,11 @@ func GetBalanceManager() *BalanceManager {
 	return balanceManager
 }
 
+// UpdateWalletAddress 更新钱包地址
+func (bm *BalanceManager) UpdateWalletAddress(walletAddress string) {
+	bm.walletAddress = walletAddress
+}
+
 // InitBalanceManager 初始化资产管理器（如果尚未初始化）
 func InitBalanceManager(walletAddress, rpcUrl string, updateInterval time.Duration) *BalanceManager {
 	if balanceManager == nil {

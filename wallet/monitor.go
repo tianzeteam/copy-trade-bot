@@ -3,6 +3,7 @@ package wallet
 import (
 	"context"
 	"copytrade/queue"
+	"math"
 	"sync"
 	"time"
 
@@ -39,6 +40,7 @@ type TradeRecord struct {
 	MintAddress   string          // 代币地址
 	WalletAddress string          // 交易钱包地址
 	EntryPrice    float64         // 入场价格
+	RecoveryPct   float64         // 抽回本金百分比
 	Amount        uint64          // 交易数量
 	Timestamp     time.Time       // 交易时间
 	ExitDeadline  time.Time       // 退出截止时间
@@ -60,15 +62,17 @@ type WalletMonitor struct {
 	SchemeTemplates     map[string]*types.ParamScheme // 模板缓存，key为模板ID
 	DefaultSchemeID     string                        // 默认参数模板ID
 	ParamSchemesMux     sync.RWMutex                  // 参数模板缓存的并发访问保护
+
 }
 
 // NewWalletMonitor 创建新的钱包监控器
 func NewWalletMonitor(redisService *RedisWalletService, paramSchemeProvider ParamSchemeProvider) *WalletMonitor {
 	return &WalletMonitor{
-		Wallets:             make([]*WalletSettings, 0),
-		TradeRecords:        make(map[string]*TradeRecord),
-		TradedTokens:        make(map[string]bool),
-		BotTrades:           make(map[string]*TradeRecord),
+		Wallets:      make([]*WalletSettings, 0),
+		TradeRecords: make(map[string]*TradeRecord),
+		TradedTokens: make(map[string]bool),
+		BotTrades:    make(map[string]*TradeRecord),
+
 		Mux:                 sync.RWMutex{},
 		RedisService:        redisService,
 		ParamSchemeProvider: paramSchemeProvider,
@@ -225,7 +229,8 @@ func (m *WalletMonitor) CheckExitConditions(platform, mintAddress string, curren
 	} else {
 		priceChangePct = (currentPrice - assetInfo.EntryPrice) / assetInfo.EntryPrice * 100
 	}
-
+	// 检查是否抽回本金
+	m.checkCapitalRecovery(assetInfo, mintAddress, priceChangePct, currentPrice, platform, tradeRecord)
 	// 检查止盈条件
 	if priceChangePct >= float64(tradeRecord.Settings.TakeProfitPct) {
 		logger.Infof("止盈条件被触发 :%s ,价格波动：%.8f%% ,止盈设置：%d%%", mintAddress, priceChangePct, tradeRecord.Settings.TakeProfitPct)
@@ -241,6 +246,43 @@ func (m *WalletMonitor) CheckExitConditions(platform, mintAddress string, curren
 	}
 
 	return false, "", nil
+}
+
+// checkCapitalRecovery 检查并执行抽回本金逻辑
+func (m *WalletMonitor) checkCapitalRecovery(assetInfo *global.MyBuyMap, mintAddress string, priceChangePct float64, currentPrice float64, platform string, tradeRecord *TradeRecord) {
+	capitalRecoveryPercent := global.GetConfig().CapitalRecoveryPercent
+	// 检查是否抽回本金，如果没有抽回本金，则判断是否达到抽回本金条件
+	if !assetInfo.IsRecovery && capitalRecoveryPercent > 0 {
+		if priceChangePct >= capitalRecoveryPercent {
+			assetInfo.IsRecovery = true
+			logger.Infof("抽回本金条件被触发: %s, 当前涨幅: %.2f%%, 抽回本金盈利百分比: %.1f%%",
+				mintAddress, priceChangePct, global.GetConfig().CapitalRecoveryPercent)
+
+			// 使用存储的Decimal字段进行精确计算
+			tokenDecimals := math.Pow(10, float64(assetInfo.Decimal))
+
+			// 计算初始投资的SOL数量（标准单位）
+			recoverySOLAmount := assetInfo.EntryPrice * (float64(assetInfo.InitBuyAmount) / tokenDecimals)
+
+			// 计算需要卖出的代币数量（最小单位）
+			recoveryTokenAmount := uint64(recoverySOLAmount / currentPrice * tokenDecimals)
+
+			// 确保不会卖出超过当前持有量
+			if recoveryTokenAmount > assetInfo.Amount {
+				logger.Warnf("抽回本金数量超过持有量，调整为不抽回本金: %s, 持有量: %d", mintAddress, assetInfo.Amount)
+				return
+			}
+
+			// 确保至少卖出一些代币
+			if recoveryTokenAmount > 0 {
+				logger.Infof("执行抽回本金: %s, 卖出代币数量: %d, 预期回收SOL: %.8f, 剩余持有量: %d",
+					mintAddress, recoveryTokenAmount, recoverySOLAmount, assetInfo.Amount-recoveryTokenAmount)
+				go queue.SendTokenToSellChannel(0, assetInfo, recoveryTokenAmount, currentPrice, platform, tradeRecord.Settings.Name, "recovery")
+			} else {
+				logger.Warnf("抽回本金计算异常，跳过执行: %s", mintAddress)
+			}
+		}
+	}
 }
 
 // RemoveTrade 移除交易记录

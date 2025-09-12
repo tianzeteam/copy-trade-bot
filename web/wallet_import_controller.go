@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"copytrade/asset"
 	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/utils"
@@ -83,16 +84,13 @@ func (c *WalletImportController) ImportPrivateKey(ctx *gin.Context) {
 	publicKey := privateKey.PublicKey()
 	address := publicKey.String()
 
-	// 保存私钥（加密存储）
-	if err := c.savePrivateKey(req.PrivateKey); err != nil {
-		logger.Errorf("保存私钥失败: %v", err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "保存私钥失败"})
-		return
-	}
-	_privateKey := solana.MustPrivateKeyFromBase58(req.PrivateKey)
-	_wallet := solana.Wallet{PrivateKey: _privateKey}
-	global.UpdateConfigField("trade_wallet_key", _wallet)
+	_botWallet := solana.Wallet{PrivateKey: privateKey}
 
+	global.UpdateConfigField("trade_wallet_key", _botWallet)
+	botWallet := global.GetConfig().TradeWalletKey
+	logger.Infof("更新后的botWallet: %s", botWallet.PublicKey().String())
+	// 更新钱包监控器
+	asset.GetBalanceManager().UpdateWalletAddress(address)
 	// 加载当前配置
 	config, err := utils.LoadConfig(c.ConfigPath)
 	if err != nil {

@@ -58,6 +58,11 @@ function registerEventHandlers() {
         showSection('tradeSettings');
     });
     
+    document.getElementById('globalSellSettingsLink').addEventListener('click', function(e) {
+        e.preventDefault();
+        showSection('globalSellSettings');
+    });
+    
     // 退出登录按钮
     document.getElementById('logoutBtn').addEventListener('click', function() {
         logout();
@@ -101,6 +106,11 @@ function registerEventHandlers() {
     // 保存交易设置按钮
     document.getElementById('saveTradeSettingsBtn').addEventListener('click', function() {
         saveTradeSettings();
+    });
+    
+    // 保存全局卖出设置按钮
+    document.getElementById('saveGlobalSellSettingsBtn').addEventListener('click', function() {
+        saveGlobalSellSettings();
     });
     
     // 参数模板选择变更事件
@@ -152,12 +162,15 @@ function registerEventHandlers() {
 }
 
 // 显示指定部分
-function showSection(section) {
+function showSection(sectionName) {
     // 隐藏所有部分
-    document.getElementById('walletManagementSection').classList.add('d-none');
-    document.getElementById('privateKeyManagementSection').classList.add('d-none');
-    document.getElementById('paramSchemeSection').classList.add('d-none');
-    document.getElementById('tradeSettingsSection').classList.add('d-none');
+    const sections = ['walletManagement', 'paramScheme', 'tradeSettings', 'globalSellSettings', 'privateKeyManagement'];
+    sections.forEach(section => {
+        const element = document.getElementById(section + 'Section');
+        if (element) {
+            element.style.display = 'none';
+        }
+    });
     
     // 移除所有导航链接的激活状态
     document.querySelectorAll('.nav-link').forEach(link => {
@@ -165,24 +178,20 @@ function showSection(section) {
     });
     
     // 显示指定部分
-    switch (section) {
-        case 'walletManagement':
-            document.getElementById('walletManagementSection').classList.remove('d-none');
-            document.getElementById('walletManagementLink').classList.add('active');
-            break;
-        case 'privateKeyManagement':
-            document.getElementById('privateKeyManagementSection').classList.remove('d-none');
-            document.getElementById('privateKeyManagementLink').classList.add('active');
-            loadPrivateKeyWallets(); // 加载私钥钱包列表
-            break;
-        case 'paramScheme':
-            document.getElementById('paramSchemeSection').classList.remove('d-none');
-            document.getElementById('paramSchemeLink').classList.add('active');
-            break;
-        case 'tradeSettings':
-            document.getElementById('tradeSettingsSection').classList.remove('d-none');
-            document.getElementById('tradeSettingsLink').classList.add('active');
-            break;
+    const targetSection = document.getElementById(sectionName + 'Section');
+    if (targetSection) {
+        targetSection.style.display = 'block';
+    }
+    
+    // 激活对应的导航链接
+    const targetLink = document.getElementById(sectionName + 'Link');
+    if (targetLink) {
+        targetLink.classList.add('active');
+    }
+    
+    // 如果是全局卖出设置，加载相关数据
+    if (sectionName === 'globalSellSettings') {
+        loadGlobalSellSettings();
     }
 }
 
@@ -1248,6 +1257,84 @@ function showPrivateKeyManagement() {
     }
     
     // 显示模态框
-    const modal = new bootstrap.Modal(document.getElementById('privateKeyManagementModal'));
-    modal.show();
+}
+
+// 加载全局卖出设置
+function loadGlobalSellSettings() {
+    fetch('/api/redis-config', {
+        headers: {
+            'Authorization': `Bearer ${authToken}`
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        // 填充全局卖出设置表单
+        document.getElementById('capitalRecoveryPercent').value = data.capital_recovery_percent || 0;
+    })
+    .catch(error => {
+        console.error('加载全局卖出设置失败:', error);
+        showToast('加载全局卖出设置失败', 'error');
+    });
+}
+
+// 保存全局卖出设置
+function saveGlobalSellSettings() {
+    const capitalRecoveryPercent = parseFloat(document.getElementById('capitalRecoveryPercent').value) || 0;
+    
+    // 验证输入
+    if (capitalRecoveryPercent < 0 || capitalRecoveryPercent > 300) {
+        showToast('抽回本金盈利百分比必须在0-100之间', 'error');
+        return;
+    }
+    
+    const updates = {
+        capital_recovery_percent: capitalRecoveryPercent
+    };
+    
+    fetch('/api/redis-config', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify(updates)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showToast('全局卖出设置保存成功', 'success');
+        } else {
+            showToast('保存失败: ' + (data.message || '未知错误'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('保存全局卖出设置失败:', error);
+        showToast('保存全局卖出设置失败', 'error');
+    });
+}
+
+// 显示提示消息
+function showToast(message, type) {
+    const successAlert = document.getElementById('successAlert');
+    const errorAlert = document.getElementById('errorAlert');
+    
+    // 隐藏所有提示框
+    successAlert.classList.add('d-none');
+    errorAlert.classList.add('d-none');
+    
+    if (type === 'success') {
+        successAlert.textContent = message;
+        successAlert.classList.remove('d-none');
+        // 3秒后自动隐藏
+        setTimeout(() => {
+            successAlert.classList.add('d-none');
+        }, 3000);
+    } else if (type === 'error') {
+        errorAlert.textContent = message;
+        errorAlert.classList.remove('d-none');
+        // 5秒后自动隐藏
+        setTimeout(() => {
+            errorAlert.classList.add('d-none');
+        }, 5000);
+    }
 }

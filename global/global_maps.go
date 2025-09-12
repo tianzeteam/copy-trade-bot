@@ -40,6 +40,7 @@ type MyBuyMap struct {
 	Amount        uint64
 	SoldLevels    map[int]bool // 记录已经卖出的价格档位
 	TimeStamp     int64
+	IsRecovery    bool // 是否已经抽回本金
 }
 
 // CreateEventInfo 存储代币创建事件信息
@@ -467,6 +468,7 @@ func SetTradeAsset(mintAddress string, creator solana.PublicKey, userAddress str
 		Amount:     amount,
 		SoldLevels: make(map[int]bool),
 		TimeStamp:  time.Now().Unix(),
+		IsRecovery: false,
 	}
 
 	logger.Infof("持仓资产新增： %s 的交易资产, 价格=%.8f, 数量=%d", mintAddress, _entryPrice, amount)

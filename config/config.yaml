@@ -1,7 +1,7 @@
 create_nonce_account: false
 nonce_account_pubkey: GgTBxk6r1jyi6QUiUCP7ufvonufBDRS6D3RoRUFnZ7go
 simulate_mode: false
-private_key: yZDBsZwwtmUBXTuVCREteDpf6AwyeEoF5TiUYE5Tdxr2Y9SuU1GMSTNVPNcDzLoQKrLtn26rGtNPZJyZcWmWNqU
+private_key: 5S53Lgc2PY9XE1iSMoMkajfSPGPnv728FPXemzWvVAGfs8XpB4CZdsFMmCnVb3UEBUsQrsrgDPinRuSzj8iWuQWT
 grpc_url: https://solana-yellowstone-grpc.publicnode.com:443
 rpc_url: https://mainnet.helius-rpc.com/?api-key=dc537a21-36c2-4a5f-bcf8-90ae704fbbfc
 redis_db: 0
@@ -9,6 +9,7 @@ redis_key_prefix: copytrade
 trade_channel: flashtrade:trade
 web_port: 3000
 buy_sol_amount: 0
+capital_recovery_percent: 300
 sell_interval_limit: 3
 sell_mode: delay_sell
 sell_delay_time: 0

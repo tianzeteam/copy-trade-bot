@@ -50,6 +50,7 @@ type Config struct {
 	TradeChannel           string           `yaml:"trade_channel"`
 	WebPort                int              `yaml:"web_port"`
 	BuySolAmount           float64          `yaml:"buy_sol_amount"`
+	CapitalRecoveryPercent float64          `yaml:"capital_recovery_percent"`
 	SellIntervalLimit      int              `yaml:"sell_interval_limit"`
 	SellMode               string           `yaml:"sell_mode"`
 	SellDelayTime          int              `yaml:"sell_delay_time"`

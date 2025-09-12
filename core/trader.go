@@ -70,7 +70,7 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 	logger.Infof("Mint地址: %s", params.TradeParams.Accounts.Mint)
 	logger.Infof("购买数量: %d", params.TradeParams.Amount)
 	logger.Infof("构建指令时间: %v", time.Now().Format("2006-01-02 15:04:05.000000"))
-	t.Wallet = global.GetConfig().TradeWalletKey
+	botWallet := global.GetConfig().TradeWalletKey
 	// 构建交易指令
 	instructions := []solana.Instruction{}
 
@@ -144,7 +144,7 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		logger.Infof("[Blockrazor] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBlockrazor(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.BlockrazorParams,
 				params.TradeParams.Blockhash,
@@ -162,7 +162,7 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		logger.Infof("[0slot] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionZeroSlot(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.ZeroslotParams,
 				params.TradeParams.Blockhash,
@@ -180,7 +180,7 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		logger.Debugf("[BloXroute] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBloXroute(
-				t.Wallet.PrivateKey,
+				botWallet.PrivateKey,
 				instructions,
 				*params.BloXrouteParams,
 				params.TradeParams.Blockhash,
@@ -198,7 +198,7 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		logger.Infof("[Temporal] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionTemporal(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.TemporalParams,
 				params.TradeParams.Blockhash,
@@ -217,7 +217,7 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		go func() {
 			// 构建交易并发送到 NextBlock
 			sig, err := swqos.SendTransactionNextBlock(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.NextBlockParams,
 				params.TradeParams.Blockhash,
@@ -233,7 +233,7 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		logger.Infof("[Jito] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionJito(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.JitoParams,
 				params.TradeParams.Blockhash,
@@ -255,7 +255,7 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 			tx, err := solana.NewTransaction(
 				instructions,
 				params.TradeParams.Blockhash,
-				solana.TransactionPayer(t.Wallet.PublicKey()),
+				solana.TransactionPayer(botWallet.PublicKey()),
 			)
 			if err != nil {
 				errChan <- fmt.Errorf("创建交易失败: %w", err)
@@ -265,8 +265,8 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 			// 签名交易
 			_, err = tx.Sign(
 				func(key solana.PublicKey) *solana.PrivateKey {
-					if key.Equals(t.Wallet.PublicKey()) {
-						return &t.Wallet.PrivateKey
+					if key.Equals(botWallet.PublicKey()) {
+						return &botWallet.PrivateKey
 					}
 					return nil
 				},
@@ -307,7 +307,7 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 	logger.Infof("Mint地址: %s", params.TradeParams.Accounts.Mint)
 	logger.Infof("购买数量: %d,最大支付金额: %.6f", params.TradeParams.Amount, float64(params.TradeParams.Cost)/1e9)
 	logger.Infof("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
-	t.Wallet = global.GetConfig().TradeWalletKey
+	botWallet := global.GetConfig().TradeWalletKey
 	// 构建交易指令
 	instructions := []solana.Instruction{}
 
@@ -320,8 +320,8 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		// 快速模式：直接添加创建ATA指令
 		logger.Infof("快速模式：跳过ATA检查，直接创建ATA账户")
 		createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
-			SetPayer(t.Wallet.PublicKey()).
-			SetWallet(t.Wallet.PublicKey()).
+			SetPayer(botWallet.PublicKey()).
+			SetWallet(botWallet.PublicKey()).
 			SetMint(params.TradeParams.Accounts.Mint).
 			Build()
 		instructions = append(instructions, createATAIx)
@@ -331,8 +331,8 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		if err != nil || account.Value == nil {
 			logger.Infof("ATA账户不存在，创建新账户...")
 			createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
-				SetPayer(t.Wallet.PublicKey()).
-				SetWallet(t.Wallet.PublicKey()).
+				SetPayer(botWallet.PublicKey()).
+				SetWallet(botWallet.PublicKey()).
 				SetMint(params.TradeParams.Accounts.Mint).
 				Build()
 			instructions = append(instructions, createATAIx)
@@ -341,8 +341,8 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 	logger.Info("PumpAmm Buy: Idempotent模式创建并初始化WSOL账户...")
 	// 创建WSOL账户指令
 	createWsolAccountInstruction := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
-		SetPayer(t.Wallet.PublicKey()).
-		SetWallet(t.Wallet.PublicKey()).
+		SetPayer(botWallet.PublicKey()).
+		SetWallet(botWallet.PublicKey()).
 		SetMint(WSOL).
 		Build()
 	// 初始化WSOL账户指令
@@ -351,7 +351,7 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 	// 将SOL转入WSOL账户
 	transferIx := system.NewTransferInstruction(
 		params.TradeParams.Cost,
-		t.Wallet.PublicKey(),
+		botWallet.PublicKey(),
 		params.TradeParams.Accounts.UserQuoteTokenAccount,
 	).Build()
 	instructions = append(instructions, transferIx)
@@ -393,8 +393,8 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 	// 关闭WSOL账户
 	closeWsolAccountInstruction := token.NewCloseAccountInstruction(
 		params.TradeParams.Accounts.UserQuoteTokenAccount, // 要关闭的账户
-		t.Wallet.PublicKey(),                              // 接收剩余SOL的地址
-		t.Wallet.PublicKey(),                              // 关闭账户的所有者
+		botWallet.PublicKey(),                             // 接收剩余SOL的地址
+		botWallet.PublicKey(),                             // 关闭账户的所有者
 		[]solana.PublicKey{},
 	).Build()
 	instructions = append(instructions, closeWsolAccountInstruction)
@@ -407,7 +407,7 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		logger.Infof("[Blockrazor] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBlockrazor(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.BlockrazorParams,
 				params.TradeParams.Blockhash,
@@ -424,7 +424,7 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		logger.Infof("[0slot] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionZeroSlot(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.ZeroslotParams,
 				params.TradeParams.Blockhash,
@@ -442,7 +442,7 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		logger.Infof("[BloXroute] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBloXroute(
-				t.Wallet.PrivateKey,
+				botWallet.PrivateKey,
 				instructions,
 				*params.BloXrouteParams,
 				params.TradeParams.Blockhash,
@@ -462,7 +462,7 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		go func() {
 			// 构建交易并发送到 NextBlock
 			sig, err := swqos.SendTransactionNextBlock(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.NextBlockParams,
 				params.TradeParams.Blockhash,
@@ -478,7 +478,7 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		logger.Infof("[Jito] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionJito(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.JitoParams,
 				params.TradeParams.Blockhash,
@@ -494,7 +494,7 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 		logger.Infof("[Temporal] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionTemporal(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.TemporalParams,
 				params.TradeParams.Blockhash,
@@ -514,7 +514,7 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 			tx, err := solana.NewTransaction(
 				instructions,
 				params.TradeParams.Blockhash,
-				solana.TransactionPayer(t.Wallet.PublicKey()),
+				solana.TransactionPayer(botWallet.PublicKey()),
 			)
 			if err != nil {
 				errChan <- fmt.Errorf("创建交易失败: %w", err)
@@ -524,8 +524,8 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 			// 签名交易
 			_, err = tx.Sign(
 				func(key solana.PublicKey) *solana.PrivateKey {
-					if key.Equals(t.Wallet.PublicKey()) {
-						return &t.Wallet.PrivateKey
+					if key.Equals(botWallet.PublicKey()) {
+						return &botWallet.PrivateKey
 					}
 					return nil
 				},
@@ -570,7 +570,7 @@ func (t *TraderImpl) RaydiumV4Buy(ctx context.Context, params types.OrderParams)
 	logger.Infof("Mint地址: %s", params.TradeParams.Accounts.Mint)
 	logger.Infof("购买数量: %d", params.TradeParams.Amount)
 	logger.Infof("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
-	t.Wallet = global.GetConfig().TradeWalletKey
+	botWallet := global.GetConfig().TradeWalletKey
 	// 构建交易指令
 	instructions := []solana.Instruction{}
 
@@ -584,8 +584,8 @@ func (t *TraderImpl) RaydiumV4Buy(ctx context.Context, params types.OrderParams)
 		// 快速模式：直接添加创建ATA指令
 		logger.Infof("快速模式：跳过ATA检查，直接创建ATA账户")
 		createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
-			SetPayer(t.Wallet.PublicKey()).
-			SetWallet(t.Wallet.PublicKey()).
+			SetPayer(botWallet.PublicKey()).
+			SetWallet(botWallet.PublicKey()).
 			SetMint(params.TradeParams.Accounts.Mint).
 			Build()
 		instructions = append(instructions, createATAIx)
@@ -595,8 +595,8 @@ func (t *TraderImpl) RaydiumV4Buy(ctx context.Context, params types.OrderParams)
 		if err != nil || account.Value == nil {
 			logger.Infof("ATA账户不存在，创建新账户...")
 			createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
-				SetPayer(t.Wallet.PublicKey()).
-				SetWallet(t.Wallet.PublicKey()).
+				SetPayer(botWallet.PublicKey()).
+				SetWallet(botWallet.PublicKey()).
 				SetMint(params.TradeParams.Accounts.Mint).
 				Build()
 			instructions = append(instructions, createATAIx)
@@ -604,8 +604,8 @@ func (t *TraderImpl) RaydiumV4Buy(ctx context.Context, params types.OrderParams)
 	}
 	// 创建WSOL账户指令
 	createWsolAccountInstruction := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
-		SetPayer(t.Wallet.PublicKey()).
-		SetWallet(t.Wallet.PublicKey()).
+		SetPayer(botWallet.PublicKey()).
+		SetWallet(botWallet.PublicKey()).
 		SetMint(WSOL).
 		Build()
 	// 初始化WSOL账户指令
@@ -614,7 +614,7 @@ func (t *TraderImpl) RaydiumV4Buy(ctx context.Context, params types.OrderParams)
 	// 将SOL转入WSOL账户
 	transferIx := system.NewTransferInstruction(
 		params.TradeParams.Cost,
-		t.Wallet.PublicKey(),
+		botWallet.PublicKey(),
 		params.TradeParams.Accounts.UserQuoteTokenAccount,
 	).Build()
 	instructions = append(instructions, transferIx)
@@ -660,7 +660,7 @@ func (t *TraderImpl) RaydiumV4Buy(ctx context.Context, params types.OrderParams)
 		logger.Infof("[Blockrazor] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBlockrazor(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.BlockrazorParams,
 				params.TradeParams.Blockhash,
@@ -677,7 +677,7 @@ func (t *TraderImpl) RaydiumV4Buy(ctx context.Context, params types.OrderParams)
 		logger.Infof("[0slot] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionZeroSlot(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.ZeroslotParams,
 				params.TradeParams.Blockhash,
@@ -695,7 +695,7 @@ func (t *TraderImpl) RaydiumV4Buy(ctx context.Context, params types.OrderParams)
 		logger.Infof("[BloXroute] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBloXroute(
-				t.Wallet.PrivateKey,
+				botWallet.PrivateKey,
 				instructions,
 				*params.BloXrouteParams,
 				params.TradeParams.Blockhash,
@@ -715,7 +715,7 @@ func (t *TraderImpl) RaydiumV4Buy(ctx context.Context, params types.OrderParams)
 		go func() {
 			// 构建交易并发送到 NextBlock
 			sig, err := swqos.SendTransactionNextBlock(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.NextBlockParams,
 				params.TradeParams.Blockhash,
@@ -731,7 +731,7 @@ func (t *TraderImpl) RaydiumV4Buy(ctx context.Context, params types.OrderParams)
 		logger.Infof("[Jito] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionJito(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.JitoParams,
 				params.TradeParams.Blockhash,
@@ -747,7 +747,7 @@ func (t *TraderImpl) RaydiumV4Buy(ctx context.Context, params types.OrderParams)
 		logger.Infof("[Temporal] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionTemporal(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.TemporalParams,
 				params.TradeParams.Blockhash,
@@ -767,7 +767,7 @@ func (t *TraderImpl) RaydiumV4Buy(ctx context.Context, params types.OrderParams)
 			tx, err := solana.NewTransaction(
 				instructions,
 				params.TradeParams.Blockhash,
-				solana.TransactionPayer(t.Wallet.PublicKey()),
+				solana.TransactionPayer(botWallet.PublicKey()),
 			)
 			if err != nil {
 				errChan <- fmt.Errorf("创建交易失败: %w", err)
@@ -777,8 +777,8 @@ func (t *TraderImpl) RaydiumV4Buy(ctx context.Context, params types.OrderParams)
 			// 签名交易
 			_, err = tx.Sign(
 				func(key solana.PublicKey) *solana.PrivateKey {
-					if key.Equals(t.Wallet.PublicKey()) {
-						return &t.Wallet.PrivateKey
+					if key.Equals(botWallet.PublicKey()) {
+						return &botWallet.PrivateKey
 					}
 					return nil
 				},
@@ -819,7 +819,7 @@ func (t *TraderImpl) RaydiumLaunchpadSell(ctx context.Context, params types.Orde
 	logger.Infof("Mint地址: %s", mintAddress)
 	logger.Infof("卖出数量: %d", params.TradeParams.Amount)
 	logger.Infof("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
-	t.Wallet = global.GetConfig().TradeWalletKey
+	botWallet := global.GetConfig().TradeWalletKey
 	// 检查是否可以卖出（3秒内同一个币最多卖出一次）
 	if !global.CanSellToken(mintAddress) {
 		logger.Warnf("代币 %s 卖出频率过高，3秒内只能卖出一次", mintAddress)
@@ -836,8 +836,8 @@ func (t *TraderImpl) RaydiumLaunchpadSell(ctx context.Context, params types.Orde
 
 	// 创建WSOL账户指令
 	createWsolAccountInstruction := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
-		SetPayer(t.Wallet.PublicKey()).
-		SetWallet(t.Wallet.PublicKey()).
+		SetPayer(botWallet.PublicKey()).
+		SetWallet(botWallet.PublicKey()).
 		SetMint(WSOL).
 		Build()
 
@@ -849,7 +849,7 @@ func (t *TraderImpl) RaydiumLaunchpadSell(ctx context.Context, params types.Orde
 		SetAmountIn(params.TradeParams.Amount).
 		SetMinimumAmountOut(params.TradeParams.Cost).
 		SetProgramAccount(RAYDIUM_LAUNCHPAD_PROGRAM_ID).
-		SetPayerAccount(t.Wallet.PublicKey()).
+		SetPayerAccount(botWallet.PublicKey()).
 		SetAuthorityAccount(params.Accounts.LaunchpadAccounts.Authority).
 		SetGlobalConfigAccount(params.Accounts.LaunchpadAccounts.GlobalConfig).
 		SetPlatformConfigAccount(params.Accounts.LaunchpadAccounts.PlatformConfig).
@@ -878,7 +878,7 @@ func (t *TraderImpl) RaydiumLaunchpadSell(ctx context.Context, params types.Orde
 		logger.Infof("[blockrazor] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBlockrazor(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.BlockrazorParams,
 				params.TradeParams.Blockhash,
@@ -895,7 +895,7 @@ func (t *TraderImpl) RaydiumLaunchpadSell(ctx context.Context, params types.Orde
 		logger.Debugf("[0slot] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionZeroSlot(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.ZeroslotParams,
 				params.TradeParams.Blockhash,
@@ -913,7 +913,7 @@ func (t *TraderImpl) RaydiumLaunchpadSell(ctx context.Context, params types.Orde
 		logger.Infof("[BloXroute] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBloXroute(
-				t.Wallet.PrivateKey,
+				botWallet.PrivateKey,
 				instructions,
 				*params.BloXrouteParams,
 				params.TradeParams.Blockhash,
@@ -933,7 +933,7 @@ func (t *TraderImpl) RaydiumLaunchpadSell(ctx context.Context, params types.Orde
 		go func() {
 			// 构建交易并发送到 NextBlock
 			sig, err := swqos.SendTransactionNextBlock(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.NextBlockParams,
 				params.TradeParams.Blockhash,
@@ -949,7 +949,7 @@ func (t *TraderImpl) RaydiumLaunchpadSell(ctx context.Context, params types.Orde
 		logger.Infof("[Jito] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionJito(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.JitoParams,
 				params.TradeParams.Blockhash,
@@ -965,7 +965,7 @@ func (t *TraderImpl) RaydiumLaunchpadSell(ctx context.Context, params types.Orde
 		logger.Infof("[Temporal] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionTemporal(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.TemporalParams,
 				params.TradeParams.Blockhash,
@@ -985,7 +985,7 @@ func (t *TraderImpl) RaydiumLaunchpadSell(ctx context.Context, params types.Orde
 			tx, err := solana.NewTransaction(
 				instructions,
 				params.TradeParams.Blockhash,
-				solana.TransactionPayer(t.Wallet.PublicKey()),
+				solana.TransactionPayer(botWallet.PublicKey()),
 			)
 			if err != nil {
 				errChan <- fmt.Errorf("创建交易失败: %w", err)
@@ -995,8 +995,8 @@ func (t *TraderImpl) RaydiumLaunchpadSell(ctx context.Context, params types.Orde
 			// 签名交易
 			_, err = tx.Sign(
 				func(key solana.PublicKey) *solana.PrivateKey {
-					if key.Equals(t.Wallet.PublicKey()) {
-						return &t.Wallet.PrivateKey
+					if key.Equals(botWallet.PublicKey()) {
+						return &botWallet.PrivateKey
 					}
 					return nil
 				},
@@ -1039,7 +1039,7 @@ func (t *TraderImpl) RaydiumV4Sell(ctx context.Context, params types.OrderParams
 	logger.Infof("Mint地址: %s", mintAddress)
 	logger.Infof("卖出数量: %d", params.TradeParams.Amount)
 	logger.Infof("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
-	t.Wallet = global.GetConfig().TradeWalletKey
+	botWallet := global.GetConfig().TradeWalletKey
 	// 检查是否可以卖出（3秒内同一个币最多卖出一次）
 	if !global.CanSellToken(mintAddress) {
 		logger.Warnf("代币 %s 卖出频率过高，3秒内只能卖出一次", mintAddress)
@@ -1112,7 +1112,7 @@ func (t *TraderImpl) RaydiumV4Sell(ctx context.Context, params types.OrderParams
 		logger.Infof("[blockrazor] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBlockrazor(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.BlockrazorParams,
 				params.TradeParams.Blockhash,
@@ -1130,7 +1130,7 @@ func (t *TraderImpl) RaydiumV4Sell(ctx context.Context, params types.OrderParams
 		logger.Debugf("[0slot] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionZeroSlot(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.ZeroslotParams,
 				params.TradeParams.Blockhash,
@@ -1148,7 +1148,7 @@ func (t *TraderImpl) RaydiumV4Sell(ctx context.Context, params types.OrderParams
 		logger.Infof("[BloXroute] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBloXroute(
-				t.Wallet.PrivateKey,
+				botWallet.PrivateKey,
 				instructions,
 				*params.BloXrouteParams,
 				params.TradeParams.Blockhash,
@@ -1168,7 +1168,7 @@ func (t *TraderImpl) RaydiumV4Sell(ctx context.Context, params types.OrderParams
 		go func() {
 			// 构建交易并发送到 NextBlock
 			sig, err := swqos.SendTransactionNextBlock(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.NextBlockParams,
 				params.TradeParams.Blockhash,
@@ -1184,7 +1184,7 @@ func (t *TraderImpl) RaydiumV4Sell(ctx context.Context, params types.OrderParams
 		logger.Infof("[Jito] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionJito(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.JitoParams,
 				params.TradeParams.Blockhash,
@@ -1200,7 +1200,7 @@ func (t *TraderImpl) RaydiumV4Sell(ctx context.Context, params types.OrderParams
 		logger.Infof("[Temporal] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionTemporal(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.TemporalParams,
 				params.TradeParams.Blockhash,
@@ -1220,7 +1220,7 @@ func (t *TraderImpl) RaydiumV4Sell(ctx context.Context, params types.OrderParams
 			tx, err := solana.NewTransaction(
 				instructions,
 				params.TradeParams.Blockhash,
-				solana.TransactionPayer(t.Wallet.PublicKey()),
+				solana.TransactionPayer(botWallet.PublicKey()),
 			)
 			if err != nil {
 				errChan <- fmt.Errorf("创建交易失败: %w", err)
@@ -1230,8 +1230,8 @@ func (t *TraderImpl) RaydiumV4Sell(ctx context.Context, params types.OrderParams
 			// 签名交易
 			_, err = tx.Sign(
 				func(key solana.PublicKey) *solana.PrivateKey {
-					if key.Equals(t.Wallet.PublicKey()) {
-						return &t.Wallet.PrivateKey
+					if key.Equals(botWallet.PublicKey()) {
+						return &botWallet.PrivateKey
 					}
 					return nil
 				},
@@ -1272,7 +1272,7 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 
 	mintAddress := params.TradeParams.Accounts.Mint.String()
 	logger.Infof("Mint地址: %s ,卖出数量: %d, 最小获得: %d SOL, time: %v", mintAddress, params.TradeParams.Amount, params.TradeParams.Cost, time.Now().Format("2006-01-02 15:04:05.000000"))
-	t.Wallet = global.GetConfig().TradeWalletKey
+	botWallet := global.GetConfig().TradeWalletKey
 	// 检查是否可以卖出（5秒内同一个币最多卖出一次）
 	if !global.CanSellToken(mintAddress) {
 		logger.Warnf("代币 %s 卖出频率过高，3秒内只能卖出一次", mintAddress)
@@ -1324,7 +1324,7 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 		logger.Infof("[blockrazor] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBlockrazor(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.BlockrazorParams,
 				params.TradeParams.Blockhash,
@@ -1341,7 +1341,7 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 		logger.Infof("[0slot] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionZeroSlot(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.ZeroslotParams,
 				params.TradeParams.Blockhash,
@@ -1360,7 +1360,7 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 		logger.Infof("[BloXroute] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBloXroute(
-				t.Wallet.PrivateKey,
+				botWallet.PrivateKey,
 				instructions,
 				*params.BloXrouteParams,
 				params.TradeParams.Blockhash,
@@ -1376,7 +1376,7 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 		logger.Debugf("[NextBlock] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionNextBlock(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.NextBlockParams,
 				params.TradeParams.Blockhash,
@@ -1393,7 +1393,7 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 		log.Printf("[Jito] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionJito(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.JitoParams,
 				params.TradeParams.Blockhash,
@@ -1410,7 +1410,7 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 		logger.Infof("[Temporal] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionTemporal(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.TemporalParams,
 				params.TradeParams.Blockhash,
@@ -1430,7 +1430,7 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 			tx, err := solana.NewTransaction(
 				instructions,
 				params.TradeParams.Blockhash,
-				solana.TransactionPayer(t.Wallet.PublicKey()),
+				solana.TransactionPayer(botWallet.PublicKey()),
 			)
 			if err != nil {
 				errChan <- fmt.Errorf("创建交易失败: %w", err)
@@ -1440,8 +1440,8 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 			// 签名交易
 			_, err = tx.Sign(
 				func(key solana.PublicKey) *solana.PrivateKey {
-					if key.Equals(t.Wallet.PublicKey()) {
-						return &t.Wallet.PrivateKey
+					if key.Equals(botWallet.PublicKey()) {
+						return &botWallet.PrivateKey
 					}
 					return nil
 				},
@@ -1509,7 +1509,7 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 	mintAddress := params.TradeParams.Accounts.Mint.String()
 	logger.Infof("Mint地址: %s, 卖出数量: %d, 最小获得: %.6f SOL, time: %v",
 		mintAddress, params.TradeParams.Amount, float64(params.TradeParams.Cost)/1e9, time.Now().Format("2006-01-02 15:04:05.000000"))
-	t.Wallet = global.GetConfig().TradeWalletKey
+	botWallet := global.GetConfig().TradeWalletKey
 	// 检查是否可以卖出（3秒内同一个币最多卖出一次）
 	if !global.CanSellToken(mintAddress) {
 		logger.Warnf("代币 %s 卖出频率过高，3秒内只能卖出一次", mintAddress)
@@ -1530,8 +1530,8 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 	logger.Info("AmmSell: Idempotent模式创建并初始化WSOL账户...")
 	// 创建WSOL账户指令
 	createWsolAccountInstruction := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
-		SetPayer(t.Wallet.PublicKey()).
-		SetWallet(t.Wallet.PublicKey()).
+		SetPayer(botWallet.PublicKey()).
+		SetWallet(botWallet.PublicKey()).
 		SetMint(WSOL).
 		Build()
 
@@ -1572,8 +1572,8 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 	// 关闭WSOL账户
 	closeWsolAccountInstruction := token.NewCloseAccountInstruction(
 		userQuoteTokenAccount, // 要关闭的账户
-		t.Wallet.PublicKey(),  // 接收剩余SOL的地址
-		t.Wallet.PublicKey(),  // 关闭账户的所有者
+		botWallet.PublicKey(), // 接收剩余SOL的地址
+		botWallet.PublicKey(), // 关闭账户的所有者
 		[]solana.PublicKey{},
 	).Build()
 	instructions = append(instructions, closeWsolAccountInstruction)
@@ -1586,7 +1586,7 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 		logger.Infof("[blockrazor] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBlockrazor(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.BlockrazorParams,
 				params.TradeParams.Blockhash,
@@ -1603,7 +1603,7 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 		logger.Infof("[0slot] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionZeroSlot(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.ZeroslotParams,
 				params.TradeParams.Blockhash,
@@ -1622,7 +1622,7 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 		logger.Infof("[BloXroute] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBloXroute(
-				t.Wallet.PrivateKey,
+				botWallet.PrivateKey,
 				instructions,
 				*params.BloXrouteParams,
 				params.TradeParams.Blockhash,
@@ -1638,7 +1638,7 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 		logger.Infof("[NextBlock] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionNextBlock(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.NextBlockParams,
 				params.TradeParams.Blockhash,
@@ -1655,7 +1655,7 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 		logger.Infof("[Jito] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionJito(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.JitoParams,
 				params.TradeParams.Blockhash,
@@ -1672,7 +1672,7 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 		logger.Infof("[Temporal] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionTemporal(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.TemporalParams,
 				params.TradeParams.Blockhash,
@@ -1692,7 +1692,7 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 			tx, err := solana.NewTransaction(
 				instructions,
 				params.TradeParams.Blockhash,
-				solana.TransactionPayer(t.Wallet.PublicKey()),
+				solana.TransactionPayer(botWallet.PublicKey()),
 			)
 			if err != nil {
 				errChan <- fmt.Errorf("创建交易失败: %w", err)
@@ -1702,8 +1702,8 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 			// 签名交易
 			_, err = tx.Sign(
 				func(key solana.PublicKey) *solana.PrivateKey {
-					if key.Equals(t.Wallet.PublicKey()) {
-						return &t.Wallet.PrivateKey
+					if key.Equals(botWallet.PublicKey()) {
+						return &botWallet.PrivateKey
 					}
 					return nil
 				},
@@ -1749,7 +1749,7 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 	logger.Infof("sol amount in: %d", params.TradeParams.Amount)
 	logger.Infof("min token out: %d", params.TradeParams.Cost)
 	logger.Infof("Time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
-	t.Wallet = global.GetConfig().TradeWalletKey
+	botWallet := global.GetConfig().TradeWalletKey
 	instructions := []solana.Instruction{}
 
 	// Add compute unit and priority fee instructions
@@ -1761,8 +1761,8 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 	if t.Config.SkipATACheck {
 		logger.Infof("Fast mode: skipping ATA check, creating ATA directly.")
 		createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
-			SetPayer(t.Wallet.PublicKey()).
-			SetWallet(t.Wallet.PublicKey()).
+			SetPayer(botWallet.PublicKey()).
+			SetWallet(botWallet.PublicKey()).
 			SetMint(params.TradeParams.Accounts.Mint).
 			Build()
 		instructions = append(instructions, createATAIx)
@@ -1771,8 +1771,8 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 		if err != nil || account.Value == nil {
 			logger.Infof("ATA not found, creating new account...")
 			createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
-				SetPayer(t.Wallet.PublicKey()).
-				SetWallet(t.Wallet.PublicKey()).
+				SetPayer(botWallet.PublicKey()).
+				SetWallet(botWallet.PublicKey()).
 				SetMint(params.TradeParams.Accounts.Mint).
 				Build()
 			instructions = append(instructions, createATAIx)
@@ -1781,15 +1781,15 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 
 	// Setup WSOL account
 	createWsolAccountInstruction := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
-		SetPayer(t.Wallet.PublicKey()).
-		SetWallet(t.Wallet.PublicKey()).
+		SetPayer(botWallet.PublicKey()).
+		SetWallet(botWallet.PublicKey()).
 		SetMint(WSOL).
 		Build()
 	instructions = append(instructions, createWsolAccountInstruction)
 
 	transferIx := system.NewTransferInstruction(
 		params.TradeParams.MaxSolAmount,
-		t.Wallet.PublicKey(),
+		botWallet.PublicKey(),
 		cpmmAccounts.InputTokenAccount,
 	).Build()
 	instructions = append(instructions, transferIx)
@@ -1802,7 +1802,7 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 	// Build the Raydium CPMM swap instruction
 	//logger.Infof("Building Raydium CPMM swap instruction...%+v", cpmmAccounts)
 	buyInstruction := raydium_cp_swap.NewSwapBaseInputInstructionBuilder().
-		SetPayerAccount(t.Wallet.PublicKey()).
+		SetPayerAccount(botWallet.PublicKey()).
 		SetAuthorityAccount(cpmmAccounts.Authority).
 		SetAmmConfigAccount(cpmmAccounts.AmmConfig).
 		SetPoolStateAccount(cpmmAccounts.PoolState).
@@ -1824,8 +1824,8 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 	// Close WSOL account
 	closeWsolAccountInstruction := token.NewCloseAccountInstruction(
 		cpmmAccounts.InputTokenAccount,
-		t.Wallet.PublicKey(),
-		t.Wallet.PublicKey(),
+		botWallet.PublicKey(),
+		botWallet.PublicKey(),
 		[]solana.PublicKey{},
 	).Build()
 	instructions = append(instructions, closeWsolAccountInstruction)
@@ -1838,7 +1838,7 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 		logger.Infof("[Blockrazor] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBlockrazor(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.BlockrazorParams,
 				params.TradeParams.Blockhash,
@@ -1855,7 +1855,7 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 		logger.Infof("[0slot] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionZeroSlot(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.ZeroslotParams,
 				params.TradeParams.Blockhash,
@@ -1873,7 +1873,7 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 		logger.Infof("[BloXroute] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBloXroute(
-				t.Wallet.PrivateKey,
+				botWallet.PrivateKey,
 				instructions,
 				*params.BloXrouteParams,
 				params.TradeParams.Blockhash,
@@ -1893,7 +1893,7 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 		go func() {
 			// 构建交易并发送到 NextBlock
 			sig, err := swqos.SendTransactionNextBlock(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.NextBlockParams,
 				params.TradeParams.Blockhash,
@@ -1909,7 +1909,7 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 		logger.Infof("[Jito] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionJito(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.JitoParams,
 				params.TradeParams.Blockhash,
@@ -1925,7 +1925,7 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 		logger.Infof("[Temporal] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionTemporal(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.TemporalParams,
 				params.TradeParams.Blockhash,
@@ -1945,7 +1945,7 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 			tx, err := solana.NewTransaction(
 				instructions,
 				params.TradeParams.Blockhash,
-				solana.TransactionPayer(t.Wallet.PublicKey()),
+				solana.TransactionPayer(botWallet.PublicKey()),
 			)
 			if err != nil {
 				errChan <- fmt.Errorf("创建交易失败: %w", err)
@@ -1955,8 +1955,8 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 			// 签名交易
 			_, err = tx.Sign(
 				func(key solana.PublicKey) *solana.PrivateKey {
-					if key.Equals(t.Wallet.PublicKey()) {
-						return &t.Wallet.PrivateKey
+					if key.Equals(botWallet.PublicKey()) {
+						return &botWallet.PrivateKey
 					}
 					return nil
 				},
@@ -1999,7 +1999,7 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 	logger.Infof("sol amount in: %d", params.TradeParams.Amount)
 	logger.Infof("min token out: %d", params.TradeParams.Cost)
 	logger.Infof("Time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
-	t.Wallet = global.GetConfig().TradeWalletKey
+	botWallet := global.GetConfig().TradeWalletKey
 	instructions := []solana.Instruction{}
 
 	// Add compute unit and priority fee instructions
@@ -2011,8 +2011,8 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 	if t.Config.SkipATACheck {
 		logger.Infof("Fast mode: skipping ATA check, creating ATA directly.")
 		createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
-			SetPayer(t.Wallet.PublicKey()).
-			SetWallet(t.Wallet.PublicKey()).
+			SetPayer(botWallet.PublicKey()).
+			SetWallet(botWallet.PublicKey()).
 			SetMint(params.TradeParams.Accounts.Mint).
 			Build()
 		instructions = append(instructions, createATAIx)
@@ -2021,8 +2021,8 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 		if err != nil || account.Value == nil {
 			logger.Infof("ATA not found, creating new account...")
 			createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
-				SetPayer(t.Wallet.PublicKey()).
-				SetWallet(t.Wallet.PublicKey()).
+				SetPayer(botWallet.PublicKey()).
+				SetWallet(botWallet.PublicKey()).
 				SetMint(params.TradeParams.Accounts.Mint).
 				Build()
 			instructions = append(instructions, createATAIx)
@@ -2031,15 +2031,15 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 
 	// Setup WSOL account
 	createWsolAccountInstruction := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
-		SetPayer(t.Wallet.PublicKey()).
-		SetWallet(t.Wallet.PublicKey()).
+		SetPayer(botWallet.PublicKey()).
+		SetWallet(botWallet.PublicKey()).
 		SetMint(WSOL).
 		Build()
 	instructions = append(instructions, createWsolAccountInstruction)
 
 	transferIx := system.NewTransferInstruction(
 		params.TradeParams.MaxSolAmount,
-		t.Wallet.PublicKey(),
+		botWallet.PublicKey(),
 		launchpadAccounts.UserQuoteTokenAccount,
 	).Build()
 	instructions = append(instructions, transferIx)
@@ -2051,7 +2051,7 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 
 	// Build the Raydium Launchpad swap instruction
 	buyInstruction := raydium_launchpad.NewBuyExactInInstructionBuilder().
-		SetPayerAccount(t.Wallet.PublicKey()).
+		SetPayerAccount(botWallet.PublicKey()).
 		SetAuthorityAccount(launchpadAccounts.Authority).
 		SetGlobalConfigAccount(launchpadAccounts.GlobalConfig).
 		SetPlatformConfigAccount(launchpadAccounts.PlatformConfig).
@@ -2078,8 +2078,8 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 	// Close WSOL account
 	closeWsolAccountInstruction := token.NewCloseAccountInstruction(
 		launchpadAccounts.UserQuoteTokenAccount,
-		t.Wallet.PublicKey(),
-		t.Wallet.PublicKey(),
+		botWallet.PublicKey(),
+		botWallet.PublicKey(),
 		[]solana.PublicKey{},
 	).Build()
 	instructions = append(instructions, closeWsolAccountInstruction)
@@ -2092,7 +2092,7 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 		logger.Infof("[Blockrazor] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBlockrazor(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.BlockrazorParams,
 				params.TradeParams.Blockhash,
@@ -2109,7 +2109,7 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 		logger.Infof("[0slot] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionZeroSlot(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.ZeroslotParams,
 				params.TradeParams.Blockhash,
@@ -2127,7 +2127,7 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 		logger.Infof("[BloXroute] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBloXroute(
-				t.Wallet.PrivateKey,
+				botWallet.PrivateKey,
 				instructions,
 				*params.BloXrouteParams,
 				params.TradeParams.Blockhash,
@@ -2147,7 +2147,7 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 		go func() {
 			// 构建交易并发送到 NextBlock
 			sig, err := swqos.SendTransactionNextBlock(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.NextBlockParams,
 				params.TradeParams.Blockhash,
@@ -2163,7 +2163,7 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 		logger.Infof("[Jito] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionJito(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.JitoParams,
 				params.TradeParams.Blockhash,
@@ -2179,7 +2179,7 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 		logger.Infof("[Temporal] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionTemporal(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.TemporalParams,
 				params.TradeParams.Blockhash,
@@ -2199,7 +2199,7 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 			tx, err := solana.NewTransaction(
 				instructions,
 				params.TradeParams.Blockhash,
-				solana.TransactionPayer(t.Wallet.PublicKey()),
+				solana.TransactionPayer(botWallet.PublicKey()),
 			)
 			if err != nil {
 				errChan <- fmt.Errorf("创建交易失败: %w", err)
@@ -2209,8 +2209,8 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 			// 签名交易
 			_, err = tx.Sign(
 				func(key solana.PublicKey) *solana.PrivateKey {
-					if key.Equals(t.Wallet.PublicKey()) {
-						return &t.Wallet.PrivateKey
+					if key.Equals(botWallet.PublicKey()) {
+						return &botWallet.PrivateKey
 					}
 					return nil
 				},
@@ -2252,7 +2252,7 @@ func (t *TraderImpl) RaydiumCPMMSell(ctx context.Context, params types.OrderPara
 	logger.Infof("Mint地址: %s", mintAddress)
 	logger.Infof("卖出数量: %d", params.TradeParams.Amount)
 	logger.Infof("time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
-	t.Wallet = global.GetConfig().TradeWalletKey
+	botWallet := global.GetConfig().TradeWalletKey
 	// 检查是否可以卖出（3秒内同一个币最多卖出一次）
 	if !global.CanSellToken(mintAddress) {
 		logger.Warnf("代币 %s 卖出频率过高，3秒内只能卖出一次", mintAddress)
@@ -2269,8 +2269,8 @@ func (t *TraderImpl) RaydiumCPMMSell(ctx context.Context, params types.OrderPara
 
 	// 创建WSOL账户指令
 	createWsolAccountInstruction := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
-		SetPayer(t.Wallet.PublicKey()).
-		SetWallet(t.Wallet.PublicKey()).
+		SetPayer(botWallet.PublicKey()).
+		SetWallet(botWallet.PublicKey()).
 		SetMint(WSOL).
 		Build()
 
@@ -2281,7 +2281,7 @@ func (t *TraderImpl) RaydiumCPMMSell(ctx context.Context, params types.OrderPara
 	cpmmAccounts := params.TradeParams.Accounts.RaydiumCPMMAccounts
 	//@todo: 请检查 raydium_cpmmp 包的正确性,input 和output 的顺序
 	sellInstruction := raydium_cp_swap.NewSwapBaseInputInstructionBuilder().
-		SetPayerAccount(t.Wallet.PublicKey()).
+		SetPayerAccount(botWallet.PublicKey()).
 		SetAuthorityAccount(cpmmAccounts.Authority).
 		SetAmmConfigAccount(cpmmAccounts.AmmConfig).
 		SetPoolStateAccount(cpmmAccounts.PoolState).
@@ -2302,8 +2302,8 @@ func (t *TraderImpl) RaydiumCPMMSell(ctx context.Context, params types.OrderPara
 	//close wsol account
 	closeWsolAccountInstruction := token.NewCloseAccountInstruction(
 		cpmmAccounts.InputTokenAccount,
-		t.Wallet.PublicKey(),
-		t.Wallet.PublicKey(),
+		botWallet.PublicKey(),
+		botWallet.PublicKey(),
 		[]solana.PublicKey{},
 	).Build()
 	instructions = append(instructions, closeWsolAccountInstruction)
@@ -2317,7 +2317,7 @@ func (t *TraderImpl) RaydiumCPMMSell(ctx context.Context, params types.OrderPara
 		logger.Infof("[blockrazor] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBlockrazor(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.BlockrazorParams,
 				params.TradeParams.Blockhash,
@@ -2334,7 +2334,7 @@ func (t *TraderImpl) RaydiumCPMMSell(ctx context.Context, params types.OrderPara
 		logger.Debugf("[0slot] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionZeroSlot(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.ZeroslotParams,
 				params.TradeParams.Blockhash,
@@ -2352,7 +2352,7 @@ func (t *TraderImpl) RaydiumCPMMSell(ctx context.Context, params types.OrderPara
 		logger.Infof("[BloXroute] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionBloXroute(
-				t.Wallet.PrivateKey,
+				botWallet.PrivateKey,
 				instructions,
 				*params.BloXrouteParams,
 				params.TradeParams.Blockhash,
@@ -2372,7 +2372,7 @@ func (t *TraderImpl) RaydiumCPMMSell(ctx context.Context, params types.OrderPara
 		go func() {
 			// 构建交易并发送到 NextBlock
 			sig, err := swqos.SendTransactionNextBlock(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.NextBlockParams,
 				params.TradeParams.Blockhash,
@@ -2388,7 +2388,7 @@ func (t *TraderImpl) RaydiumCPMMSell(ctx context.Context, params types.OrderPara
 		logger.Infof("[Jito] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionJito(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.JitoParams,
 				params.TradeParams.Blockhash,
@@ -2404,7 +2404,7 @@ func (t *TraderImpl) RaydiumCPMMSell(ctx context.Context, params types.OrderPara
 		logger.Infof("[Temporal] 准备发送交易...")
 		go func() {
 			sig, err := swqos.SendTransactionTemporal(
-				t.Wallet,
+				botWallet,
 				instructions,
 				params.TemporalParams,
 				params.TradeParams.Blockhash,
@@ -2424,7 +2424,7 @@ func (t *TraderImpl) RaydiumCPMMSell(ctx context.Context, params types.OrderPara
 			tx, err := solana.NewTransaction(
 				instructions,
 				params.TradeParams.Blockhash,
-				solana.TransactionPayer(t.Wallet.PublicKey()),
+				solana.TransactionPayer(botWallet.PublicKey()),
 			)
 			if err != nil {
 				errChan <- fmt.Errorf("创建交易失败: %w", err)
@@ -2434,8 +2434,8 @@ func (t *TraderImpl) RaydiumCPMMSell(ctx context.Context, params types.OrderPara
 			// 签名交易
 			_, err = tx.Sign(
 				func(key solana.PublicKey) *solana.PrivateKey {
-					if key.Equals(t.Wallet.PublicKey()) {
-						return &t.Wallet.PrivateKey
+					if key.Equals(botWallet.PublicKey()) {
+						return &botWallet.PrivateKey
 					}
 					return nil
 				},

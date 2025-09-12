@@ -2,6 +2,7 @@ package global
 
 import (
 	"copytrade/types"
+	"strconv"
 	"sync"
 	"time"
 
@@ -11,14 +12,15 @@ import (
 // GlobalConfig 全局配置结构体，存储在内存中
 type GlobalConfig struct {
 	// 交易平台启用状态
-	PumpTradeEnable      bool           `json:"pump_trade_enable"`      // PumpFun交易启用状态
-	PumpAmmTradeEnable   bool           `json:"pump_amm_trade_enable"`  // PumpAMM交易启用状态
-	RaydiumTradeEnable   bool           `json:"raydium_trade_enable"`   // Raydium交易启用状态
-	LaunchpadTradeEnable bool           `json:"launchpad_trade_enable"` // Launchpad交易启用状态
-	RepeatTradeEnable    bool           `json:"repeat_trade_enable"`    // 重复交易启用状态
-	SellDelayTime        int            `json:"sell_delay_time"`        // 延迟卖出时间（ms）
-	SellIntervalLimit    int            `json:"sell_interval_limit"`    // 卖出时间间隔限制（秒）
-	TradeWalletKey       *solana.Wallet `json:"trade_wallet_key"`       // 交易钱包密钥
+	PumpTradeEnable        bool           `json:"pump_trade_enable"`        // PumpFun交易启用状态
+	PumpAmmTradeEnable     bool           `json:"pump_amm_trade_enable"`    // PumpAMM交易启用状态
+	RaydiumTradeEnable     bool           `json:"raydium_trade_enable"`     // Raydium交易启用状态
+	LaunchpadTradeEnable   bool           `json:"launchpad_trade_enable"`   // Launchpad交易启用状态
+	RepeatTradeEnable      bool           `json:"repeat_trade_enable"`      // 重复交易启用状态
+	SellDelayTime          int            `json:"sell_delay_time"`          // 延迟卖出时间（ms）
+	SellIntervalLimit      int            `json:"sell_interval_limit"`      // 卖出时间间隔限制（秒）
+	CapitalRecoveryPercent float64        `json:"capital_recovery_percent"` // 抽回本金盈利百分比
+	TradeWalletKey         *solana.Wallet `json:"trade_wallet_key"`         // 交易钱包密钥
 	// 交易触发和池子大小参数
 	MinFollowTriggerAmount float64 `json:"min_follow_trigger_amount"` // 最小触发买入数量 (SOL)
 	MaxFollowTriggerAmount float64 `json:"max_follow_trigger_amount"` // 最大触发买入数量 (SOL)
@@ -120,9 +122,21 @@ func UpdateConfigField(key string, value any) {
 		if val, ok := value.(int); ok {
 			Config.SellIntervalLimit = val
 		}
+	case "capital_recovery_percent":
+		if val, ok := value.(float64); ok {
+			Config.CapitalRecoveryPercent = val
+		} else if val, ok := value.(int); ok {
+			Config.CapitalRecoveryPercent = float64(val)
+		} else if val, ok := value.(string); ok {
+			if floatVal, err := strconv.ParseFloat(val, 64); err == nil {
+				Config.CapitalRecoveryPercent = floatVal
+			}
+		}
 	case "trade_wallet_key":
 		if val, ok := value.(*solana.Wallet); ok {
 			Config.TradeWalletKey = val
+		} else if val, ok := value.(solana.Wallet); ok {
+			Config.TradeWalletKey = &val
 		}
 
 	// 钱包参数模板
@@ -145,19 +159,29 @@ func InitConfig(config map[string]any) {
 	privateKey := solana.MustPrivateKeyFromBase58(_privateKey)
 	Config = GlobalConfig{
 		// 交易平台启用状态
-		PumpTradeEnable:      getBoolValue(config, "pump_trade_enable", true),
-		PumpAmmTradeEnable:   getBoolValue(config, "pump_amm_trade_enable", false),
-		RaydiumTradeEnable:   getBoolValue(config, "raydium_trade_enable", false),
-		LaunchpadTradeEnable: getBoolValue(config, "launchpad_trade_enable", false),
-		RepeatTradeEnable:    getBoolValue(config, "repeat_trade_enable", false),
-		SellIntervalLimit:    getIntValue(config, "sell_interval_limit", 2),
-		TradeWalletKey:       &solana.Wallet{PrivateKey: privateKey}, //
+		PumpTradeEnable:        getBoolValue(config, "pump_trade_enable", true),
+		PumpAmmTradeEnable:     getBoolValue(config, "pump_amm_trade_enable", false),
+		RaydiumTradeEnable:     getBoolValue(config, "raydium_trade_enable", false),
+		LaunchpadTradeEnable:   getBoolValue(config, "launchpad_trade_enable", false),
+		RepeatTradeEnable:      getBoolValue(config, "repeat_trade_enable", false),
+		SellIntervalLimit:      getIntValue(config, "sell_interval_limit", 2),
+		CapitalRecoveryPercent: getFloatValue(config, "capital_recovery_percent", 0),
+		TradeWalletKey:         &solana.Wallet{PrivateKey: privateKey}, //
 		// 钱包参数模板
 		WalletParamSchemes: getWalletParamSchemes(config),
 
 		// 更新时间
 		UpdatedAt: time.Now(),
 	}
+}
+
+func getFloatValue(config map[string]any, s string, defaultValue float64) float64 {
+	if val, ok := config[s]; ok {
+		if floatVal, ok := val.(float64); ok {
+			return floatVal
+		}
+	}
+	return defaultValue
 }
 
 // getBoolValue 从配置中获取布尔值，如果不存在则使用默认值

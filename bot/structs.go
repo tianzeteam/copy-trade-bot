@@ -23,8 +23,6 @@ type Bot struct {
 	nonceClient *client.Client
 	sdkClient   *sdk.TradeSubscriptionClient
 
-	privateKey solana.PrivateKey
-
 	feeMicroLamport uint64
 	enableJito      bool
 	delaySecond     int64
@@ -63,11 +61,6 @@ func (b *Bot) statusg(msg interface{}) {
 
 func (b *Bot) statusr(msg interface{}) {
 	logger.Info("Bot (R) ", fmt.Sprintf("%v", msg))
-}
-
-// GetWalletPublicKey 返回机器人钱包的公钥
-func (b *Bot) GetWalletPublicKey() solana.PublicKey {
-	return b.privateKey.PublicKey()
 }
 
 type Coin struct {
@@ -127,8 +120,8 @@ func NewBot(config *utils.Config, sdkClient *sdk.TradeSubscriptionClient) (*Bot,
 	SetConfig(config)
 
 	b := &Bot{
-		Config:      config,
-		privateKey:  privateKey,
+		Config: config,
+
 		Trader:      trader,
 		rpcClient:   rpcClient,
 		nonceClient: nonceClient,

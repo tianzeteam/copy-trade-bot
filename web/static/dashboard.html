@@ -33,6 +33,9 @@
                     <li class="nav-item">
                         <a class="nav-link" href="#" id="tradeSettingsLink">交易设置</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="globalSellSettingsLink">卖出全局设置</a>
+                    </li>
                 </ul>
                 <div class="d-flex align-items-center">
                     <span class="text-light me-3" id="currentUser"></span>
@@ -429,6 +432,83 @@
                 <div class="mt-4 d-flex justify-content-end">
                     <button type="button" class="btn btn-primary" id="saveTradeSettingsBtn">
                         <i class="bi bi-save"></i> 保存交易设置
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 卖出全局设置 -->
+        <div class="card mb-4" id="globalSellSettingsSection">
+            <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-graph-down me-2"></i>卖出全局设置</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info border-info">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-info-circle-fill me-3 fs-4"></i>
+                        <div>
+                            <h6 class="alert-heading mb-1">全局卖出策略</h6>
+                            <p class="mb-0">配置全局卖出策略参数，这些设置将影响所有交易的卖出行为。</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card border-warning">
+                    <div class="card-header bg-warning bg-opacity-10">
+                        <h6 class="mb-0"><i class="bi bi-percent me-2"></i>本金回收设置</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="capitalRecoveryPercent" class="form-label fw-semibold">
+                                        <i class="bi bi-arrow-up-circle me-1"></i>抽回本金盈利百分比 (%)
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-percent"></i></span>
+                                        <input 
+                                            type="number" 
+                                            class="form-control" 
+                                            id="capitalRecoveryPercent" 
+                                            min="0" 
+                                            max="100" 
+                                            step="0.1" 
+                                            value="0"
+                                            placeholder="输入盈利百分比"
+                                        >
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <div class="form-text">
+                                        <i class="bi bi-lightbulb me-1"></i>
+                                        <small>当代币盈利达到此百分比时，自动卖出部分代币回收本金。设为0表示禁用此功能。</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">
+                                        <i class="bi bi-calculator me-1"></i>策略说明
+                                    </label>
+                                    <div class="card bg-light">
+                                        <div class="card-body p-3">
+                                            <h6 class="card-title text-primary mb-2">本金回收策略</h6>
+                                            <ul class="list-unstyled mb-0 small">
+                                                <li class="mb-1"><i class="bi bi-check-circle text-success me-1"></i> 当盈利达到设定百分比时触发</li>
+                                                <li class="mb-1"><i class="bi bi-check-circle text-success me-1"></i> 自动卖出部分代币回收投入本金</li>
+                                                <li class="mb-1"><i class="bi bi-check-circle text-success me-1"></i> 剩余代币继续持有，实现零成本持仓</li>
+                                                <li class="mb-0"><i class="bi bi-check-circle text-success me-1"></i> 降低投资风险，锁定部分收益</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 d-flex justify-content-end">
+                    <button type="button" class="btn btn-warning" id="saveGlobalSellSettingsBtn">
+                        <i class="bi bi-save me-1"></i> 保存全局卖出设置
                     </button>
                 </div>
             </div>

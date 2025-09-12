@@ -1,60 +1,57 @@
 package bot
 
 import (
-	"context"
-	"copytrade/logger"
 	"fmt"
 
 	"github.com/gagliardetto/solana-go"
-	"github.com/gagliardetto/solana-go/rpc"
 )
 
 func (b *Bot) UpdateNonceAccount() (*solana.Hash, error) {
 	// recent blockhash
-	// 获取最近的区块哈希
-	ctx := context.Background()
-	// Use the bot's private key as the fee payer
-	nonceWallet := b.privateKey
+	/* 	// 获取最近的区块哈希
+	   	ctx := context.Background()
+	   	// Use the bot's private key as the fee payer
+	   	nonceWallet := b.privateKey
 
-	recentBlockhash, err := b.rpcClient.GetRecentBlockhash(ctx, rpc.CommitmentFinalized)
-	if err != nil {
-		return nil, fmt.Errorf("获取最近区块哈希失败: %v", err)
-	}
+	   	recentBlockhash, err := b.rpcClient.GetRecentBlockhash(ctx, rpc.CommitmentFinalized)
+	   	if err != nil {
+	   		return nil, fmt.Errorf("获取最近区块哈希失败: %v", err)
+	   	}
 
-	// 创建创建账户的指令
-	upgradeNonceIns, _ := b.UpgradeNonceAdvanceInstruction(nonceWallet.PublicKey().String())
+	   	// 创建创建账户的指令
+	   	upgradeNonceIns, _ := b.UpgradeNonceAdvanceInstruction(nonceWallet.PublicKey().String())
 
-	// 创建交易 - 明确指定费用支付者
-	tx, err := solana.NewTransaction(
-		[]solana.Instruction{upgradeNonceIns},
-		recentBlockhash.Value.Blockhash,
-		solana.TransactionPayer(b.privateKey.PublicKey()),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("创建交易失败: %v", err)
-	}
-	// 签名交易
-	tx.Sign(func(key solana.PublicKey) *solana.PrivateKey {
-		if key.Equals(b.privateKey.PublicKey()) {
-			return &b.privateKey
-		}
+	   	// 创建交易 - 明确指定费用支付者
+	   	tx, err := solana.NewTransaction(
+	   		[]solana.Instruction{upgradeNonceIns},
+	   		recentBlockhash.Value.Blockhash,
+	   		solana.TransactionPayer(b.privateKey.PublicKey()),
+	   	)
+	   	if err != nil {
+	   		return nil, fmt.Errorf("创建交易失败: %v", err)
+	   	}
+	   	// 签名交易
+	   	tx.Sign(func(key solana.PublicKey) *solana.PrivateKey {
+	   		if key.Equals(b.privateKey.PublicKey()) {
+	   			return &b.privateKey
+	   		}
 
-		return nil
-	})
+	   		return nil
+	   	})
 
-	// 发送交易
-	sig, err := b.rpcClient.SendTransactionWithOpts(
-		ctx,
-		tx,
-		rpc.TransactionOpts{
-			SkipPreflight:       false,
-			PreflightCommitment: rpc.CommitmentFinalized,
-		},
-	)
-	if err != nil {
-		return nil, fmt.Errorf("发送交易失败: %v", err)
-	}
-	logger.Info("txhash", sig)
+	   	// 发送交易
+	   	sig, err := b.rpcClient.SendTransactionWithOpts(
+	   		ctx,
+	   		tx,
+	   		rpc.TransactionOpts{
+	   			SkipPreflight:       false,
+	   			PreflightCommitment: rpc.CommitmentFinalized,
+	   		},
+	   	)
+	   	if err != nil {
+	   		return nil, fmt.Errorf("发送交易失败: %v", err)
+	   	}
+	   	logger.Info("txhash", sig) */
 	return nil, nil
 
 }

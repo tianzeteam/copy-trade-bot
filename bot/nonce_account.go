@@ -3,19 +3,17 @@ package bot
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"copytrade/logger"
 
 	"github.com/gagliardetto/solana-go"
-	"github.com/gagliardetto/solana-go/programs/system"
 	"github.com/gagliardetto/solana-go/rpc"
 
 	"github.com/mr-tron/base58"
 )
 
 // CreateNonceAccount 创建一个新的nonce账户
-func (b *Bot) CreateNonceAccount(ctx context.Context) (*solana.PrivateKey, string, error) {
+/* func (b *Bot) CreateNonceAccount(ctx context.Context, config *utils.Config) (*solana.PrivateKey, string, error) {
 	// 生成一个新的密钥对作为nonce账户
 	nonceAccount := solana.NewWallet()
 	nonceAccountPubkey := nonceAccount.PublicKey()
@@ -82,7 +80,7 @@ func (b *Bot) CreateNonceAccount(ctx context.Context) (*solana.PrivateKey, strin
 
 	logger.Infof("创建nonce账户成功，交易ID: %s", sig.String())
 	return &nonceAccount.PrivateKey, nonceAccountPubkey.String(), nil
-}
+} */
 
 // GetNonce 获取nonce账户的信息
 func (b *Bot) GetNonce(ctx context.Context, nonceAccountAddress string) (*solana.Hash, error) {
@@ -164,7 +162,7 @@ func (b *Bot) GetNonce(ctx context.Context, nonceAccountAddress string) (*solana
 }
 
 // GetNonceAdvanceInstruction 创建一个推进使用nonce的指令
-func (b *Bot) GetNonceAdvanceInstruction(nonceAccountAddress string) (solana.Instruction, error) {
+/* func (b *Bot) GetNonceAdvanceInstruction(nonceAccountAddress string) (solana.Instruction, error) {
 	// 解析nonce账户地址
 	nonceAccountPubkey, err := solana.PublicKeyFromBase58(nonceAccountAddress)
 	if err != nil {
@@ -191,7 +189,7 @@ func (b *Bot) GetNonceAdvanceInstruction(nonceAccountAddress string) (solana.Ins
 		data: data,
 	}, nil
 }
-
+*/
 // customInstruction 自定义指令实现solana.Instruction接口
 type customInstruction struct {
 	programID solana.PublicKey

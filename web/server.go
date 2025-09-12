@@ -139,7 +139,7 @@ func (s *WebServer) RegisterRoutes() {
 	walletImportController.RegisterRoutes(s.Router)
 
 	// 注册Redis配置控制器（需要认证）
-	configController := NewConfigController(s.RedisService)
+	configController := NewConfigController(s.RedisService, s.ConfigPath)
 	configController.RegisterRoutesWithAuth(s.Router)
 
 	// 注册参数模板控制器（需要认证）

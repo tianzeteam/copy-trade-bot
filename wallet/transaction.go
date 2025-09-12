@@ -23,6 +23,7 @@ type TransactionMonitor struct {
 	WalletMonitor *WalletMonitor   // 钱包监控器
 	BotWallet     solana.PublicKey // 机器人钱包地址
 	BuySolAmount  float64          // 购买金额（SOL）
+
 }
 
 // 创建新的交易监控器
@@ -37,6 +38,8 @@ func NewTransactionMonitor(tradeBot *bot.Bot, walletMonitor *WalletMonitor, botW
 
 // 处理pump内盘交易事件
 func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo) {
+	logger.Debugf("检测到钱包交易: 钱包=%s (%s), 代币=%s, 数量=%d, time: %v",
+		tradeInfo.UserAddress, tradeInfo.UserAddress, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
 	// 获取交易者钱包地址
 	copyAddress, err := solana.PublicKeyFromBase58(tradeInfo.UserAddress)
 	if err != nil {
@@ -50,6 +53,8 @@ func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo
 		// 不是我们监控的钱包，忽略
 		return
 	}
+	logger.Infof("检测是否是监控钱包交易: 钱包=%s (%s), 代币=%s, 数量=%d, time: %v",
+		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
 	specialScheme, err := m.WalletMonitor.GetParamSchemeForWallet(copyAddress.String())
 	if err != nil {
 		logger.Errorf("获取参数模板失败: %v", err)
@@ -395,7 +400,7 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 
 	ctx := context.Background()
 	//获取交易机器人钱包地址
-	m.BotWallet = global.GetConfig().TradeWalletKey.PublicKey()
+	botWallet := global.GetConfig().TradeWalletKey.PublicKey()
 
 	// Convert mint address string to solana.PublicKey
 	mintAddr, err := solana.PublicKeyFromBase58(tradeInfo.MintAddress)
@@ -408,7 +413,7 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 		ctx,
 		creator,
 		mintAddr,
-		m.BotWallet,
+		botWallet,
 	)
 	if err != nil {
 		logger.Errorf("Failed to calculate accounts: %v", err)
@@ -418,7 +423,7 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 	// Prepare transaction parameters
 	accounts := core.TradeAccounts{
 		Mint:                    mintAddr,
-		User:                    m.BotWallet,
+		User:                    botWallet,
 		BondingCurve:            pumpAccounts.BondingCurve,
 		AssociatedBondingCurve:  pumpAccounts.AssociatedBondingCurve,
 		AssociatedTokenAccount:  pumpAccounts.AssociatedTokenAccount,
@@ -516,7 +521,7 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 
 	go m.TradeBot.Trader.Buy(ctx, orderParams)
 	// 然后记录机器人的跟单交易
-	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress, copyAddress, m.BotWallet, tradeInfo.CurrentPrice)
+	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress, copyAddress, botWallet, tradeInfo.CurrentPrice)
 }
 
 // executeAmmCopyTrade 执行AMM跟单交易

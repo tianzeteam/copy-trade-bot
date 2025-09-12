@@ -128,7 +128,7 @@ func CreateWalletSettings(config WalletConfig) (*WalletSettings, error) {
 }
 
 // CreateWalletMonitorFromRedis 从Redis创建钱包监控器
-func CreateWalletMonitorFromRedis(redisAddr string, redisDB int, redisKeyPrefix string) (*WalletMonitor, error) {
+func CreateWalletMonitorFromRedis(redisAddr string, redisDB int, redisKeyPrefix string, recoveryPct float64) (*WalletMonitor, error) {
 	// 创建Redis钱包服务
 	redisService, err := NewRedisWalletService(redisAddr, redisDB, redisKeyPrefix)
 	if err != nil {

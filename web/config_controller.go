@@ -2,21 +2,28 @@ package web
 
 import (
 	"copytrade/global"
+	"copytrade/utils"
 	"copytrade/wallet"
+	"fmt"
 	"net/http"
+	"os"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"gopkg.in/yaml.v3"
 )
 
 // ConfigController 配置控制器
 type ConfigController struct {
 	redisService *wallet.RedisWalletService // 保留Redis服务引用以兼容现有代码
+	ConfigPath   string                     // 配置文件路径
 }
 
 // NewConfigController 创建新的配置控制器
-func NewConfigController(redisService *wallet.RedisWalletService) *ConfigController {
+func NewConfigController(redisService *wallet.RedisWalletService, configPath string) *ConfigController {
 	return &ConfigController{
 		redisService: redisService,
+		ConfigPath:   configPath,
 	}
 }
 
@@ -60,6 +67,41 @@ func (c *ConfigController) handleUpdateConfig(ctx *gin.Context) {
 	// 更新各个字段
 	for key, value := range updates {
 		global.UpdateConfigField(key, value)
+	}
+
+	// 保存配置到文件
+	// 加载当前配置
+	config, err := utils.LoadConfig(c.ConfigPath)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("加载配置失败: %v", err)})
+		return
+	}
+
+	// 只更新capital_recovery_percent
+	if capitalRecoveryPercent, ok := updates["capital_recovery_percent"]; ok {
+		switch v := capitalRecoveryPercent.(type) {
+		case float64:
+			config.CapitalRecoveryPercent = v
+		case int:
+			config.CapitalRecoveryPercent = float64(v)
+		case string:
+			if floatVal, err := strconv.ParseFloat(v, 64); err == nil {
+				config.CapitalRecoveryPercent = floatVal
+			}
+		}
+	}
+	// 保留其他配置不变
+
+	// 保存配置
+	configData, err := yaml.Marshal(config)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("序列化私钥配置失败: %v", err)})
+		return
+	}
+
+	if err := os.WriteFile(c.ConfigPath, configData, 0644); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("保存私钥配置失败: %v", err)})
+		return
 	}
 
 	// 获取更新后的配置
