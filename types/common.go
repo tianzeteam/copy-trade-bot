@@ -19,12 +19,14 @@ const (
 	BloXroute  TradeMode = "bloXroute"
 	Zeroslot   TradeMode = "zeroslot"
 	Blockrazor TradeMode = "blockrazor"
+	Astralane  TradeMode = "astralane"
+	FlashBlock TradeMode = "flashblock"
 )
 
 // ValidateMode 验证交易模式是否有效
 func (m TradeMode) IsValid() bool {
 	switch m {
-	case Normal, Jito, NextBlock, Temportal, BloXroute, Zeroslot, Blockrazor:
+	case Normal, Jito, NextBlock, Temportal, BloXroute, Zeroslot, Blockrazor, Astralane, FlashBlock:
 		return true
 	default:
 		return false
@@ -194,6 +196,7 @@ type TradeAccounts struct {
 	RaydiumCPMMAccounts     *RaydiumCPMMAccounts
 	GlobalVolumeAccumulator solana.PublicKey // 全局成交量累加器地址
 	UserVolumeAccumulator   solana.PublicKey // 用户成交量累加器地址
+	NonceAccount            solana.PublicKey // nonce账户
 }
 
 // RaydiumCPMMAccounts stores all the necessary accounts for interacting with the Raydium CPMM.
@@ -281,6 +284,22 @@ type BlockrazorParams struct {
 	TipAmount      uint64 // 小费金额
 }
 
+// AnsParams 定义 ANS (Astralane) 模式特有的参数
+type AstralaneParams struct {
+	Enable    bool
+	RpcUrl    string
+	ApiKey    string
+	TipAmount uint64
+}
+
+// FlashBlockParams 定义 FlashBlock 模式特有的参数
+type FlashBlockParams struct {
+	Enable    bool
+	RpcUrl    string
+	ApiKey    string
+	TipAmount uint64
+}
+
 // OrderParams 定义完整的交易参数（适用于买入和卖出）
 type OrderParams struct {
 	TradeParams                        // 基础参数
@@ -290,6 +309,8 @@ type OrderParams struct {
 	BloXrouteParams  *BloXrouteParams  // BloXroute 特有参数
 	ZeroslotParams   *ZeroslotParams   // Zeroslot 特有参数
 	BlockrazorParams *BlockrazorParams // Blockrazor 特有参数
+	AstralaneParams  *AstralaneParams  // ANS (Astralane) 特有参数
+	FlashBlockParams *FlashBlockParams // FlashBlock 特有参数
 }
 
 // TradeMessage 交易消息结构

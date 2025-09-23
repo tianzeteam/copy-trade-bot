@@ -22,6 +22,10 @@ type ParamScheme struct {
 	MinPoolSize            float64 `json:"min_pool_size"`             // 最小池子大小 (SOL)
 	MaxPoolSize            float64 `json:"max_pool_size"`             // 最大池子大小 (SOL)
 
+	// 代币创建时间过滤参数 (防止聪明钱包反向收割)
+	TokenAgeMinMinutes int `json:"token_age_min_minutes"` // 代币最小创建时间 (分钟)
+	TokenAgeMaxMinutes int `json:"token_age_max_minutes"` // 代币最大创建时间 (分钟)
+
 	// 交易参数
 	BuySolAmount float64 `json:"buy_sol_amount"` // 买入金额 (SOL)
 	//MaxBuyAmount float64 `json:"max_buy_amount"` // 最大买入金额 (SOL)

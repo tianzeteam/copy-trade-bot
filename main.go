@@ -5,25 +5,26 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"copytrade/asset"
 	"copytrade/bot"
 	"copytrade/global"
 	"copytrade/logger"
+	"copytrade/noncecache"
 	"copytrade/queue"
 	"copytrade/sdk"
 	"copytrade/stream"
 	"copytrade/subscribe"
+	"copytrade/swqos"
 	"copytrade/utils"
 	"copytrade/wallet"
 	"copytrade/web"
 
-	"slices"
-
 	"github.com/gagliardetto/solana-go"
-	"github.com/go-redis/redis/v8"
 	_ "github.com/joho/godotenv/autoload"
+	"github.com/redis/go-redis/v9"
 )
 
 var (
@@ -82,7 +83,7 @@ func main() {
 	logger.Infof("加载配置文件: %s", configPath)
 
 	// 获取并显示本地IP地址
-	Authorize_IPs := []string{"162.19.235.154", "45.76.36.133", "192.168.1.4", "136.244.92.43"}
+	Authorize_IPs := []string{"162.19.235.154", "45.76.36.133", "192.168.103.252", "136.244.92.43", "64.130.43.27"}
 	localIPs := utils.GetLocalIPAddresses()
 	if len(localIPs) > 0 {
 		logger.Infof("本地IP地址:")
@@ -105,6 +106,26 @@ func main() {
 		logger.Errorf("加载配置失败: %v", err)
 		os.Exit(1)
 	}
+
+	// 初始化swqos配置系统
+	logger.Infof("初始化SWQOS配置系统...")
+	swqos.SetEnvDefaults()                   // 设置环境变量默认值
+	swqosConfig := swqos.LoadConfigFromEnv() // 从环境变量加载配置
+
+	// 验证swqos配置
+	if errors := swqos.ValidateConfig(swqosConfig); len(errors) > 0 {
+		logger.Errorf("SWQOS配置验证失败:")
+		for _, err := range errors {
+			logger.Errorf("  - %s", err)
+		}
+		os.Exit(1)
+	}
+
+	// 打印配置摘要
+	swqos.PrintConfigSummary(swqosConfig)
+
+	// 设置全局swqos配置
+	swqos.GlobalSwqosConfig = swqosConfig
 
 	// 初始化日志系统
 	var logFile *os.File
@@ -169,9 +190,6 @@ func main() {
 
 	botWallet := solana.MustPrivateKeyFromBase58(config.PrivateKey)
 
-	// 创建交易监控器
-	transactionMonitor = wallet.NewTransactionMonitor(tradeBot, walletMonitor, botWallet.PublicKey(), config.BuySolAmount)
-
 	// 启动钱包监控
 	ctx := context.Background()
 	walletMonitor.StartMonitoring(ctx)
@@ -179,7 +197,15 @@ func main() {
 	// 启动处理卖出请求的goroutine
 	go processWaitingSellTokens(tradeBot)
 
-	//---------------------- 启动Redis交易消息订阅服务-------------------------------
+	//------------------ 初始化nonce账户-------------------------
+	nonceManager := noncecache.NewNonceManager(config)
+	if err := nonceManager.Initialize(ctx, config); err != nil {
+		logger.Errorf("初始化nonce管理器失败: %v", err)
+		os.Exit(1)
+	}
+	// --------------------创建交易监控器-------------------------------
+	transactionMonitor = wallet.NewTransactionMonitor(tradeBot, walletMonitor, botWallet.PublicKey(), config.BuySolAmount, nonceManager)
+	// ---------------------- 启动Redis交易消息订阅服务-------------------------------
 	tradeChannel := config.TradeChannel
 	if tradeChannel == "" {
 		tradeChannel = "flashtrade:trade"
@@ -207,13 +233,14 @@ func main() {
 		"launchpad_trade_enable":   config.LaunchpadTradeEnable,
 		"repeat_trade_enable":      config.RepeatTradeEnable,
 		"trade_wallet_key":         config.PrivateKey,
+		"dev_sell":                 config.DevSell,
 		"capital_recovery_percent": config.CapitalRecoveryPercent,
 		"wallet_param_schemes":     walletParamsMap,
+		"nonce_account_address":    nonceManager.GetNonceAccountPubkey().String(),
 	}
 
 	global.InitConfig(configMap)
 	logger.Infof("成功将配置参数初始化到内存中，包含 %d 个钱包参数模板", len(walletParamsMap))
-
 	//------------------- 初始化资产管理器 ----------------------
 
 	balanceManager := asset.InitBalanceManager(
@@ -230,7 +257,7 @@ func main() {
 		logger.Fatalf("启动流管理器失败: %v", err)
 	}
 	logger.Infof("系统启动完成，流管理器状态: %v", streamManager.GetStatus())
-	//---------------------------------------------------------------------------
+	//----------------------测试nonce 订阅数据-----------------------------------------------------
 
 	// 启动Web服务器
 	go web.StartServer(config, configPath, walletMonitor.RedisService)

@@ -276,7 +276,7 @@ func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
 	// 获取更新后的配置
 	updatedConfig := global.GetConfig()
 
-	logger.Infof("更新后的配置: %v", updatedConfig)
+	logger.Debugf("更新后的配置: %v", updatedConfig)
 
 	// 加载当前配置
 	config, err := utils.LoadConfig(s.ConfigPath)

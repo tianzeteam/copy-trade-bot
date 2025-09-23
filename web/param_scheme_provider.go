@@ -61,6 +61,8 @@ func (p *ParamSchemeProviderImpl) GetParamScheme(ctx context.Context, id string)
 		CreatedAt:              scheme.CreatedAt,
 		UpdatedAt:              scheme.UpdatedAt,
 		SellDelayTime:          scheme.SellDelayTime,
+		TokenAgeMinMinutes:     scheme.TokenAgeMinMinutes,
+		TokenAgeMaxMinutes:     scheme.TokenAgeMaxMinutes,
 		MinFollowTriggerAmount: scheme.MinFollowTriggerAmount,
 		MaxFollowTriggerAmount: scheme.MaxFollowTriggerAmount,
 		MinPoolSize:            scheme.MinPoolSize,

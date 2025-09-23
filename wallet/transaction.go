@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"copytrade/bot"
+	"copytrade/noncecache"
 	"copytrade/types"
 
 	"github.com/gagliardetto/solana-go"
@@ -20,19 +21,21 @@ import (
 // 交易监控器
 type TransactionMonitor struct {
 	TradeBot      *bot.Bot
-	WalletMonitor *WalletMonitor   // 钱包监控器
-	BotWallet     solana.PublicKey // 机器人钱包地址
-	BuySolAmount  float64          // 购买金额（SOL）
+	WalletMonitor *WalletMonitor           // 钱包监控器
+	BotWallet     solana.PublicKey         // 机器人钱包地址
+	BuySolAmount  float64                  // 购买金额（SOL）
+	NonceManager  *noncecache.NonceManager // nonce管理器
 
 }
 
 // 创建新的交易监控器
-func NewTransactionMonitor(tradeBot *bot.Bot, walletMonitor *WalletMonitor, botWallet solana.PublicKey, buySolAmount float64) *TransactionMonitor {
+func NewTransactionMonitor(tradeBot *bot.Bot, walletMonitor *WalletMonitor, botWallet solana.PublicKey, buySolAmount float64, nonceManager *noncecache.NonceManager) *TransactionMonitor {
 	return &TransactionMonitor{
 		TradeBot:      tradeBot,
 		WalletMonitor: walletMonitor,
 		BotWallet:     botWallet,
 		BuySolAmount:  buySolAmount,
+		NonceManager:  nonceManager,
 	}
 }
 
@@ -69,6 +72,28 @@ func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo
 		//不在跟卖池子大小范围内，忽略
 		return
 	}
+	//检查代币创建时间
+	createInfo := global.GetCreateInfo(tradeInfo.MintAddress)
+	if createInfo != nil {
+		//计算代币创建距今时间（秒）
+		tokenAgeSeconds := int(time.Since(createInfo.CreatedAt).Seconds())
+
+		// 检查最小创建时间限制
+		if tokenAgeSeconds < specialScheme.TokenAgeMinMinutes {
+			logger.Debugf("代币创建时间太短，跳过交易: 代币=%s, 创建时间=%d秒, 最小要求=%d秒",
+				tradeInfo.MintAddress, tokenAgeSeconds, specialScheme.TokenAgeMinMinutes)
+			return
+		}
+
+		// 检查最大创建时间限制
+		if specialScheme.TokenAgeMaxMinutes > 0 && tokenAgeSeconds > specialScheme.TokenAgeMaxMinutes {
+			logger.Debugf("代币创建时间太长，跳过交易: 代币=%s, 创建时间=%d秒, 最大限制=%d秒",
+				tradeInfo.MintAddress, tokenAgeSeconds, specialScheme.TokenAgeMaxMinutes)
+			return
+		}
+
+		logger.Debugf("代币创建时间检查通过: 代币=%s, 创建时间=%d 秒", tradeInfo.MintAddress, tokenAgeSeconds)
+	}
 
 	logger.Infof("检测到监控钱包交易: 钱包=%s (%s), 代币=%s, 数量=%d, time: %v",
 		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
@@ -78,7 +103,8 @@ func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo
 	holdingsManager.RecordTokenTransaction(copyAddress.String(), tradeInfo.MintAddress, tradeInfo.IsBuy, tradeInfo.TokenAmount, tradeInfo.CurrentPrice)
 
 	// 执行跟单交易
-	m.executeCopyTrade(tradeInfo, copyAddress, specialScheme)
+	_blockHash := m.NonceManager.GetGlobalBlockhash()
+	m.executeCopyTrade(tradeInfo, copyAddress, specialScheme, *_blockHash)
 }
 
 // 处理pump内盘聪明钱包卖出交易事件
@@ -194,7 +220,8 @@ func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *types.AmmRay
 	holdingsManager := asset.GetHoldingsManager()
 	holdingsManager.RecordTokenTransaction(copyAddress.String(), tradeInfo.MintAddress.String(), tradeInfo.IsBuy, tradeInfo.TokenAmount, tradeInfo.CurrentPrice)
 
-	m.executeRaydiumV4CopyTrade(tradeInfo, marketLayout, poolLayout, copyAddress, tradeInfo.TokenAmount, specialScheme)
+	_blockHash := m.NonceManager.GetGlobalBlockhash()
+	m.executeRaydiumV4CopyTrade(tradeInfo, marketLayout, poolLayout, copyAddress, tradeInfo.TokenAmount, specialScheme, *_blockHash)
 }
 func (m *TransactionMonitor) ProcessRaydiumV4SellTransaction(tradeInfo *types.AmmRaydiumV4TradeInfo, marketLayout *types.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4) {
 	// 只处理卖出交易
@@ -307,7 +334,8 @@ func (m *TransactionMonitor) ProcessAmmTransaction(tradeInfo *global.AmmTradeEve
 	holdingsManager.RecordTokenTransaction(copyAddress.String(), tradeInfo.MintAddress.String(), tradeInfo.IsBuy, tradeInfo.TokenAmount, tradeInfo.CurrentPrice)
 
 	// 执行跟单交易
-	m.executeAmmCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount, specialScheme)
+	_blockHash := m.NonceManager.GetGlobalBlockhash()
+	m.executeAmmCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount, specialScheme, *_blockHash)
 }
 
 func (m *TransactionMonitor) ProcessAmmSellTransaction(tradeInfo *global.AmmTradeEventInfo) {
@@ -383,7 +411,7 @@ func (m *TransactionMonitor) ProcessAmmSellTransaction(tradeInfo *global.AmmTrad
 }
 
 // TODO executeCopyTrade 执行跟单交易
-func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, copyAddress solana.PublicKey, specialScheme *types.ParamScheme) {
+func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, copyAddress solana.PublicKey, specialScheme *types.ParamScheme, _blockHash solana.Hash) {
 	// 检查是否已经交易过该代币
 	m.WalletMonitor.Mux.RLock()
 	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress]; exists && !global.GetConfig().RepeatTradeEnable {
@@ -469,10 +497,11 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 			CreatorVault:            accounts.CreatorVault,
 			GlobalVolumeAccumulator: accounts.GlobalVolumeAccumulator,
 			UserVolumeAccumulator:   accounts.UserVolumeAccumulator,
+			NonceAccount:            *m.NonceManager.GetNonceAccountPubkey(),
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MaxCost,
-		Blockhash: *m.TradeBot.Blockhash,
+		Blockhash: _blockHash,
 		FeeConfig: types.FeeConfig{
 			ComputeUnits: m.TradeBot.Config.ComputeUnits,
 			Slippage:     specialScheme.BuySlippage,
@@ -480,9 +509,28 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 		},
 	}
 
+	//orderParams := core.BuildOrderParams(tradeParams, m.TradeBot.Config)
 	// Build complete transaction parameters
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		NextBlockParams: &types.NextBlockParams{
+			Enable:    m.TradeBot.Config.NextBlock.Enable,
+			BundleUrl: m.TradeBot.Config.NextBlock.RpcUrl,
+			ApiKey:    m.TradeBot.Config.NextBlock.ApiKeys[0],
+			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
+		},
+		FlashBlockParams: &types.FlashBlockParams{
+			Enable:    m.TradeBot.Config.FlashBlock.Enable,
+			RpcUrl:    m.TradeBot.Config.FlashBlock.RpcUrl,
+			ApiKey:    m.TradeBot.Config.FlashBlock.ApiKeys[0],
+			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
+		},
+		AstralaneParams: &types.AstralaneParams{
+			Enable:    m.TradeBot.Config.Astralane.Enable,
+			RpcUrl:    m.TradeBot.Config.Astralane.RpcUrl,
+			ApiKey:    m.TradeBot.Config.Astralane.ApiKeys[0],
+			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
+		},
 		BlockrazorParams: &types.BlockrazorParams{
 			Enable:         m.TradeBot.Config.Blockrazor.Enable,
 			RpcUrl:         m.TradeBot.Config.Blockrazor.RpcUrl,
@@ -525,7 +573,7 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 }
 
 // executeAmmCopyTrade 执行AMM跟单交易
-func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEventInfo, originalWallet solana.PublicKey, originalAmount uint64, specialScheme *types.ParamScheme) {
+func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEventInfo, originalWallet solana.PublicKey, originalAmount uint64, specialScheme *types.ParamScheme, _blockHash solana.Hash) {
 	// 检查是否已经交易过该代币
 	m.WalletMonitor.Mux.RLock()
 	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress.String()]; exists && !global.GetConfig().RepeatTradeEnable {
@@ -582,10 +630,11 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 			CoinCreatorVaultAuthority: pumpAccounts.CoinCreatorVaultAuthority,
 			GlobalVolumeAccumulator:   pumpAccounts.GlobalVolumeAccumulator,
 			UserVolumeAccumulator:     pumpAccounts.UserVolumeAccumulator,
+			NonceAccount:              *m.NonceManager.GetNonceAccountPubkey(),
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MaxCost,
-		Blockhash: *m.TradeBot.Blockhash,
+		Blockhash: _blockHash,
 		FeeConfig: types.FeeConfig{
 			ComputeUnits: m.TradeBot.Config.ComputeUnits,
 			Slippage:     specialScheme.BuySlippage,
@@ -596,6 +645,24 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		NextBlockParams: &types.NextBlockParams{
+			Enable:    m.TradeBot.Config.NextBlock.Enable,
+			BundleUrl: m.TradeBot.Config.NextBlock.RpcUrl,
+			ApiKey:    m.TradeBot.Config.NextBlock.ApiKeys[0],
+			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
+		},
+		FlashBlockParams: &types.FlashBlockParams{
+			Enable:    m.TradeBot.Config.FlashBlock.Enable,
+			RpcUrl:    m.TradeBot.Config.FlashBlock.RpcUrl,
+			ApiKey:    m.TradeBot.Config.FlashBlock.ApiKeys[0],
+			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
+		},
+		AstralaneParams: &types.AstralaneParams{
+			Enable:    m.TradeBot.Config.Astralane.Enable,
+			RpcUrl:    m.TradeBot.Config.Astralane.RpcUrl,
+			ApiKey:    m.TradeBot.Config.Astralane.ApiKeys[0],
+			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
+		},
 		BlockrazorParams: &types.BlockrazorParams{
 			Enable:         m.TradeBot.Config.Blockrazor.Enable,
 			RpcUrl:         m.TradeBot.Config.Blockrazor.RpcUrl,
@@ -637,7 +704,7 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 }
 
 // executeRaydiumV4CopyTrade 执行RAYDIUM POOL V4 跟单交易
-func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *types.AmmRaydiumV4TradeInfo, marketLayout *types.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4, originalWallet solana.PublicKey, originalAmount uint64, specialScheme *types.ParamScheme) {
+func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *types.AmmRaydiumV4TradeInfo, marketLayout *types.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4, originalWallet solana.PublicKey, originalAmount uint64, specialScheme *types.ParamScheme, _blockHash solana.Hash) {
 	// 检查是否已经交易过该代币
 	m.WalletMonitor.Mux.RLock()
 	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress.String()]; exists && !global.GetConfig().RepeatTradeEnable {
@@ -684,10 +751,11 @@ func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *types.AmmRaydi
 			BaseMint:          raydiumV4Accounts.BaseMint,
 			QuoteMint:         raydiumV4Accounts.QuoteMint,
 			RaydiumV4Accounts: raydiumV4Accounts,
+			NonceAccount:      *m.NonceManager.GetNonceAccountPubkey(),
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MaxCost,
-		Blockhash: *m.TradeBot.Blockhash,
+		Blockhash: _blockHash,
 		FeeConfig: types.FeeConfig{
 			Slippage:    specialScheme.BuySlippage,
 			PriorityFee: uint64(specialScheme.BuyPriorityFee * 1e9),
@@ -697,6 +765,24 @@ func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *types.AmmRaydi
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		NextBlockParams: &types.NextBlockParams{
+			Enable:    m.TradeBot.Config.NextBlock.Enable,
+			BundleUrl: m.TradeBot.Config.NextBlock.RpcUrl,
+			ApiKey:    m.TradeBot.Config.NextBlock.ApiKeys[0],
+			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
+		},
+		FlashBlockParams: &types.FlashBlockParams{
+			Enable:    m.TradeBot.Config.FlashBlock.Enable,
+			RpcUrl:    m.TradeBot.Config.FlashBlock.RpcUrl,
+			ApiKey:    m.TradeBot.Config.FlashBlock.ApiKeys[0],
+			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
+		},
+		AstralaneParams: &types.AstralaneParams{
+			Enable:    m.TradeBot.Config.Astralane.Enable,
+			RpcUrl:    m.TradeBot.Config.Astralane.RpcUrl,
+			ApiKey:    m.TradeBot.Config.Astralane.ApiKeys[0],
+			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
+		},
 		BlockrazorParams: &types.BlockrazorParams{
 			Enable:         m.TradeBot.Config.Blockrazor.Enable,
 			RpcUrl:         m.TradeBot.Config.Blockrazor.RpcUrl,
@@ -769,8 +855,9 @@ func (m *TransactionMonitor) ProcessLaunchpadTransaction(tradeInfo *global.Launc
 	holdingsManager.RecordTokenTransaction(copyAddress.String(), tradeInfo.MintAddress.String(), tradeInfo.IsBuy, tradeInfo.TokenAmount, tradeInfo.CurrentPrice)
 
 	// 执行跟单交易
+	_blockHash := m.NonceManager.GetGlobalBlockhash()
 
-	m.executeLaunchpadCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount, specialScheme)
+	m.executeLaunchpadCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount, specialScheme, *_blockHash)
 }
 func (m *TransactionMonitor) ProcessLaunchpadSellTransaction(tradeInfo *global.LaunchpadTradeEventInfo) {
 
@@ -844,7 +931,7 @@ func (m *TransactionMonitor) ProcessLaunchpadSellTransaction(tradeInfo *global.L
 }
 
 // executeLaunchpadCopyTrade
-func (m *TransactionMonitor) executeLaunchpadCopyTrade(tradeInfo *global.LaunchpadTradeEventInfo, originalWallet solana.PublicKey, originalAmount uint64, specialScheme *types.ParamScheme) {
+func (m *TransactionMonitor) executeLaunchpadCopyTrade(tradeInfo *global.LaunchpadTradeEventInfo, originalWallet solana.PublicKey, originalAmount uint64, specialScheme *types.ParamScheme, _blockHash solana.Hash) {
 	// 检查是否已经交易过该代币
 	m.WalletMonitor.Mux.RLock()
 	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress.String()]; exists && !global.GetConfig().RepeatTradeEnable {
@@ -892,11 +979,12 @@ func (m *TransactionMonitor) executeLaunchpadCopyTrade(tradeInfo *global.Launchp
 			BaseMint:          launchpadAccounts.BaseTokenMint,
 			QuoteMint:         launchpadAccounts.QuoteTokenMint,
 			LaunchpadAccounts: launchpadAccounts,
+			NonceAccount:      *m.NonceManager.GetNonceAccountPubkey(),
 		},
 		Amount:       amounts.SolAmount,
 		MaxSolAmount: amounts.MaxSolAmount,
 		Cost:         amounts.MaxCost,
-		Blockhash:    *m.TradeBot.Blockhash,
+		Blockhash:    _blockHash,
 		FeeConfig: types.FeeConfig{
 			Slippage:    specialScheme.BuySlippage,
 			PriorityFee: uint64(specialScheme.BuyPriorityFee * 1e9),
@@ -906,6 +994,24 @@ func (m *TransactionMonitor) executeLaunchpadCopyTrade(tradeInfo *global.Launchp
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		NextBlockParams: &types.NextBlockParams{
+			Enable:    m.TradeBot.Config.NextBlock.Enable,
+			BundleUrl: m.TradeBot.Config.NextBlock.RpcUrl,
+			ApiKey:    m.TradeBot.Config.NextBlock.ApiKeys[0],
+			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
+		},
+		FlashBlockParams: &types.FlashBlockParams{
+			Enable:    m.TradeBot.Config.FlashBlock.Enable,
+			RpcUrl:    m.TradeBot.Config.FlashBlock.RpcUrl,
+			ApiKey:    m.TradeBot.Config.FlashBlock.ApiKeys[0],
+			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
+		},
+		AstralaneParams: &types.AstralaneParams{
+			Enable:    m.TradeBot.Config.Astralane.Enable,
+			RpcUrl:    m.TradeBot.Config.Astralane.RpcUrl,
+			ApiKey:    m.TradeBot.Config.Astralane.ApiKeys[0],
+			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
+		},
 		BlockrazorParams: &types.BlockrazorParams{
 			Enable:         m.TradeBot.Config.Blockrazor.Enable,
 			RpcUrl:         m.TradeBot.Config.Blockrazor.RpcUrl,
@@ -981,8 +1087,9 @@ func (m *TransactionMonitor) ProcessCpmmTransaction(tradeInfo *global.CPMMTradeE
 	holdingsManager.RecordTokenTransaction(copyAddress.String(), tradeInfo.MintAddress.String(), tradeInfo.IsBuy, tradeInfo.TokenAmount, tradeInfo.CurrentPrice)
 
 	// 执行跟单交易
+	_blockHash := m.NonceManager.GetGlobalBlockhash()
 
-	m.executeCpmmCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount, specialScheme)
+	m.executeCpmmCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount, specialScheme, *_blockHash)
 }
 func (m *TransactionMonitor) ProcessCpmmSellTransaction(tradeInfo *global.CPMMTradeEventInfo) {
 	// 只处理卖出交易
@@ -1057,7 +1164,7 @@ func (m *TransactionMonitor) ProcessCpmmSellTransaction(tradeInfo *global.CPMMTr
 }
 
 // executeCpmmCopyTrade
-func (m *TransactionMonitor) executeCpmmCopyTrade(tradeInfo *global.CPMMTradeEventInfo, originalWallet solana.PublicKey, originalAmount uint64, specialScheme *types.ParamScheme) {
+func (m *TransactionMonitor) executeCpmmCopyTrade(tradeInfo *global.CPMMTradeEventInfo, originalWallet solana.PublicKey, originalAmount uint64, specialScheme *types.ParamScheme, _blockHash solana.Hash) {
 	// 检查是否已经交易过该代币
 	m.WalletMonitor.Mux.RLock()
 	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress.String()]; exists && !global.GetConfig().RepeatTradeEnable {
@@ -1105,11 +1212,12 @@ func (m *TransactionMonitor) executeCpmmCopyTrade(tradeInfo *global.CPMMTradeEve
 			BaseMint:            cpmmAccounts.OutputTokenMint,
 			QuoteMint:           cpmmAccounts.InputTokenMint,
 			RaydiumCPMMAccounts: cpmmAccounts,
+			NonceAccount:        *m.NonceManager.GetNonceAccountPubkey(),
 		},
 		Amount:       amounts.SolAmount,
 		MaxSolAmount: amounts.MaxSolAmount,
 		Cost:         amounts.MaxCost,
-		Blockhash:    *m.TradeBot.Blockhash,
+		Blockhash:    _blockHash,
 		FeeConfig: types.FeeConfig{
 			Slippage:    specialScheme.BuySlippage,
 			PriorityFee: uint64(specialScheme.BuyPriorityFee * 1e9),
@@ -1119,6 +1227,24 @@ func (m *TransactionMonitor) executeCpmmCopyTrade(tradeInfo *global.CPMMTradeEve
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		NextBlockParams: &types.NextBlockParams{
+			Enable:    m.TradeBot.Config.NextBlock.Enable,
+			BundleUrl: m.TradeBot.Config.NextBlock.RpcUrl,
+			ApiKey:    m.TradeBot.Config.NextBlock.ApiKeys[0],
+			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
+		},
+		FlashBlockParams: &types.FlashBlockParams{
+			Enable:    m.TradeBot.Config.FlashBlock.Enable,
+			RpcUrl:    m.TradeBot.Config.FlashBlock.RpcUrl,
+			ApiKey:    m.TradeBot.Config.FlashBlock.ApiKeys[0],
+			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
+		},
+		AstralaneParams: &types.AstralaneParams{
+			Enable:    m.TradeBot.Config.Astralane.Enable,
+			RpcUrl:    m.TradeBot.Config.Astralane.RpcUrl,
+			ApiKey:    m.TradeBot.Config.Astralane.ApiKeys[0],
+			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
+		},
 		BlockrazorParams: &types.BlockrazorParams{
 			Enable:         m.TradeBot.Config.Blockrazor.Enable,
 			RpcUrl:         m.TradeBot.Config.Blockrazor.RpcUrl,

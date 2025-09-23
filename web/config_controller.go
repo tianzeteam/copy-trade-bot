@@ -77,7 +77,7 @@ func (c *ConfigController) handleUpdateConfig(ctx *gin.Context) {
 		return
 	}
 
-	// 只更新capital_recovery_percent
+	// 更新capital_recovery_percent
 	if capitalRecoveryPercent, ok := updates["capital_recovery_percent"]; ok {
 		switch v := capitalRecoveryPercent.(type) {
 		case float64:
@@ -88,6 +88,13 @@ func (c *ConfigController) handleUpdateConfig(ctx *gin.Context) {
 			if floatVal, err := strconv.ParseFloat(v, 64); err == nil {
 				config.CapitalRecoveryPercent = floatVal
 			}
+		}
+	}
+	
+	// 更新dev_sell
+	if devSell, ok := updates["dev_sell"]; ok {
+		if boolVal, ok := devSell.(bool); ok {
+			config.DevSell = boolVal
 		}
 	}
 	// 保留其他配置不变

@@ -33,7 +33,7 @@ func SendTransactionJito(wallet *solana.Wallet, instructions []solana.Instructio
 
 	// 初始化 Jito 客户端
 	jitoClient := jitorpc.NewJitoJsonRpcClient(params.BundleUrl, "")
-	debug := true
+	debug := false
 	jitoClient.Debug = &debug
 
 	// 获取随机 tip 账户
@@ -47,8 +47,8 @@ func SendTransactionJito(wallet *solana.Wallet, instructions []solana.Instructio
 	).Build()
 
 	// 合并所有指令
-	allInstructions := []solana.Instruction{tipIx}
-	allInstructions = append(allInstructions, instructions...)
+	allInstructions := []solana.Instruction{instructions[0], tipIx}
+	allInstructions = append(allInstructions, instructions[1:]...)
 
 	// 构建交易
 	tx, err := solana.NewTransaction(

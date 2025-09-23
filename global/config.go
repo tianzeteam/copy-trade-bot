@@ -19,8 +19,11 @@ type GlobalConfig struct {
 	RepeatTradeEnable      bool           `json:"repeat_trade_enable"`      // 重复交易启用状态
 	SellDelayTime          int            `json:"sell_delay_time"`          // 延迟卖出时间（ms）
 	SellIntervalLimit      int            `json:"sell_interval_limit"`      // 卖出时间间隔限制（秒）
+	DevSell                bool           `json:"dev_sell"`                 // 开启ds卖出
 	CapitalRecoveryPercent float64        `json:"capital_recovery_percent"` // 抽回本金盈利百分比
 	TradeWalletKey         *solana.Wallet `json:"trade_wallet_key"`         // 交易钱包密钥
+	NonceAccountAddress    string         `json:"nonce_account_address"`    // nonce账户地址
+	GlobalBlockhash        *solana.Hash   `json:"global_blockhash"`         // 全局区块哈希
 	// 交易触发和池子大小参数
 	MinFollowTriggerAmount float64 `json:"min_follow_trigger_amount"` // 最小触发买入数量 (SOL)
 	MaxFollowTriggerAmount float64 `json:"max_follow_trigger_amount"` // 最大触发买入数量 (SOL)
@@ -122,6 +125,10 @@ func UpdateConfigField(key string, value any) {
 		if val, ok := value.(int); ok {
 			Config.SellIntervalLimit = val
 		}
+	case "dev_sell":
+		if val, ok := value.(bool); ok {
+			Config.DevSell = val
+		}
 	case "capital_recovery_percent":
 		if val, ok := value.(float64); ok {
 			Config.CapitalRecoveryPercent = val
@@ -165,11 +172,12 @@ func InitConfig(config map[string]any) {
 		LaunchpadTradeEnable:   getBoolValue(config, "launchpad_trade_enable", false),
 		RepeatTradeEnable:      getBoolValue(config, "repeat_trade_enable", false),
 		SellIntervalLimit:      getIntValue(config, "sell_interval_limit", 2),
+		DevSell:                getBoolValue(config, "dev_sell", false),
 		CapitalRecoveryPercent: getFloatValue(config, "capital_recovery_percent", 0),
 		TradeWalletKey:         &solana.Wallet{PrivateKey: privateKey}, //
 		// 钱包参数模板
-		WalletParamSchemes: getWalletParamSchemes(config),
-
+		WalletParamSchemes:  getWalletParamSchemes(config),
+		NonceAccountAddress: getStringValue(config, "nonce_account_address", ""),
 		// 更新时间
 		UpdatedAt: time.Now(),
 	}
@@ -219,6 +227,34 @@ func getStringValue(config map[string]any, key string, defaultValue string) stri
 		}
 	}
 	return defaultValue
+}
+
+// getHashValue 从配置中获取Hash值，如果不存在则使用默认值
+func getHashValue(config map[string]any, key string, defaultValue string) *solana.Hash {
+	if val, ok := config[key]; ok {
+		switch v := val.(type) {
+		case *solana.Hash:
+			return v
+		case solana.Hash:
+			return &v
+		case string:
+			if v != "" && v != defaultValue {
+				// 尝试从base58字符串解析Hash
+				if hashBytes, err := solana.HashFromBase58(v); err == nil {
+					return &hashBytes
+				}
+			}
+		}
+	}
+
+	// 如果默认值不为空，尝试解析
+	if defaultValue != "" {
+		if hashBytes, err := solana.HashFromBase58(defaultValue); err == nil {
+			return &hashBytes
+		}
+	}
+
+	return nil
 }
 
 // getWalletParamSchemes 从配置中获取钱包参数模板映射

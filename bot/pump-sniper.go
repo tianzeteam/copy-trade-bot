@@ -220,7 +220,7 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx context.
 	// 检查是否为代币创建事件
 	events, err := pump.DecodeEventsInLogs(logMessages)
 	if err != nil {
-		logger.Errorf("解析事件失败: %v", err)
+		logger.Debugf("解析事件失败: %v", err)
 		return nil
 	}
 
@@ -260,6 +260,16 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx context.
 
 			// 存储到全局映射表中
 			global.SetTradeInfo(mintAddress, tradeInfo)
+			//ds清仓
+			if global.GetConfig().DevSell {
+				if tradeEvent.User.String() == tradeEvent.Creator.String() && !tradeEvent.IsBuy {
+					assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
+					if ok {
+						queue.SendTokenToSellChannel(0, assetInfo, assetInfo.Amount, currentPrice, "pumpfun", "DevSell", "ds清仓")
+
+					}
+				}
+			}
 
 			// 管道步骤3: 处理买入事件
 			if tradeEvent.User.String() == botWallet.String() {
@@ -316,6 +326,20 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx context.
 			}
 
 			return tradeInfo
+		} else if event.Name == "CreateEvent" {
+			createEvent, ok := event.Data.(*pump.CreateEventEventData)
+			if !ok {
+				logger.Errorf("无法解析CreateEvent事件")
+				continue
+			}
+			createInfo := &global.CreateEventInfo{
+				MintAddress: createEvent.Mint.String(),
+				Name:        createEvent.Name,
+				CreatedAt:   time.Now(),
+			}
+			global.SetCreateInfo(createEvent.Mint.String(), createInfo)
+			logger.Infof("代币创建事件处理: 代币=%s, 创建时间=%v", createEvent.Mint.String(), createInfo.CreatedAt.Format("2006-01-02 15:04:05.000000"))
+
 		}
 	}
 

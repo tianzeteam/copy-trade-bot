@@ -39,7 +39,7 @@ type LogConfig struct {
 
 // Config 表示整个配置文件结构
 type Config struct {
-	CreateNonceAccount     bool             `yaml:"create_nonce_account"`
+	SkipCreateNonceAccount bool             `yaml:"skip_create_nonce_account"`
 	NonceAccountPubkey     string           `yaml:"nonce_account_pubkey"`
 	SimulateMode           bool             `yaml:"simulate_mode"`
 	PrivateKey             string           `yaml:"private_key"`
@@ -50,6 +50,7 @@ type Config struct {
 	TradeChannel           string           `yaml:"trade_channel"`
 	WebPort                int              `yaml:"web_port"`
 	BuySolAmount           float64          `yaml:"buy_sol_amount"`
+	DevSell                bool             `yaml:"dev_sell"`
 	CapitalRecoveryPercent float64          `yaml:"capital_recovery_percent"`
 	SellIntervalLimit      int              `yaml:"sell_interval_limit"`
 	SellMode               string           `yaml:"sell_mode"`
@@ -81,6 +82,8 @@ type Config struct {
 	BloXroute              ModeConfig       `yaml:"bloXroute"`
 	Zeroslot               ModeConfig       `yaml:"zeroslot"`
 	Blockrazor             ModeConfig       `yaml:"blockrazor"`
+	Astralane              ModeConfig       `yaml:"astralane"`
+	FlashBlock             ModeConfig       `yaml:"flashblock"`
 }
 
 // LoadConfig 从文件加载配置
@@ -116,6 +119,8 @@ func validateConfig(config *Config) error {
 		"bloXroute":  config.BloXroute,
 		"zeroslot":   config.Zeroslot,
 		"blockrazor": config.Blockrazor,
+		"astralane":  config.Astralane,
+		"flashblock": config.FlashBlock,
 	}
 
 	for name, mode := range modes {

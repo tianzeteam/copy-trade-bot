@@ -10,6 +10,7 @@ import (
 	"copytrade/asset"
 	"copytrade/global"
 	"copytrade/logger"
+	"copytrade/noncecache"
 	"copytrade/queue"
 	"copytrade/types"
 	"copytrade/utils"
@@ -276,6 +277,7 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 		return
 	}
 	//构建交易基础参数
+	globalBlockhash := noncecache.GetNonceManager().GetGlobalBlockhash()
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
 			User:                   tokenInfo.Owner,
@@ -284,10 +286,11 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 			AssociatedBondingCurve: pumpAccounts.AssociatedBondingCurve,
 			AssociatedTokenAccount: pumpAccounts.AssociatedTokenAccount,
 			CreatorVault:           pumpAccounts.CreatorVaultPda,
+			NonceAccount:           *noncecache.GetNonceManager().GetNonceAccountPubkey(),
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MinOut, // 卖出时 Cost 表示最小获得数量
-		Blockhash: *b.Blockhash,
+		Blockhash: *globalBlockhash,
 		FeeConfig: types.FeeConfig{
 			Slippage:    specialScheme.SellSlippage,
 			PriorityFee: uint64(specialScheme.SellPriorityFee * 1e9),
@@ -297,6 +300,18 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		AstralaneParams: &types.AstralaneParams{
+			Enable:    b.Config.Astralane.Enable,
+			RpcUrl:    b.Config.Astralane.RpcUrl,
+			ApiKey:    b.Config.Astralane.ApiKeys[0],
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
+		},
+		FlashBlockParams: &types.FlashBlockParams{
+			Enable:    b.Config.FlashBlock.Enable,
+			RpcUrl:    b.Config.FlashBlock.RpcUrl,
+			ApiKey:    b.Config.FlashBlock.ApiKeys[0],
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
+		},
 		BlockrazorParams: &types.BlockrazorParams{
 			Enable:         b.Config.Blockrazor.Enable,
 			RpcUrl:         b.Config.Blockrazor.RpcUrl,
@@ -423,7 +438,7 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 		return
 	}
 	// 构建卖出参数
-
+	globalBlockhash := noncecache.GetNonceManager().GetGlobalBlockhash()
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
 			User:                      tokenInfo.User,
@@ -437,10 +452,11 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 			Pool:                      ammAccounts.Pool,
 			CreatorVault:              ammAccounts.CoinCreatorVaultAta,
 			CoinCreatorVaultAuthority: ammAccounts.CoinCreatorVaultAuthority,
+			NonceAccount:              *noncecache.GetNonceManager().GetNonceAccountPubkey(),
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MinOut,
-		Blockhash: *b.Blockhash,
+		Blockhash: *globalBlockhash,
 		FeeConfig: types.FeeConfig{
 			Slippage:    specialScheme.SellSlippage,
 			PriorityFee: uint64(specialScheme.SellPriorityFee * 1e9),
@@ -450,6 +466,18 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		AstralaneParams: &types.AstralaneParams{
+			Enable:    b.Config.Astralane.Enable,
+			RpcUrl:    b.Config.Astralane.RpcUrl,
+			ApiKey:    b.Config.Astralane.ApiKeys[0],
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
+		},
+		FlashBlockParams: &types.FlashBlockParams{
+			Enable:    b.Config.FlashBlock.Enable,
+			RpcUrl:    b.Config.FlashBlock.RpcUrl,
+			ApiKey:    b.Config.FlashBlock.ApiKeys[0],
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
+		},
 		BlockrazorParams: &types.BlockrazorParams{
 			Enable:         b.Config.Blockrazor.Enable,
 			RpcUrl:         b.Config.Blockrazor.RpcUrl,
@@ -554,6 +582,7 @@ func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 		return
 	}
 	//构建交易基础参数
+	globalBlockhash := noncecache.GetNonceManager().GetGlobalBlockhash()
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
 			User:              botWallet,
@@ -561,10 +590,11 @@ func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 			BaseMint:          raydiumV4Accounts.BaseMint,
 			QuoteMint:         raydiumV4Accounts.QuoteMint,
 			RaydiumV4Accounts: raydiumV4Accounts,
+			NonceAccount:      *noncecache.GetNonceManager().GetNonceAccountPubkey(),
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MinOut,
-		Blockhash: *b.Blockhash,
+		Blockhash: *globalBlockhash,
 		FeeConfig: types.FeeConfig{
 			Slippage:    specialScheme.SellSlippage,
 			PriorityFee: uint64(specialScheme.SellPriorityFee * 1e9),
@@ -574,6 +604,18 @@ func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		AstralaneParams: &types.AstralaneParams{
+			Enable:    b.Config.Astralane.Enable,
+			RpcUrl:    b.Config.Astralane.RpcUrl,
+			ApiKey:    b.Config.Astralane.ApiKeys[0],
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
+		},
+		FlashBlockParams: &types.FlashBlockParams{
+			Enable:    b.Config.FlashBlock.Enable,
+			RpcUrl:    b.Config.FlashBlock.RpcUrl,
+			ApiKey:    b.Config.FlashBlock.ApiKeys[0],
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
+		},
 		BlockrazorParams: &types.BlockrazorParams{
 			Enable:         b.Config.Blockrazor.Enable,
 			RpcUrl:         b.Config.Blockrazor.RpcUrl,
@@ -664,6 +706,7 @@ func (b *Bot) ExecuteRaydiumLaunchpadSellOrder(tokenInfo queue.TokenInfo) {
 		return
 	}
 	//构建交易基础参数
+	globalBlockhash := noncecache.GetNonceManager().GetGlobalBlockhash()
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
 			User:              botWallet,
@@ -671,10 +714,11 @@ func (b *Bot) ExecuteRaydiumLaunchpadSellOrder(tokenInfo queue.TokenInfo) {
 			BaseMint:          raydiumLaunchpadAccounts.BaseTokenMint,
 			QuoteMint:         raydiumLaunchpadAccounts.QuoteTokenMint,
 			LaunchpadAccounts: raydiumLaunchpadAccounts,
+			NonceAccount:      *noncecache.GetNonceManager().GetNonceAccountPubkey(),
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MinOut,
-		Blockhash: *b.Blockhash,
+		Blockhash: *globalBlockhash,
 		FeeConfig: types.FeeConfig{
 			Slippage:    specialScheme.SellSlippage,
 			PriorityFee: uint64(specialScheme.SellPriorityFee * 1e9),
@@ -684,6 +728,18 @@ func (b *Bot) ExecuteRaydiumLaunchpadSellOrder(tokenInfo queue.TokenInfo) {
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		AstralaneParams: &types.AstralaneParams{
+			Enable:    b.Config.Astralane.Enable,
+			RpcUrl:    b.Config.Astralane.RpcUrl,
+			ApiKey:    b.Config.Astralane.ApiKeys[0],
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
+		},
+		FlashBlockParams: &types.FlashBlockParams{
+			Enable:    b.Config.FlashBlock.Enable,
+			RpcUrl:    b.Config.FlashBlock.RpcUrl,
+			ApiKey:    b.Config.FlashBlock.ApiKeys[0],
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
+		},
 		BlockrazorParams: &types.BlockrazorParams{
 			Enable:         b.Config.Blockrazor.Enable,
 			RpcUrl:         b.Config.Blockrazor.RpcUrl,
@@ -788,6 +844,7 @@ func (b *Bot) ExecuteCpmmSellOrder(tokenInfo queue.TokenInfo) {
 		return
 	}
 	//构建交易基础参数
+	globalBlockhash := noncecache.GetNonceManager().GetGlobalBlockhash()
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
 			User:                botWallet,
@@ -795,10 +852,11 @@ func (b *Bot) ExecuteCpmmSellOrder(tokenInfo queue.TokenInfo) {
 			BaseMint:            raydiumCpmmAccounts.OutputTokenMint,
 			QuoteMint:           raydiumCpmmAccounts.InputTokenMint,
 			RaydiumCPMMAccounts: raydiumCpmmAccounts,
+			NonceAccount:        *noncecache.GetNonceManager().GetNonceAccountPubkey(),
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MinOut,
-		Blockhash: *b.Blockhash,
+		Blockhash: *globalBlockhash,
 		FeeConfig: types.FeeConfig{
 			Slippage:    specialScheme.SellSlippage,
 			PriorityFee: uint64(specialScheme.SellPriorityFee * 1e9),
@@ -808,6 +866,18 @@ func (b *Bot) ExecuteCpmmSellOrder(tokenInfo queue.TokenInfo) {
 	// 构建完整的订单参数
 	orderParams := types.OrderParams{
 		TradeParams: tradeParams,
+		AstralaneParams: &types.AstralaneParams{
+			Enable:    b.Config.Astralane.Enable,
+			RpcUrl:    b.Config.Astralane.RpcUrl,
+			ApiKey:    b.Config.Astralane.ApiKeys[0],
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
+		},
+		FlashBlockParams: &types.FlashBlockParams{
+			Enable:    b.Config.FlashBlock.Enable,
+			RpcUrl:    b.Config.FlashBlock.RpcUrl,
+			ApiKey:    b.Config.FlashBlock.ApiKeys[0],
+			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
+		},
 		BlockrazorParams: &types.BlockrazorParams{
 			Enable:         b.Config.Blockrazor.Enable,
 			RpcUrl:         b.Config.Blockrazor.RpcUrl,

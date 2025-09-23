@@ -28,7 +28,11 @@ type BloXrouteParams struct {
 }
 
 // BloXroute 结构体
-var bloXrouteClient, _ = provider.NewGRPCClientPumpNY()
+var bloXrouteClient, _ = provider.NewGRPCClientWithOpts(provider.RPCOpts{
+	Endpoint:   "germany.solana.dex.blxrbdn.com:80",
+	UseTLS:     false,
+	AuthHeader: "YTU2YjIzNjktMzA1Zi00OWU3LTlkMDEtOGIwNWI4ODk5YmQ3OjQ0ZDk2NTAzNDgwNTk0ZGE1NWQ1YTVlYTc4NDhiNTZh",
+})
 
 // CreateBloxrouteTipTransactionToUseBundles 创建用于使用 bundles 的 bloXroute tip 交易
 func CreateBloxrouteTipTransactionToUseBundles(privateKey solana.PrivateKey, tipAmount uint64, recentBlockHash solana.Hash) (*solana.Transaction, error) {
@@ -56,17 +60,18 @@ func CreateBloxrouteTipTransactionToUseBundles(privateKey solana.PrivateKey, tip
 	return tx, nil
 }
 func SendTransactionBloXroute(wallet solana.PrivateKey, instructions []solana.Instruction, params types.BloXrouteParams, blockhash solana.Hash) (string, error) {
-	logger.Infof("[BloXroute] 开始发送交易: %s %s", time.Now().Format("2006-01-02 15:04:05.000"), params)
+	logger.Infof("[BloXroute] 开始发送交易: %s", time.Now().Format("2006-01-02 15:04:05.000"))
 	// 构建 tip 转账指令
+	tipAmount := max(params.TipAmount, MIN_TIP_AMOUNT)
 	tipIx := system.NewTransferInstruction(
-		params.TipAmount,
+		tipAmount,
 		wallet.PublicKey(),
 		recipient,
 	).Build()
 
 	// 合并所有指令
-	allInstructions := []solana.Instruction{tipIx}
-	allInstructions = append(allInstructions, instructions...)
+	allInstructions := []solana.Instruction{instructions[0], tipIx}
+	allInstructions = append(allInstructions, instructions[1:]...)
 
 	// 构建交易
 	tx, err := solana.NewTransaction(

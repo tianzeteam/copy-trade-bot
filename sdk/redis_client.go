@@ -9,7 +9,7 @@ import (
 	"copytrade/logger"
 	"copytrade/types"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 )
 
 // TradeSubscriptionClient 交易订阅客户端SDK

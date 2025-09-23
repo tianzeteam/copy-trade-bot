@@ -1,7 +1,7 @@
-create_nonce_account: false
-nonce_account_pubkey: GgTBxk6r1jyi6QUiUCP7ufvonufBDRS6D3RoRUFnZ7go
+skip_create_nonce_account: true
+nonce_account_pubkey: CeyfxPbWP81zny2j79rTWeYvi4GGNSnnmQ1UzMkZgv3V
 simulate_mode: false
-private_key: 5S53Lgc2PY9XE1iSMoMkajfSPGPnv728FPXemzWvVAGfs8XpB4CZdsFMmCnVb3UEBUsQrsrgDPinRuSzj8iWuQWT
+private_key: "5NpjegNAzJuWKeDrrQvfmSL4LCymBD6F4ijstJxHuk6zWspNJ69JGSknSEW8QV5SUrYKo6ScHRQQYbfDcizVUXVz"
 grpc_url: https://solana-yellowstone-grpc.publicnode.com:443
 rpc_url: https://mainnet.helius-rpc.com/?api-key=dc537a21-36c2-4a5f-bcf8-90ae704fbbfc
 redis_db: 0
@@ -9,7 +9,8 @@ redis_key_prefix: copytrade
 trade_channel: flashtrade:trade
 web_port: 3000
 buy_sol_amount: 0
-capital_recovery_percent: 300
+dev_sell: false
+capital_recovery_percent: 111
 sell_interval_limit: 3
 sell_mode: delay_sell
 sell_delay_time: 0
@@ -46,6 +47,8 @@ logging:
     level: info
     format: text
     file: ""
+
+#swqos setting
 normal:
     buy_tip: 0.001
     sell_tip: 0.001
@@ -55,7 +58,7 @@ normal:
 jito:
     buy_tip: 0.0001
     sell_tip: 0.0001
-    enable: false
+    enable: true
     mode: ""
     health_endpoint: ""
     rpc_url: https://frankfurt.mainnet.block-engine.jito.wtf/api/v1
@@ -65,9 +68,9 @@ nextblock:
     enable: false
     mode: ""
     health_endpoint: ""
-    rpc_url: https://fra.nextblock.io/api/v2/submit
+    rpc_url: http://fra.nextblock.io/api/v2/submit
     api_keys:
-        - xxx
+        - intermediate1758252459-v9QhSQo%2FtRkXFjR2Yo6q%2FUhx0HbnYXOXQWxsb7DPoSg%3D
 temporal:
     buy_tip: 0.001
     sell_tip: 0.001
@@ -76,16 +79,16 @@ temporal:
     health_endpoint: ""
     rpc_url: http://ams2.nozomi.temporal.xyz/
     api_keys:
-        - 164b242f-5eea-4b8c-9edf-ad99ef6faaca
+        -  298b5025-d944-4584-ab1c-91872a055323
 bloXroute:
     buy_tip: 0.001
     sell_tip: 0.001
     enable: false
     mode: ""
     health_endpoint: ""
-    rpc_url: https://mainnet.helius-rpc.com/?api-key=fc8353eb-13cb-423e-8d36-49e2b26d3a78
+    rpc_url: http://germany.solana.dex.blxrbdn.com
     api_keys:
-        - xxx
+        - YTU2YjIzNjktMzA1Zi00OWU3LTlkMDEtOGIwNWI4ODk5YmQ3OjQ0ZDk2NTAzNDgwNTk0ZGE1NWQ1YTVlYTc4NDhiNTZh
 zeroslot:
     buy_tip: 0.001
     sell_tip: 0.001
@@ -104,3 +107,25 @@ blockrazor:
     rpc_url: http://frankfurt.solana.blockrazor.xyz:443/sendTransaction
     api_keys:
         - fCpKRdHHLHornJqbEk4tfm494BcCBYL5gC3MuQEt7Y2PTwxwSFDyuLUGpJNfNQyi8lWx7VpAjSIhGn8DhLHh2IRJEixvIriT
+
+astralane:
+    buy_tip: 0.001
+    sell_tip: 0.001
+    enable: true
+    mode: ""
+    health_endpoint: ""
+    rpc_url: "http://45.139.132.160"
+    api_keys:
+        - ruruyIhQjzCzTJBRsJpiWP69gPrwPHkkuhgXsFgZaxz8kUiq3fSQLiycCejO6w3v
+
+flashblock:
+    buy_tip: 0.001
+    sell_tip: 0.001
+    enable: true
+    mode: ""
+    health_endpoint: ""
+    rpc_url: "http://fra.flashblock.trade"
+    api_keys:
+        - e07ffbb746914910
+
+    

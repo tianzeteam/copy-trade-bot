@@ -10,6 +10,7 @@ import (
 	"copytrade/core"
 	"copytrade/global"
 	"copytrade/logger"
+	"copytrade/noncecache"
 	"copytrade/raydium/layouts"
 	"copytrade/wallet"
 
@@ -28,11 +29,13 @@ type StreamManager struct {
 	client              *goyser.Client
 	mintStreamClient    *goyser.StreamClient
 	accountStreamClient *goyser.StreamClient
+	nonceStreamClient   *goyser.StreamClient
 	marketStreamClient  *goyser.StreamClient // OpenBook市场流客户端
 	poolStreamClient    *goyser.StreamClient // Raydium池流客户端
 	tradeBot            *bot.Bot
 	transactionMonitor  *wallet.TransactionMonitor
 	walletMonitor       *wallet.WalletMonitor
+	nonceManager        *noncecache.NonceManager
 
 	balanceManager interface{}
 
@@ -51,6 +54,7 @@ type StreamManager struct {
 
 	// 市场订阅配置
 	quoteTokenMint solana.PublicKey // 用于市场和池订阅的报价代币
+
 }
 
 // SubscriptionConfig 订阅配置
@@ -71,6 +75,7 @@ func NewStreamManager(grpcUrl string, tradeBot *bot.Bot, transactionMonitor *wal
 		transactionMonitor: transactionMonitor,
 		walletMonitor:      walletMonitor,
 		balanceManager:     balanceManager,
+		nonceManager:       noncecache.GetNonceManager(),
 		ctx:                ctx,
 		cancel:             cancel,
 		maxRetries:         5,
@@ -115,6 +120,7 @@ func (sm *StreamManager) Start() error {
 	// 启动流处理goroutines
 	go sm.handleTransactionStream()
 	go sm.handleAccountStream()
+	go sm.handleNonceStream()
 	go sm.monitorConnection() // 启动连接监控
 
 	// 启动市场和池订阅
@@ -229,9 +235,25 @@ func (sm *StreamManager) setupStreams() error {
 		return fmt.Errorf("failed to setup account subscription: %v", err)
 	}
 
+	// 设置nonce流
+	if err := sm.client.AddStreamClient(sm.ctx, "nonce_stream", sm.subscriptionConfig.CommitmentLevel); err != nil {
+		return fmt.Errorf("failed to add nonce stream client: %v", err)
+	}
+
+	sm.nonceStreamClient = sm.client.GetStreamClient("nonce_stream")
+	if sm.nonceStreamClient == nil {
+		return fmt.Errorf("failed to get nonce stream client")
+	}
+
+	// 订阅nonce
+	if err := sm.setupNonceSubscription(); err != nil {
+		return fmt.Errorf("failed to setup nonce subscription: %v", err)
+	}
+
 	// 启动ping服务
 	sm.startPingService(sm.mintStreamClient)
 	sm.startPingService(sm.accountStreamClient)
+	sm.startPingService(sm.nonceStreamClient)
 
 	return nil
 }
@@ -410,6 +432,62 @@ func (sm *StreamManager) setupAccountSubscription() error {
 	})
 }
 
+// setupNonceSubscription 设置nonce账户订阅
+func (sm *StreamManager) setupNonceSubscription() error {
+	// 获取nonce账户地址
+	nonceAccountAddress := global.GetConfig().NonceAccountAddress
+	if nonceAccountAddress == "" {
+		return fmt.Errorf("nonce账户地址为空")
+	}
+
+	// 创建nonce账户过滤器
+	datasizeFilter := &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilter{
+		Filter: &yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilter_Datasize{
+			Datasize: 80, // nonce账户固定80字节
+		},
+	}
+
+	return sm.nonceStreamClient.SubscribeAccounts("nonce_account_stream", &yellowstone_geyser_pb.SubscribeRequestFilterAccounts{
+		Account: []string{nonceAccountAddress},
+		Owner:   []string{solana.SystemProgramID.String()},
+		Filters: []*yellowstone_geyser_pb.SubscribeRequestFilterAccountsFilter{
+			datasizeFilter,
+		},
+	})
+}
+
+// processNonceUpdate 处理nonce账户更新
+func (sm *StreamManager) processNonceUpdate(out *yellowstone_geyser_pb.SubscribeUpdate) {
+	account := out.GetAccount()
+	if account == nil {
+		return
+	}
+
+	accountData := account.GetAccount()
+	if accountData == nil {
+		return
+	}
+
+	// 检查账户数据长度
+	if len(accountData.Data) != 80 {
+		logger.Warnf("Nonce账户数据长度异常: %d", len(accountData.Data))
+		return
+	}
+
+	// 提取nonce值（从偏移量8开始的32字节）
+	if len(accountData.Data) >= 40 {
+		nonceBytes := accountData.Data[40:72]
+		nonceHash := solana.HashFromBytes(nonceBytes)
+
+		logger.Infof("Nonce账户更新, 新nonce: %s",
+			base58.Encode(nonceBytes))
+
+		// 这里可以添加更新全局nonce的逻辑
+		// 例如通知nonce管理器更新缓存的nonce值
+		sm.nonceManager.UpdateNonce(nonceHash)
+	}
+}
+
 // handleTransactionStream 处理交易流
 func (sm *StreamManager) handleTransactionStream() {
 	defer func() {
@@ -438,6 +516,35 @@ func (sm *StreamManager) handleTransactionStream() {
 			}
 
 			sm.processTransactionUpdate(out)
+		}
+	}
+}
+func (sm *StreamManager) handleNonceStream() {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Errorf("Nonce stream handler panicked: %v", r)
+			go func() {
+				time.Sleep(time.Second * 5)
+				if err := sm.Restart(); err != nil {
+					logger.Errorf("Failed to restart after panic: %v", err)
+				}
+			}()
+		}
+	}()
+
+	for {
+		select {
+		case <-sm.ctx.Done():
+			logger.Infof("Nonce stream handler stopped")
+			return
+		case out, ok := <-sm.nonceStreamClient.Ch:
+			if !ok {
+				logger.Warnf("Nonce stream channel closed, attempting restart...")
+				go sm.handleStreamError("nonce")
+				return
+			}
+
+			sm.processNonceUpdate(out)
 		}
 	}
 }

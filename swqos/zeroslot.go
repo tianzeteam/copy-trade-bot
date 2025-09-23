@@ -44,8 +44,8 @@ func SendTransactionZeroSlot(wallet *solana.Wallet, instructions []solana.Instru
 	).Build()
 
 	// 合并所有指令
-	allInstructions := []solana.Instruction{tipIx}
-	allInstructions = append(allInstructions, instructions...)
+	allInstructions := []solana.Instruction{instructions[0], tipIx}
+	allInstructions = append(allInstructions, instructions[1:]...)
 
 	// 构建交易
 	tx, err := solana.NewTransaction(

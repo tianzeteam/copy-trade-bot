@@ -67,13 +67,20 @@ func NewTrader(endpoint string, privateKey solana.PrivateKey, config *utils.Conf
 func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string, error) {
 
 	logger.Infof("开始执行买入交易...")
-	logger.Infof("Mint地址: %s", params.TradeParams.Accounts.Mint)
+	logger.Infof("Mint地址: %s, nonce账户: %s,bot钱包: %s", params.TradeParams.Accounts.Mint, params.TradeParams.Accounts.NonceAccount, params.TradeParams.Accounts.User)
 	logger.Infof("购买数量: %d", params.TradeParams.Amount)
 	logger.Infof("构建指令时间: %v", time.Now().Format("2006-01-02 15:04:05.000000"))
 	botWallet := global.GetConfig().TradeWalletKey
 	// 构建交易指令
 	instructions := []solana.Instruction{}
 
+	// 创建nonce advance指令
+	advanceNonceIx := system.NewAdvanceNonceAccountInstruction(
+		params.TradeParams.Accounts.NonceAccount, // nonce账户
+		solana.SysVarRecentBlockHashesPubkey,     // 近期区块哈希系统变量
+		botWallet.PublicKey(),                    // 授权者（签名者）
+	).Build()
+	instructions = append(instructions, advanceNonceIx)
 	// 添加计算单元限制指令（通常设置为 200,000 units）
 	instructions = append(instructions, createSetComputeUnitLimitInstruction(params.TradeParams.FeeConfig.ComputeUnits))
 
@@ -85,8 +92,8 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 
 		logger.Infof("快速模式：跳过ATA检查，直接创建ATA账户")
 		createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
-			SetPayer(params.TradeParams.Accounts.User).
-			SetWallet(params.TradeParams.Accounts.User).
+			SetPayer(botWallet.PublicKey()).
+			SetWallet(botWallet.PublicKey()).
 			SetMint(params.TradeParams.Accounts.Mint).
 			Build()
 
@@ -96,11 +103,11 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		account, err := t.Client.GetAccountInfo(ctx, params.TradeParams.Accounts.AssociatedTokenAccount)
 		if err != nil || account.Value == nil {
 			logger.Infof("ATA账户不存在，创建新账户...")
-			createATAIx := associatedtokenaccount.NewCreateInstruction(
-				params.TradeParams.Accounts.User, // payer
-				params.TradeParams.Accounts.User, // owner
-				params.TradeParams.Accounts.Mint, // mint
-			).Build()
+			createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
+				SetPayer(botWallet.PublicKey()).
+				SetWallet(botWallet.PublicKey()).
+				SetMint(params.TradeParams.Accounts.Mint).
+				Build()
 			instructions = append(instructions, createATAIx)
 		}
 	}
@@ -135,10 +142,46 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 	instructions = append(instructions, buildInstruction)
 
 	// 创建通道
-	resultChan := make(chan string, 4)
-	errChan := make(chan error, 4)
+	resultChan := make(chan string, 10)
+	errChan := make(chan error, 10)
 	timeout := time.After(30 * time.Second)
 	logger.Infof("构建指令时间结束: %v", time.Now().Format("2006-01-02 15:04:05.000000"))
+
+	if params.FlashBlockParams != nil && params.FlashBlockParams.Enable {
+		logger.Infof("[FlashBlock] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionFlashBlock(
+				botWallet,
+				instructions,
+				params.FlashBlockParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("FlashBlock发送失败: %s", err)
+				errChan <- fmt.Errorf("FlashBlock发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
+	if params.AstralaneParams != nil && params.AstralaneParams.Enable {
+		logger.Infof("[Astralane] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionAns(
+				botWallet,
+				instructions,
+				params.AstralaneParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("Astralane发送失败: %s", err)
+				errChan <- fmt.Errorf("Astralane发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
 
 	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
 		logger.Infof("[Blockrazor] 准备发送交易...")
@@ -248,7 +291,6 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 
 	if t.Config.Normal.Enable {
 		logger.Infof("[Normal] 准备发送交易...")
-		logger.Infof("latest blockhash", params.TradeParams.Blockhash.String())
 
 		go func() {
 			// 构建交易
@@ -310,6 +352,13 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 	botWallet := global.GetConfig().TradeWalletKey
 	// 构建交易指令
 	instructions := []solana.Instruction{}
+	// 创建nonce advance指令
+	advanceNonceIx := system.NewAdvanceNonceAccountInstruction(
+		params.TradeParams.Accounts.NonceAccount, // nonce账户
+		solana.SysVarRecentBlockHashesPubkey,     // 近期区块哈希系统变量
+		botWallet.PublicKey(),                    // 授权者（签名者）
+	).Build()
+	instructions = append(instructions, advanceNonceIx)
 
 	// 添加计算单元限制指令（通常设置为 200,000 units）
 	instructions = append(instructions, createSetComputeUnitLimitInstruction(params.TradeParams.FeeConfig.ComputeUnits))
@@ -403,6 +452,41 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 	resultChan := make(chan string, 4)
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
+	if params.FlashBlockParams != nil && params.FlashBlockParams.Enable {
+		logger.Infof("[FlashBlock] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionFlashBlock(
+				botWallet,
+				instructions,
+				params.FlashBlockParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("FlashBlock发送失败: %s", err)
+				errChan <- fmt.Errorf("FlashBlock发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.AstralaneParams != nil && params.AstralaneParams.Enable {
+		logger.Infof("[Astralane] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionAns(
+				botWallet,
+				instructions,
+				params.AstralaneParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("Astralane发送失败: %s", err)
+				errChan <- fmt.Errorf("astralane发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
 	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
 		logger.Infof("[Blockrazor] 准备发送交易...")
 		go func() {
@@ -573,6 +657,13 @@ func (t *TraderImpl) RaydiumV4Buy(ctx context.Context, params types.OrderParams)
 	botWallet := global.GetConfig().TradeWalletKey
 	// 构建交易指令
 	instructions := []solana.Instruction{}
+	// 创建nonce advance指令
+	advanceNonceIx := system.NewAdvanceNonceAccountInstruction(
+		params.TradeParams.Accounts.NonceAccount, // nonce账户
+		solana.SysVarRecentBlockHashesPubkey,     // 近期区块哈希系统变量
+		botWallet.PublicKey(),                    // 授权者（签名者）
+	).Build()
+	instructions = append(instructions, advanceNonceIx)
 
 	// 添加计算单元限制指令（通常设置为 200,000 units）
 	instructions = append(instructions, createSetComputeUnitLimitInstruction(200_000))
@@ -656,6 +747,41 @@ func (t *TraderImpl) RaydiumV4Buy(ctx context.Context, params types.OrderParams)
 	resultChan := make(chan string, 4)
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
+	if params.FlashBlockParams != nil && params.FlashBlockParams.Enable {
+		logger.Infof("[FlashBlock] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionFlashBlock(
+				botWallet,
+				instructions,
+				params.FlashBlockParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("FlashBlock发送失败: %s", err)
+				errChan <- fmt.Errorf("FlashBlock发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.AstralaneParams != nil && params.AstralaneParams.Enable {
+		logger.Infof("[Astralane] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionAns(
+				botWallet,
+				instructions,
+				params.AstralaneParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("Astralane发送失败: %s", err)
+				errChan <- fmt.Errorf("Astralane发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
 	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
 		logger.Infof("[Blockrazor] 准备发送交易...")
 		go func() {
@@ -827,6 +953,13 @@ func (t *TraderImpl) RaydiumLaunchpadSell(ctx context.Context, params types.Orde
 	}
 	// 构建交易指令
 	instructions := []solana.Instruction{}
+	// 创建nonce advance指令
+	advanceNonceIx := system.NewAdvanceNonceAccountInstruction(
+		params.TradeParams.Accounts.NonceAccount, // nonce账户
+		solana.SysVarRecentBlockHashesPubkey,     // 近期区块哈希系统变量
+		botWallet.PublicKey(),                    // 授权者（签名者）
+	).Build()
+	instructions = append(instructions, advanceNonceIx)
 
 	// 添加计算单元限制指令（通常设置为 200,000 units）
 	instructions = append(instructions, createSetComputeUnitLimitInstruction(200_000))
@@ -874,6 +1007,40 @@ func (t *TraderImpl) RaydiumLaunchpadSell(ctx context.Context, params types.Orde
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
 	// 检查各个模式是否启用并准备发送
+	if params.FlashBlockParams != nil && params.FlashBlockParams.Enable {
+		logger.Infof("[FlashBlock] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionFlashBlock(
+				botWallet,
+				instructions,
+				params.FlashBlockParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("FlashBlock发送失败: %s", err)
+				errChan <- fmt.Errorf("FlashBlock发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.AstralaneParams != nil && params.AstralaneParams.Enable {
+		logger.Infof("[Astralane] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionAns(
+				botWallet,
+				instructions,
+				params.AstralaneParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("Astralane发送失败: %s", err)
+				errChan <- fmt.Errorf("astralane发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
 	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
 		logger.Infof("[blockrazor] 准备发送交易...")
 		go func() {
@@ -1047,6 +1214,13 @@ func (t *TraderImpl) RaydiumV4Sell(ctx context.Context, params types.OrderParams
 	}
 	// 构建交易指令
 	instructions := []solana.Instruction{}
+	// 创建nonce advance指令
+	advanceNonceIx := system.NewAdvanceNonceAccountInstruction(
+		params.TradeParams.Accounts.NonceAccount, // nonce账户
+		solana.SysVarRecentBlockHashesPubkey,     // 近期区块哈希系统变量
+		botWallet.PublicKey(),                    // 授权者（签名者）
+	).Build()
+	instructions = append(instructions, advanceNonceIx)
 
 	// 添加计算单元限制指令（通常设置为 200,000 units）
 	instructions = append(instructions, createSetComputeUnitLimitInstruction(200_000))
@@ -1108,6 +1282,40 @@ func (t *TraderImpl) RaydiumV4Sell(ctx context.Context, params types.OrderParams
 	resultChan := make(chan string, 4)
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
+	if params.FlashBlockParams != nil && params.FlashBlockParams.Enable {
+		logger.Infof("[FlashBlock] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionFlashBlock(
+				botWallet,
+				instructions,
+				params.FlashBlockParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("FlashBlock发送失败: %s", err)
+				errChan <- fmt.Errorf("FlashBlock发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.AstralaneParams != nil && params.AstralaneParams.Enable {
+		logger.Infof("[Astralane] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionAns(
+				botWallet,
+				instructions,
+				params.AstralaneParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("Astralane发送失败: %s", err)
+				errChan <- fmt.Errorf("astralane发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
 	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
 		logger.Infof("[blockrazor] 准备发送交易...")
 		go func() {
@@ -1281,7 +1489,13 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 
 	// 构建交易指令
 	instructions := []solana.Instruction{}
-
+	// 创建nonce advance指令
+	advanceNonceIx := system.NewAdvanceNonceAccountInstruction(
+		params.TradeParams.Accounts.NonceAccount, // nonce账户
+		solana.SysVarRecentBlockHashesPubkey,     // 近期区块哈希系统变量
+		botWallet.PublicKey(),                    // 授权者（签名者）
+	).Build()
+	instructions = append(instructions, advanceNonceIx)
 	// 添加计算单元限制指令（通常设置为 200,000 units）
 	instructions = append(instructions, createSetComputeUnitLimitInstruction(200_000))
 
@@ -1320,6 +1534,40 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
 	// 检查各个模式是否启用并准备发送
+	if params.FlashBlockParams != nil && params.FlashBlockParams.Enable {
+		logger.Infof("[FlashBlock] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionFlashBlock(
+				botWallet,
+				instructions,
+				params.FlashBlockParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("FlashBlock发送失败: %s", err)
+				errChan <- fmt.Errorf("FlashBlock发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.AstralaneParams != nil && params.AstralaneParams.Enable {
+		logger.Infof("[Astralane] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionAns(
+				botWallet,
+				instructions,
+				params.AstralaneParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("Astralane发送失败: %s", err)
+				errChan <- fmt.Errorf("astralane发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
 	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
 		logger.Infof("[blockrazor] 准备发送交易...")
 		go func() {
@@ -1518,6 +1766,13 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 
 	// 构建交易指令
 	instructions := []solana.Instruction{}
+	// 创建nonce advance指令
+	advanceNonceIx := system.NewAdvanceNonceAccountInstruction(
+		params.TradeParams.Accounts.NonceAccount, // nonce账户
+		solana.SysVarRecentBlockHashesPubkey,     // 近期区块哈希系统变量
+		botWallet.PublicKey(),                    // 授权者（签名者）
+	).Build()
+	instructions = append(instructions, advanceNonceIx)
 
 	// 添加计算单元限制指令（通常设置为 200,000 units）
 	instructions = append(instructions, createSetComputeUnitLimitInstruction(200_000))
@@ -1582,6 +1837,40 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 	resultChan := make(chan string, 4)
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
+	if params.FlashBlockParams != nil && params.FlashBlockParams.Enable {
+		logger.Infof("[FlashBlock] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionFlashBlock(
+				botWallet,
+				instructions,
+				params.FlashBlockParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("FlashBlock发送失败: %s", err)
+				errChan <- fmt.Errorf("FlashBlock发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.AstralaneParams != nil && params.AstralaneParams.Enable {
+		logger.Infof("[Astralane] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionAns(
+				botWallet,
+				instructions,
+				params.AstralaneParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("Astralane发送失败: %s", err)
+				errChan <- fmt.Errorf("astralane发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
 	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
 		logger.Infof("[blockrazor] 准备发送交易...")
 		go func() {
@@ -1751,6 +2040,13 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 	logger.Infof("Time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
 	botWallet := global.GetConfig().TradeWalletKey
 	instructions := []solana.Instruction{}
+	// 创建nonce advance指令
+	advanceNonceIx := system.NewAdvanceNonceAccountInstruction(
+		params.TradeParams.Accounts.NonceAccount, // nonce账户
+		solana.SysVarRecentBlockHashesPubkey,     // 近期区块哈希系统变量
+		botWallet.PublicKey(),                    // 授权者（签名者）
+	).Build()
+	instructions = append(instructions, advanceNonceIx)
 
 	// Add compute unit and priority fee instructions
 	instructions = append(instructions, createSetComputeUnitLimitInstruction(200_000))
@@ -1834,6 +2130,41 @@ func (t *TraderImpl) RaydiumCPMMBuy(ctx context.Context, params types.OrderParam
 	resultChan := make(chan string, 4)
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
+	if params.FlashBlockParams != nil && params.FlashBlockParams.Enable {
+		logger.Infof("[FlashBlock] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionFlashBlock(
+				botWallet,
+				instructions,
+				params.FlashBlockParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("FlashBlock发送失败: %s", err)
+				errChan <- fmt.Errorf("FlashBlock发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.AstralaneParams != nil && params.AstralaneParams.Enable {
+		logger.Infof("[Astralane] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionAns(
+				botWallet,
+				instructions,
+				params.AstralaneParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("Astralane发送失败: %s", err)
+				errChan <- fmt.Errorf("Astralane发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
 	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
 		logger.Infof("[Blockrazor] 准备发送交易...")
 		go func() {
@@ -2001,6 +2332,13 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 	logger.Infof("Time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
 	botWallet := global.GetConfig().TradeWalletKey
 	instructions := []solana.Instruction{}
+	// 创建nonce advance指令
+	advanceNonceIx := system.NewAdvanceNonceAccountInstruction(
+		params.TradeParams.Accounts.NonceAccount, // nonce账户
+		solana.SysVarRecentBlockHashesPubkey,     // 近期区块哈希系统变量
+		botWallet.PublicKey(),                    // 授权者（签名者）
+	).Build()
+	instructions = append(instructions, advanceNonceIx)
 
 	// Add compute unit and priority fee instructions
 	instructions = append(instructions, createSetComputeUnitLimitInstruction(400_000))
@@ -2088,6 +2426,41 @@ func (t *TraderImpl) RaydiumLaunchpadBuy(ctx context.Context, params types.Order
 	resultChan := make(chan string, 4)
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
+	if params.FlashBlockParams != nil && params.FlashBlockParams.Enable {
+		logger.Infof("[FlashBlock] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionFlashBlock(
+				botWallet,
+				instructions,
+				params.FlashBlockParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("FlashBlock发送失败: %s", err)
+				errChan <- fmt.Errorf("FlashBlock发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.AstralaneParams != nil && params.AstralaneParams.Enable {
+		logger.Infof("[Astralane] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionAns(
+				botWallet,
+				instructions,
+				params.AstralaneParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("Astralane发送失败: %s", err)
+				errChan <- fmt.Errorf("Astralane发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
 	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
 		logger.Infof("[Blockrazor] 准备发送交易...")
 		go func() {
@@ -2260,7 +2633,13 @@ func (t *TraderImpl) RaydiumCPMMSell(ctx context.Context, params types.OrderPara
 	}
 	// 构建交易指令
 	instructions := []solana.Instruction{}
-
+	// 创建nonce advance指令
+	advanceNonceIx := system.NewAdvanceNonceAccountInstruction(
+		params.TradeParams.Accounts.NonceAccount, // nonce账户
+		solana.SysVarRecentBlockHashesPubkey,     // 近期区块哈希系统变量
+		botWallet.PublicKey(),                    // 授权者（签名者）
+	).Build()
+	instructions = append(instructions, advanceNonceIx)
 	// 添加计算单元限制指令（通常设置为 200,000 units）
 	instructions = append(instructions, createSetComputeUnitLimitInstruction(200_000))
 
@@ -2313,6 +2692,41 @@ func (t *TraderImpl) RaydiumCPMMSell(ctx context.Context, params types.OrderPara
 	errChan := make(chan error, 4)
 	timeout := time.After(30 * time.Second)
 	// 检查各个模式是否启用并准备发送
+	if params.FlashBlockParams != nil && params.FlashBlockParams.Enable {
+		logger.Infof("[FlashBlock] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionFlashBlock(
+				botWallet,
+				instructions,
+				params.FlashBlockParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("FlashBlock发送失败: %s", err)
+				errChan <- fmt.Errorf("FlashBlock发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+	if params.AstralaneParams != nil && params.AstralaneParams.Enable {
+		logger.Infof("[Astralane] 准备发送交易...")
+		go func() {
+			sig, err := swqos.SendTransactionAns(
+				botWallet,
+				instructions,
+				params.AstralaneParams,
+				params.TradeParams.Blockhash,
+			)
+			if err != nil {
+				logger.Errorf("Astralane发送失败: %s", err)
+				errChan <- fmt.Errorf("Astralane发送失败: %w", err)
+				return
+			}
+			resultChan <- sig
+		}()
+	}
+
 	if params.BlockrazorParams != nil && params.BlockrazorParams.Enable {
 		logger.Infof("[blockrazor] 准备发送交易...")
 		go func() {

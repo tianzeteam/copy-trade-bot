@@ -38,6 +38,9 @@ function initializePage() {
     
     // 加载参数模板列表
     loadParamSchemes();
+    
+    // 加载私钥钱包列表
+    loadPrivateKeyWallets();
 }
 
 // 注册事件处理器
@@ -581,6 +584,8 @@ function loadSchemeDetails(schemeId) {
         document.getElementById('schemeMaxFollowTriggerAmount').value = scheme.max_follow_trigger_amount;
         document.getElementById('schemeMinPoolSize').value = scheme.min_pool_size;
         document.getElementById('schemeMaxPoolSize').value = scheme.max_pool_size;
+        document.getElementById('schemeTokenAgeMinMinutes').value = scheme.token_age_min_minutes || 0;
+        document.getElementById('schemeTokenAgeMaxMinutes').value = scheme.token_age_max_minutes || 0;
         //document.getElementById('schemeMinBuyAmount').value = scheme.min_buy_amount;
         //document.getElementById('schemeMaxBuyAmount').value = scheme.max_buy_amount;
         document.getElementById('schemeBuySolAmount').value = scheme.buy_sol_amount;
@@ -696,6 +701,8 @@ function updateScheme() {
         max_follow_trigger_amount: parseFloat(document.getElementById('schemeMaxFollowTriggerAmount').value),
         min_pool_size: parseFloat(document.getElementById('schemeMinPoolSize').value),
         max_pool_size: parseFloat(document.getElementById('schemeMaxPoolSize').value),
+        token_age_min_minutes: parseInt(document.getElementById('schemeTokenAgeMinMinutes').value) || 0,
+        token_age_max_minutes: parseInt(document.getElementById('schemeTokenAgeMaxMinutes').value) || 0,
         //min_buy_amount: parseFloat(document.getElementById('schemeMinBuyAmount').value),
         //max_buy_amount: parseFloat(document.getElementById('schemeMaxBuyAmount').value),
         buy_sol_amount: parseFloat(document.getElementById('schemeBuySolAmount').value),
@@ -1026,12 +1033,21 @@ function loadPrivateKeyWallets() {
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${wallet.name}</td>
-                <td>${wallet.address}</td>
-                <td>
-   
-                </td>
+                <td><span class="text-monospace">${wallet.address}</span></td>
+    
             `;
             tbody.appendChild(row);
+            
+            // 添加删除按钮事件
+            const deleteBtn = row.querySelector('.delete-wallet-btn');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', function() {
+                    const address = this.getAttribute('data-address');
+                    if (address) {
+                        deletePrivateKeyWallet(address);
+                    }
+                });
+            }
         });
     })
     .catch(error => {
@@ -1270,6 +1286,7 @@ function loadGlobalSellSettings() {
     .then(data => {
         // 填充全局卖出设置表单
         document.getElementById('capitalRecoveryPercent').value = data.capital_recovery_percent || 0;
+        document.getElementById('devSellEnable').checked = data.dev_sell || false;
     })
     .catch(error => {
         console.error('加载全局卖出设置失败:', error);
@@ -1280,15 +1297,17 @@ function loadGlobalSellSettings() {
 // 保存全局卖出设置
 function saveGlobalSellSettings() {
     const capitalRecoveryPercent = parseFloat(document.getElementById('capitalRecoveryPercent').value) || 0;
+    const devSell = document.getElementById('devSellEnable').checked;
     
     // 验证输入
     if (capitalRecoveryPercent < 0 || capitalRecoveryPercent > 300) {
-        showToast('抽回本金盈利百分比必须在0-100之间', 'error');
+        showToast('抽回本金盈利百分比必须在0-300之间', 'error');
         return;
     }
     
     const updates = {
-        capital_recovery_percent: capitalRecoveryPercent
+        capital_recovery_percent: capitalRecoveryPercent,
+        dev_sell: devSell
     };
     
     fetch('/api/redis-config', {
@@ -1302,14 +1321,14 @@ function saveGlobalSellSettings() {
     .then(response => response.json())
     .then(data => {
         if (data.status === 'success') {
-            showToast('全局卖出设置保存成功', 'success');
+            showSuccess('全局卖出设置保存成功');
         } else {
-            showToast('保存失败: ' + (data.message || '未知错误'), 'error');
+            showError('保存失败: ' + (data.message || '未知错误'));
         }
     })
     .catch(error => {
         console.error('保存全局卖出设置失败:', error);
-        showToast('保存全局卖出设置失败', 'error');
+        showError('保存全局卖出设置失败');
     });
 }
 

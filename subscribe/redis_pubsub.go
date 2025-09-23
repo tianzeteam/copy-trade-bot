@@ -12,7 +12,7 @@ import (
 	"copytrade/wallet"
 
 	"github.com/gagliardetto/solana-go"
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 )
 
 // RedisPubSubService Redis发布/订阅服务

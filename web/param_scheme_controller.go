@@ -60,6 +60,9 @@ type SchemeRequest struct {
 	SellDelayTime int `json:"sell_delay_time"`
 
 	// 交易触发和池子大小参数
+	// 代币创建时间过滤参数 (防止聪明钱包反向收割)
+	TokenAgeMinMinutes     int     `json:"token_age_min_minutes"` // 代币最小创建时间 (分钟)
+	TokenAgeMaxMinutes     int     `json:"token_age_max_minutes"` // 代币最大创建时间 (分钟)
 	MinFollowTriggerAmount float64 `json:"min_follow_trigger_amount"`
 	MaxFollowTriggerAmount float64 `json:"max_follow_trigger_amount"`
 	MinPoolSize            float64 `json:"min_pool_size"`
@@ -150,6 +153,8 @@ func (c *ParamSchemeController) CreateScheme(ctx *gin.Context) {
 		Description:            request.Description,
 		IsDefault:              request.IsDefault,
 		SellDelayTime:          request.SellDelayTime,
+		TokenAgeMinMinutes:     request.TokenAgeMinMinutes,
+		TokenAgeMaxMinutes:     request.TokenAgeMaxMinutes,
 		MinFollowTriggerAmount: request.MinFollowTriggerAmount,
 		MaxFollowTriggerAmount: request.MaxFollowTriggerAmount,
 		MinPoolSize:            request.MinPoolSize,
@@ -210,6 +215,8 @@ func (c *ParamSchemeController) UpdateScheme(ctx *gin.Context) {
 	existingScheme.Description = request.Description
 	existingScheme.IsDefault = request.IsDefault
 	existingScheme.SellDelayTime = request.SellDelayTime
+	existingScheme.TokenAgeMinMinutes = request.TokenAgeMinMinutes
+	existingScheme.TokenAgeMaxMinutes = request.TokenAgeMaxMinutes
 	existingScheme.MinFollowTriggerAmount = request.MinFollowTriggerAmount
 	existingScheme.MaxFollowTriggerAmount = request.MaxFollowTriggerAmount
 	existingScheme.MinPoolSize = request.MinPoolSize

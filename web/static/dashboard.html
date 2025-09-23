@@ -225,6 +225,42 @@
                                     </div>
                                 </div>
                             </div>
+                            
+                            <!-- 代币创建时间过滤 -->
+
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeTokenAgeMinMinutes" class="form-label">
+                                            <i class="bi bi-clock me-1"></i>代币最小创建时间 (秒)
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-hourglass-split"></i></span>
+                                            <input type="number" class="form-control" id="schemeTokenAgeMinMinutes" min="0" step="1" value="0" placeholder="0">
+                                            <span class="input-group-text">秒</span>
+                                        </div>
+                                        <div class="form-text">
+                                            <small>只跟单创建时间超过此秒数的代币，设为0表示无限制</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeTokenAgeMaxMinutes" class="form-label">
+                                            <i class="bi bi-clock me-1"></i>代币最大创建时间 (秒)
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-hourglass-bottom"></i></span>
+                                            <input type="number" class="form-control" id="schemeTokenAgeMaxMinutes" min="0" step="1" value="0" placeholder="0">
+                                            <span class="input-group-text">秒</span>
+                                        </div>
+                                        <div class="form-text">
+                                            <small>只跟单创建时间少于此秒数的代币，设为0表示无限制</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
@@ -453,7 +489,7 @@
                     </div>
                 </div>
                 
-                <div class="card border-warning">
+                <div class="card border-warning mb-4">
                     <div class="card-header bg-warning bg-opacity-10">
                         <h6 class="mb-0"><i class="bi bi-percent me-2"></i>本金回收设置</h6>
                     </div>
@@ -497,6 +533,46 @@
                                                 <li class="mb-1"><i class="bi bi-check-circle text-success me-1"></i> 自动卖出部分代币回收投入本金</li>
                                                 <li class="mb-1"><i class="bi bi-check-circle text-success me-1"></i> 剩余代币继续持有，实现零成本持仓</li>
                                                 <li class="mb-0"><i class="bi bi-check-circle text-success me-1"></i> 降低投资风险，锁定部分收益</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card border-danger">
+                    <div class="card-header bg-danger bg-opacity-10">
+                        <h6 class="mb-0"><i class="bi bi-shield-exclamation me-2"></i>开发者卖出监控</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="devSellEnable">
+                                    <label class="form-check-label fw-semibold" for="devSellEnable">
+                                        <i class="bi bi-eye me-1"></i>启用开发者卖出监控
+                                    </label>
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        <small>当代币创建者卖出代币时，自动卖出您持有的该代币。</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">
+                                        <i class="bi bi-shield-lock me-1"></i>安全策略说明
+                                    </label>
+                                    <div class="card bg-light">
+                                        <div class="card-body p-3">
+                                            <h6 class="card-title text-danger mb-2">开发者卖出监控</h6>
+                                            <ul class="list-unstyled mb-0 small">
+                                                <li class="mb-1"><i class="bi bi-exclamation-triangle text-danger me-1"></i> 实时监控代币创建者的卖出行为</li>
+                                                <li class="mb-1"><i class="bi bi-exclamation-triangle text-danger me-1"></i> 当创建者卖出时立即触发您的卖出操作</li>
+                                                <li class="mb-1"><i class="bi bi-exclamation-triangle text-danger me-1"></i> 有效防范地毯拉盘和开发者抛售</li>
+                                                <li class="mb-0"><i class="bi bi-exclamation-triangle text-danger me-1"></i> 保护您的投资免受突发风险</li>
                                             </ul>
                                         </div>
                                     </div>

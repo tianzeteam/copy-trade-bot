@@ -139,16 +139,17 @@ func SendTransactionBlockrazor(wallet *solana.Wallet, instructions []solana.Inst
 
 	// 如果有 tip 账户且 tip 金额大于 0，则添加 tip 转账指令
 	if tipAccount != "" && params.TipAmount > 0 {
+		tipAmount := max(params.TipAmount, MIN_TIP_AMOUNT)
 		tipPub := solana.MustPublicKeyFromBase58(tipAccount)
 		tipIx = system.NewTransferInstruction(
-			params.TipAmount,
+			tipAmount,
 			wallet.PublicKey(),
 			tipPub,
 		).Build()
 
 		// 合并所有指令
-		allInstructions := []solana.Instruction{tipIx}
-		allInstructions = append(allInstructions, instructions...)
+		allInstructions := []solana.Instruction{instructions[0], tipIx}
+		allInstructions = append(allInstructions, instructions[1:]...)
 		instructions = allInstructions
 	}
 
