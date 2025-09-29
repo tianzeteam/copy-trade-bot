@@ -39,7 +39,7 @@ type LaunchpadSwapData struct {
 	ShareFeeRate     uint64 `json:"share_fee_rate"`
 }
 
-// parseLaunchpadTransaction 解析AMM交易事件
+// parseLaunchpadTransaction 解析交易事件
 func (b *Bot) parseLaunchpadTransaction(accountList []string, innerInstructions []*yellowstone_geyser_pb.InnerInstructions, mintAddress string, claimPlatformFee string, claimCreatorFee string, userAddress solana.PublicKey, isBuy bool, _signature string) *global.LaunchpadTradeEventInfo {
 	var eventBinaries [][]byte
 	var err error
@@ -120,6 +120,7 @@ func (b *Bot) parseLaunchpadTransaction(accountList []string, innerInstructions 
 
 		case "PoolCreateEvent":
 			if poolCreateEvent, ok := event.Data.(*raydium_launchpad.PoolCreateEventEventData); ok {
+
 				logger.Debugf("解析到launchpad池创建事件: dev=%s, mint=%s, pool=%s",
 					poolCreateEvent.Creator, mintAddress, poolCreateEvent.PoolState.String())
 			}

@@ -12,6 +12,7 @@ import (
 	"copytrade/asset"
 	"copytrade/global"
 	"copytrade/logger"
+	"copytrade/noncecache"
 	"copytrade/utils"
 	"copytrade/wallet"
 
@@ -112,6 +113,12 @@ func (c *WalletImportController) ImportPrivateKey(ctx *gin.Context) {
 	if err := os.WriteFile(c.ConfigPath, configData, 0644); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("保存私钥配置失败: %v", err)})
 		return
+	}
+	// 重新初始化nonce账户
+	nonceManager := noncecache.GetNonceManager()
+	if err := nonceManager.Initialize(ctx, config.PrivateKey); err != nil {
+		logger.Errorf("重新初始化nonce管理器失败: %v", err)
+		os.Exit(1)
 	}
 	// 返回成功响应
 	response := PrivateKeyImportResponse{

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"copytrade/asset"
+	"copytrade/core"
 	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/noncecache"
@@ -296,64 +297,11 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 			PriorityFee: uint64(specialScheme.SellPriorityFee * 1e9),
 		},
 	}
-
 	// 构建完整的订单参数
-	orderParams := types.OrderParams{
-		TradeParams: tradeParams,
-		AstralaneParams: &types.AstralaneParams{
-			Enable:    b.Config.Astralane.Enable,
-			RpcUrl:    b.Config.Astralane.RpcUrl,
-			ApiKey:    b.Config.Astralane.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		FlashBlockParams: &types.FlashBlockParams{
-			Enable:    b.Config.FlashBlock.Enable,
-			RpcUrl:    b.Config.FlashBlock.RpcUrl,
-			ApiKey:    b.Config.FlashBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		BlockrazorParams: &types.BlockrazorParams{
-			Enable:         b.Config.Blockrazor.Enable,
-			RpcUrl:         b.Config.Blockrazor.RpcUrl,
-			HealthEndpoint: b.Config.Blockrazor.HealthEndpoint,
-			Mode:           b.Config.Blockrazor.Mode,
-			ApiKey:         b.Config.Blockrazor.ApiKeys[0],
-			TipAmount:      uint64(specialScheme.SellTipFee * 1e9),
-		},
-		ZeroslotParams: &types.ZeroslotParams{
-			Enable:    b.Config.Zeroslot.Enable,
-			RpcUrl:    b.Config.Zeroslot.RpcUrl,
-			BundleUrl: b.Config.Zeroslot.RpcUrl,
-			ApiKeys:   b.Config.Zeroslot.ApiKeys,
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		NextBlockParams: &types.NextBlockParams{
-			Enable:    b.Config.NextBlock.Enable,
-			BundleUrl: b.Config.NextBlock.RpcUrl,
-			ApiKey:    b.Config.NextBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		JitoParams: &types.JitoParams{
-			Enable:    b.Config.Jito.Enable,
-			BundleUrl: b.Config.Jito.RpcUrl,
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		TemporalParams: &types.TemporalParams{
-			Enable:    b.Config.Temporal.Enable,
-			BundleUrl: b.Config.Temporal.RpcUrl,
-			ApiKey:    b.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		BloXrouteParams: &types.BloXrouteParams{
-			Enable:    b.Config.BloXroute.Enable,
-			RpcUrl:    b.Config.BloXroute.RpcUrl,
-			ApiKeys:   b.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-	}
+	orderParams := core.BuildSellOrderParams(tradeParams, b.Config, specialScheme.SellTipFee)
 
 	// 调用交易接口执行卖出
-	b.Trader.Sell(context.Background(), orderParams)
+	b.Trader.Sell(context.Background(), *orderParams)
 }
 
 // ExecuteSellStrategy 执行卖出策略
@@ -464,62 +412,10 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 	}
 
 	// 构建完整的订单参数
-	orderParams := types.OrderParams{
-		TradeParams: tradeParams,
-		AstralaneParams: &types.AstralaneParams{
-			Enable:    b.Config.Astralane.Enable,
-			RpcUrl:    b.Config.Astralane.RpcUrl,
-			ApiKey:    b.Config.Astralane.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		FlashBlockParams: &types.FlashBlockParams{
-			Enable:    b.Config.FlashBlock.Enable,
-			RpcUrl:    b.Config.FlashBlock.RpcUrl,
-			ApiKey:    b.Config.FlashBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		BlockrazorParams: &types.BlockrazorParams{
-			Enable:         b.Config.Blockrazor.Enable,
-			RpcUrl:         b.Config.Blockrazor.RpcUrl,
-			HealthEndpoint: b.Config.Blockrazor.HealthEndpoint,
-			Mode:           b.Config.Blockrazor.Mode,
-			ApiKey:         b.Config.Blockrazor.ApiKeys[0],
-			TipAmount:      uint64(specialScheme.SellTipFee * 1e9),
-		},
-		ZeroslotParams: &types.ZeroslotParams{
-			Enable:    b.Config.Zeroslot.Enable,
-			RpcUrl:    b.Config.Zeroslot.RpcUrl,
-			BundleUrl: b.Config.Zeroslot.RpcUrl,
-			ApiKeys:   b.Config.Zeroslot.ApiKeys,
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		NextBlockParams: &types.NextBlockParams{
-			Enable:    b.Config.NextBlock.Enable,
-			BundleUrl: b.Config.NextBlock.RpcUrl,
-			ApiKey:    b.Config.NextBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		JitoParams: &types.JitoParams{
-			Enable:    b.Config.Jito.Enable,
-			BundleUrl: b.Config.Jito.RpcUrl,
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		TemporalParams: &types.TemporalParams{
-			Enable:    b.Config.Temporal.Enable,
-			BundleUrl: b.Config.Temporal.RpcUrl,
-			ApiKey:    b.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		BloXrouteParams: &types.BloXrouteParams{
-			Enable:    b.Config.BloXroute.Enable,
-			RpcUrl:    b.Config.BloXroute.RpcUrl,
-			ApiKeys:   b.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-	}
+	orderParams := core.BuildSellOrderParams(tradeParams, b.Config, specialScheme.SellTipFee)
 
 	// 调用通用的卖出方法
-	b.Trader.AmmSell(context.Background(), orderParams, b.balanceNeeded)
+	b.Trader.AmmSell(context.Background(), *orderParams, b.balanceNeeded)
 
 }
 
@@ -602,62 +498,10 @@ func (b *Bot) ExecuteRaydiumV4SellOrder(tokenInfo queue.TokenInfo) {
 	}
 
 	// 构建完整的订单参数
-	orderParams := types.OrderParams{
-		TradeParams: tradeParams,
-		AstralaneParams: &types.AstralaneParams{
-			Enable:    b.Config.Astralane.Enable,
-			RpcUrl:    b.Config.Astralane.RpcUrl,
-			ApiKey:    b.Config.Astralane.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		FlashBlockParams: &types.FlashBlockParams{
-			Enable:    b.Config.FlashBlock.Enable,
-			RpcUrl:    b.Config.FlashBlock.RpcUrl,
-			ApiKey:    b.Config.FlashBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		BlockrazorParams: &types.BlockrazorParams{
-			Enable:         b.Config.Blockrazor.Enable,
-			RpcUrl:         b.Config.Blockrazor.RpcUrl,
-			HealthEndpoint: b.Config.Blockrazor.HealthEndpoint,
-			Mode:           b.Config.Blockrazor.Mode,
-			ApiKey:         b.Config.Blockrazor.ApiKeys[0],
-			TipAmount:      uint64(specialScheme.SellTipFee * 1e9),
-		},
-		ZeroslotParams: &types.ZeroslotParams{
-			Enable:    b.Config.Zeroslot.Enable,
-			RpcUrl:    b.Config.Zeroslot.RpcUrl,
-			BundleUrl: b.Config.Zeroslot.RpcUrl,
-			ApiKeys:   b.Config.Zeroslot.ApiKeys,
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		NextBlockParams: &types.NextBlockParams{
-			Enable:    b.Config.NextBlock.Enable,
-			BundleUrl: b.Config.NextBlock.RpcUrl,
-			ApiKey:    b.Config.NextBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		JitoParams: &types.JitoParams{
-			Enable:    b.Config.Jito.Enable,
-			BundleUrl: b.Config.Jito.RpcUrl,
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		TemporalParams: &types.TemporalParams{
-			Enable:    b.Config.Temporal.Enable,
-			BundleUrl: b.Config.Temporal.RpcUrl,
-			ApiKey:    b.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		BloXrouteParams: &types.BloXrouteParams{
-			Enable:    b.Config.BloXroute.Enable,
-			RpcUrl:    b.Config.BloXroute.RpcUrl,
-			ApiKeys:   b.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-	}
+	orderParams := core.BuildSellOrderParams(tradeParams, b.Config, specialScheme.SellTipFee)
 
 	// 调用交易接口执行卖出
-	b.Trader.RaydiumV4Sell(context.Background(), orderParams)
+	b.Trader.RaydiumV4Sell(context.Background(), *orderParams)
 }
 
 // 处理实际的Raydium Launchpad 内盘卖出逻辑
@@ -726,62 +570,10 @@ func (b *Bot) ExecuteRaydiumLaunchpadSellOrder(tokenInfo queue.TokenInfo) {
 	}
 
 	// 构建完整的订单参数
-	orderParams := types.OrderParams{
-		TradeParams: tradeParams,
-		AstralaneParams: &types.AstralaneParams{
-			Enable:    b.Config.Astralane.Enable,
-			RpcUrl:    b.Config.Astralane.RpcUrl,
-			ApiKey:    b.Config.Astralane.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		FlashBlockParams: &types.FlashBlockParams{
-			Enable:    b.Config.FlashBlock.Enable,
-			RpcUrl:    b.Config.FlashBlock.RpcUrl,
-			ApiKey:    b.Config.FlashBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		BlockrazorParams: &types.BlockrazorParams{
-			Enable:         b.Config.Blockrazor.Enable,
-			RpcUrl:         b.Config.Blockrazor.RpcUrl,
-			HealthEndpoint: b.Config.Blockrazor.HealthEndpoint,
-			Mode:           b.Config.Blockrazor.Mode,
-			ApiKey:         b.Config.Blockrazor.ApiKeys[0],
-			TipAmount:      uint64(specialScheme.SellTipFee * 1e9),
-		},
-		ZeroslotParams: &types.ZeroslotParams{
-			Enable:    b.Config.Zeroslot.Enable,
-			RpcUrl:    b.Config.Zeroslot.RpcUrl,
-			BundleUrl: b.Config.Zeroslot.RpcUrl,
-			ApiKeys:   b.Config.Zeroslot.ApiKeys,
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		NextBlockParams: &types.NextBlockParams{
-			Enable:    b.Config.NextBlock.Enable,
-			BundleUrl: b.Config.NextBlock.RpcUrl,
-			ApiKey:    b.Config.NextBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		JitoParams: &types.JitoParams{
-			Enable:    b.Config.Jito.Enable,
-			BundleUrl: b.Config.Jito.RpcUrl,
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		TemporalParams: &types.TemporalParams{
-			Enable:    b.Config.Temporal.Enable,
-			BundleUrl: b.Config.Temporal.RpcUrl,
-			ApiKey:    b.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		BloXrouteParams: &types.BloXrouteParams{
-			Enable:    b.Config.BloXroute.Enable,
-			RpcUrl:    b.Config.BloXroute.RpcUrl,
-			ApiKeys:   b.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-	}
+	orderParams := core.BuildSellOrderParams(tradeParams, b.Config, specialScheme.SellTipFee)
 
 	// 调用交易接口执行卖出
-	b.Trader.RaydiumLaunchpadSell(context.Background(), orderParams)
+	b.Trader.RaydiumLaunchpadSell(context.Background(), *orderParams)
 }
 
 // getSpecialScheme 获取代币对应的钱包地址和配置参数
@@ -864,60 +656,8 @@ func (b *Bot) ExecuteCpmmSellOrder(tokenInfo queue.TokenInfo) {
 	}
 
 	// 构建完整的订单参数
-	orderParams := types.OrderParams{
-		TradeParams: tradeParams,
-		AstralaneParams: &types.AstralaneParams{
-			Enable:    b.Config.Astralane.Enable,
-			RpcUrl:    b.Config.Astralane.RpcUrl,
-			ApiKey:    b.Config.Astralane.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		FlashBlockParams: &types.FlashBlockParams{
-			Enable:    b.Config.FlashBlock.Enable,
-			RpcUrl:    b.Config.FlashBlock.RpcUrl,
-			ApiKey:    b.Config.FlashBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		BlockrazorParams: &types.BlockrazorParams{
-			Enable:         b.Config.Blockrazor.Enable,
-			RpcUrl:         b.Config.Blockrazor.RpcUrl,
-			HealthEndpoint: b.Config.Blockrazor.HealthEndpoint,
-			Mode:           b.Config.Blockrazor.Mode,
-			ApiKey:         b.Config.Blockrazor.ApiKeys[0],
-			TipAmount:      uint64(specialScheme.SellTipFee * 1e9),
-		},
-		ZeroslotParams: &types.ZeroslotParams{
-			Enable:    b.Config.Zeroslot.Enable,
-			RpcUrl:    b.Config.Zeroslot.RpcUrl,
-			BundleUrl: b.Config.Zeroslot.RpcUrl,
-			ApiKeys:   b.Config.Zeroslot.ApiKeys,
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		NextBlockParams: &types.NextBlockParams{
-			Enable:    b.Config.NextBlock.Enable,
-			BundleUrl: b.Config.NextBlock.RpcUrl,
-			ApiKey:    b.Config.NextBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		JitoParams: &types.JitoParams{
-			Enable:    b.Config.Jito.Enable,
-			BundleUrl: b.Config.Jito.RpcUrl,
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		TemporalParams: &types.TemporalParams{
-			Enable:    b.Config.Temporal.Enable,
-			BundleUrl: b.Config.Temporal.RpcUrl,
-			ApiKey:    b.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-		BloXrouteParams: &types.BloXrouteParams{
-			Enable:    b.Config.BloXroute.Enable,
-			RpcUrl:    b.Config.BloXroute.RpcUrl,
-			ApiKeys:   b.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(specialScheme.SellTipFee * 1e9),
-		},
-	}
+	orderParams := core.BuildSellOrderParams(tradeParams, b.Config, specialScheme.SellTipFee)
 
 	// 调用交易接口执行卖出
-	b.Trader.RaydiumCPMMSell(context.Background(), orderParams)
+	b.Trader.RaydiumCPMMSell(context.Background(), *orderParams)
 }

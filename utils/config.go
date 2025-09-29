@@ -12,6 +12,7 @@ type ModeConfig struct {
 	BuyTip         float64  `yaml:"buy_tip"`
 	SellTip        float64  `yaml:"sell_tip"`
 	Enable         bool     `yaml:"enable"`
+	SellEnable     bool     `yaml:"sell_enable"`
 	Mode           string   `yaml:"mode"`
 	HealthEndpoint string   `yaml:"health_endpoint"`
 	RpcUrl         string   `yaml:"rpc_url,omitempty"`  // 可选的RPC URL

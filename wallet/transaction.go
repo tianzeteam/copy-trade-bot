@@ -509,65 +509,12 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 		},
 	}
 
-	//orderParams := core.BuildOrderParams(tradeParams, m.TradeBot.Config)
+	orderParams := core.BuildOrderParams(tradeParams, m.TradeBot.Config, specialScheme.BuyTipFee)
 	// Build complete transaction parameters
-	orderParams := types.OrderParams{
-		TradeParams: tradeParams,
-		NextBlockParams: &types.NextBlockParams{
-			Enable:    m.TradeBot.Config.NextBlock.Enable,
-			BundleUrl: m.TradeBot.Config.NextBlock.RpcUrl,
-			ApiKey:    m.TradeBot.Config.NextBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		FlashBlockParams: &types.FlashBlockParams{
-			Enable:    m.TradeBot.Config.FlashBlock.Enable,
-			RpcUrl:    m.TradeBot.Config.FlashBlock.RpcUrl,
-			ApiKey:    m.TradeBot.Config.FlashBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		AstralaneParams: &types.AstralaneParams{
-			Enable:    m.TradeBot.Config.Astralane.Enable,
-			RpcUrl:    m.TradeBot.Config.Astralane.RpcUrl,
-			ApiKey:    m.TradeBot.Config.Astralane.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		BlockrazorParams: &types.BlockrazorParams{
-			Enable:         m.TradeBot.Config.Blockrazor.Enable,
-			RpcUrl:         m.TradeBot.Config.Blockrazor.RpcUrl,
-			Mode:           m.TradeBot.Config.Blockrazor.Mode,
-			HealthEndpoint: m.TradeBot.Config.Blockrazor.HealthEndpoint,
-			ApiKey:         m.TradeBot.Config.Blockrazor.ApiKeys[0],
-			TipAmount:      uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		ZeroslotParams: &types.ZeroslotParams{
-			Enable:    m.TradeBot.Config.Zeroslot.Enable,
-			RpcUrl:    m.TradeBot.Config.Zeroslot.RpcUrl,
-			BundleUrl: m.TradeBot.Config.Zeroslot.RpcUrl,
-			ApiKeys:   m.TradeBot.Config.Zeroslot.ApiKeys,
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		JitoParams: &types.JitoParams{
-			Enable:    m.TradeBot.Config.Jito.Enable,
-			BundleUrl: m.TradeBot.Config.Jito.RpcUrl,
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		TemporalParams: &types.TemporalParams{
-			Enable:    m.TradeBot.Config.Temporal.Enable,
-			BundleUrl: m.TradeBot.Config.Temporal.RpcUrl,
-			ApiKey:    m.TradeBot.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		BloXrouteParams: &types.BloXrouteParams{
-			Enable:    m.TradeBot.Config.BloXroute.Enable,
-			RpcUrl:    m.TradeBot.Config.BloXroute.RpcUrl,
-			ApiKeys:   m.TradeBot.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-	}
 
 	logger.Debugf("Executing buy transaction for token: %s\n", mintAddr.String())
 
-	go m.TradeBot.Trader.Buy(ctx, orderParams)
+	go m.TradeBot.Trader.Buy(ctx, *orderParams)
 	// 然后记录机器人的跟单交易
 	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress, copyAddress, botWallet, tradeInfo.CurrentPrice)
 }
@@ -643,62 +590,10 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 	}
 
 	// 构建完整的订单参数
-	orderParams := types.OrderParams{
-		TradeParams: tradeParams,
-		NextBlockParams: &types.NextBlockParams{
-			Enable:    m.TradeBot.Config.NextBlock.Enable,
-			BundleUrl: m.TradeBot.Config.NextBlock.RpcUrl,
-			ApiKey:    m.TradeBot.Config.NextBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		FlashBlockParams: &types.FlashBlockParams{
-			Enable:    m.TradeBot.Config.FlashBlock.Enable,
-			RpcUrl:    m.TradeBot.Config.FlashBlock.RpcUrl,
-			ApiKey:    m.TradeBot.Config.FlashBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		AstralaneParams: &types.AstralaneParams{
-			Enable:    m.TradeBot.Config.Astralane.Enable,
-			RpcUrl:    m.TradeBot.Config.Astralane.RpcUrl,
-			ApiKey:    m.TradeBot.Config.Astralane.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		BlockrazorParams: &types.BlockrazorParams{
-			Enable:         m.TradeBot.Config.Blockrazor.Enable,
-			RpcUrl:         m.TradeBot.Config.Blockrazor.RpcUrl,
-			HealthEndpoint: m.TradeBot.Config.Blockrazor.HealthEndpoint,
-			Mode:           m.TradeBot.Config.Blockrazor.Mode,
-			ApiKey:         m.TradeBot.Config.Blockrazor.ApiKeys[0],
-			TipAmount:      uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		ZeroslotParams: &types.ZeroslotParams{
-			Enable:    m.TradeBot.Config.Zeroslot.Enable,
-			RpcUrl:    m.TradeBot.Config.Zeroslot.RpcUrl,
-			ApiKeys:   m.TradeBot.Config.Zeroslot.ApiKeys,
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-
-		JitoParams: &types.JitoParams{
-			Enable:    m.TradeBot.Config.Jito.Enable,
-			BundleUrl: m.TradeBot.Config.Jito.RpcUrl,
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		TemporalParams: &types.TemporalParams{
-			Enable:    m.TradeBot.Config.Temporal.Enable,
-			BundleUrl: m.TradeBot.Config.Temporal.RpcUrl,
-			ApiKey:    m.TradeBot.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		BloXrouteParams: &types.BloXrouteParams{
-			Enable:    m.TradeBot.Config.BloXroute.Enable,
-			RpcUrl:    m.TradeBot.Config.BloXroute.RpcUrl,
-			ApiKeys:   m.TradeBot.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-	}
+	orderParams := core.BuildOrderParams(tradeParams, m.TradeBot.Config, specialScheme.BuyTipFee)
 
 	// 调用通用的卖出方法
-	go m.TradeBot.Trader.PumpAmmBuy(context.Background(), orderParams)
+	go m.TradeBot.Trader.PumpAmmBuy(context.Background(), *orderParams)
 	// 然后记录机器人的跟单交易
 	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress.String(), originalWallet, m.BotWallet, tradeInfo.CurrentPrice)
 }
@@ -763,62 +658,10 @@ func (m *TransactionMonitor) executeRaydiumV4CopyTrade(tradeInfo *types.AmmRaydi
 	}
 
 	// 构建完整的订单参数
-	orderParams := types.OrderParams{
-		TradeParams: tradeParams,
-		NextBlockParams: &types.NextBlockParams{
-			Enable:    m.TradeBot.Config.NextBlock.Enable,
-			BundleUrl: m.TradeBot.Config.NextBlock.RpcUrl,
-			ApiKey:    m.TradeBot.Config.NextBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		FlashBlockParams: &types.FlashBlockParams{
-			Enable:    m.TradeBot.Config.FlashBlock.Enable,
-			RpcUrl:    m.TradeBot.Config.FlashBlock.RpcUrl,
-			ApiKey:    m.TradeBot.Config.FlashBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		AstralaneParams: &types.AstralaneParams{
-			Enable:    m.TradeBot.Config.Astralane.Enable,
-			RpcUrl:    m.TradeBot.Config.Astralane.RpcUrl,
-			ApiKey:    m.TradeBot.Config.Astralane.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		BlockrazorParams: &types.BlockrazorParams{
-			Enable:         m.TradeBot.Config.Blockrazor.Enable,
-			RpcUrl:         m.TradeBot.Config.Blockrazor.RpcUrl,
-			HealthEndpoint: m.TradeBot.Config.Blockrazor.HealthEndpoint,
-			Mode:           m.TradeBot.Config.Blockrazor.Mode,
-			ApiKey:         m.TradeBot.Config.Blockrazor.ApiKeys[0],
-			TipAmount:      uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		ZeroslotParams: &types.ZeroslotParams{
-			Enable:    m.TradeBot.Config.Zeroslot.Enable,
-			RpcUrl:    m.TradeBot.Config.Zeroslot.RpcUrl,
-			ApiKeys:   m.TradeBot.Config.Zeroslot.ApiKeys,
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-
-		JitoParams: &types.JitoParams{
-			Enable:    m.TradeBot.Config.Jito.Enable,
-			BundleUrl: m.TradeBot.Config.Jito.RpcUrl,
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		TemporalParams: &types.TemporalParams{
-			Enable:    m.TradeBot.Config.Temporal.Enable,
-			BundleUrl: m.TradeBot.Config.Temporal.RpcUrl,
-			ApiKey:    m.TradeBot.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		BloXrouteParams: &types.BloXrouteParams{
-			Enable:    m.TradeBot.Config.BloXroute.Enable,
-			RpcUrl:    m.TradeBot.Config.BloXroute.RpcUrl,
-			ApiKeys:   m.TradeBot.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-	}
+	orderParams := core.BuildOrderParams(tradeParams, m.TradeBot.Config, specialScheme.BuyTipFee)
 
 	// 调用通用的卖出方法
-	go m.TradeBot.Trader.RaydiumV4Buy(context.Background(), orderParams)
+	go m.TradeBot.Trader.RaydiumV4Buy(context.Background(), *orderParams)
 	// 然后记录机器人的跟单交易
 	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress.String(), originalWallet, m.BotWallet, tradeInfo.CurrentPrice)
 }
@@ -992,62 +835,10 @@ func (m *TransactionMonitor) executeLaunchpadCopyTrade(tradeInfo *global.Launchp
 	}
 
 	// 构建完整的订单参数
-	orderParams := types.OrderParams{
-		TradeParams: tradeParams,
-		NextBlockParams: &types.NextBlockParams{
-			Enable:    m.TradeBot.Config.NextBlock.Enable,
-			BundleUrl: m.TradeBot.Config.NextBlock.RpcUrl,
-			ApiKey:    m.TradeBot.Config.NextBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		FlashBlockParams: &types.FlashBlockParams{
-			Enable:    m.TradeBot.Config.FlashBlock.Enable,
-			RpcUrl:    m.TradeBot.Config.FlashBlock.RpcUrl,
-			ApiKey:    m.TradeBot.Config.FlashBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		AstralaneParams: &types.AstralaneParams{
-			Enable:    m.TradeBot.Config.Astralane.Enable,
-			RpcUrl:    m.TradeBot.Config.Astralane.RpcUrl,
-			ApiKey:    m.TradeBot.Config.Astralane.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		BlockrazorParams: &types.BlockrazorParams{
-			Enable:         m.TradeBot.Config.Blockrazor.Enable,
-			RpcUrl:         m.TradeBot.Config.Blockrazor.RpcUrl,
-			HealthEndpoint: m.TradeBot.Config.Blockrazor.HealthEndpoint,
-			Mode:           m.TradeBot.Config.Blockrazor.Mode,
-			ApiKey:         m.TradeBot.Config.Blockrazor.ApiKeys[0],
-			TipAmount:      uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		ZeroslotParams: &types.ZeroslotParams{
-			Enable:    m.TradeBot.Config.Zeroslot.Enable,
-			RpcUrl:    m.TradeBot.Config.Zeroslot.RpcUrl,
-			ApiKeys:   m.TradeBot.Config.Zeroslot.ApiKeys,
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-
-		JitoParams: &types.JitoParams{
-			Enable:    m.TradeBot.Config.Jito.Enable,
-			BundleUrl: m.TradeBot.Config.Jito.RpcUrl,
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		TemporalParams: &types.TemporalParams{
-			Enable:    m.TradeBot.Config.Temporal.Enable,
-			BundleUrl: m.TradeBot.Config.Temporal.RpcUrl,
-			ApiKey:    m.TradeBot.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		BloXrouteParams: &types.BloXrouteParams{
-			Enable:    m.TradeBot.Config.BloXroute.Enable,
-			RpcUrl:    m.TradeBot.Config.BloXroute.RpcUrl,
-			ApiKeys:   m.TradeBot.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-	}
+	orderParams := core.BuildOrderParams(tradeParams, m.TradeBot.Config, specialScheme.BuyTipFee)
 
 	// 调用通用的卖出方法
-	go m.TradeBot.Trader.RaydiumLaunchpadBuy(context.Background(), orderParams)
+	go m.TradeBot.Trader.RaydiumLaunchpadBuy(context.Background(), *orderParams)
 	// 然后记录机器人的跟单交易
 	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress.String(), originalWallet, m.BotWallet, tradeInfo.CurrentPrice)
 }
@@ -1225,62 +1016,9 @@ func (m *TransactionMonitor) executeCpmmCopyTrade(tradeInfo *global.CPMMTradeEve
 	}
 
 	// 构建完整的订单参数
-	orderParams := types.OrderParams{
-		TradeParams: tradeParams,
-		NextBlockParams: &types.NextBlockParams{
-			Enable:    m.TradeBot.Config.NextBlock.Enable,
-			BundleUrl: m.TradeBot.Config.NextBlock.RpcUrl,
-			ApiKey:    m.TradeBot.Config.NextBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		FlashBlockParams: &types.FlashBlockParams{
-			Enable:    m.TradeBot.Config.FlashBlock.Enable,
-			RpcUrl:    m.TradeBot.Config.FlashBlock.RpcUrl,
-			ApiKey:    m.TradeBot.Config.FlashBlock.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		AstralaneParams: &types.AstralaneParams{
-			Enable:    m.TradeBot.Config.Astralane.Enable,
-			RpcUrl:    m.TradeBot.Config.Astralane.RpcUrl,
-			ApiKey:    m.TradeBot.Config.Astralane.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		BlockrazorParams: &types.BlockrazorParams{
-			Enable:         m.TradeBot.Config.Blockrazor.Enable,
-			RpcUrl:         m.TradeBot.Config.Blockrazor.RpcUrl,
-			HealthEndpoint: m.TradeBot.Config.Blockrazor.HealthEndpoint,
-			Mode:           m.TradeBot.Config.Blockrazor.Mode,
-			ApiKey:         m.TradeBot.Config.Blockrazor.ApiKeys[0],
-			TipAmount:      uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		ZeroslotParams: &types.ZeroslotParams{
-			Enable:    m.TradeBot.Config.Zeroslot.Enable,
-			RpcUrl:    m.TradeBot.Config.Zeroslot.RpcUrl,
-			ApiKeys:   m.TradeBot.Config.Zeroslot.ApiKeys,
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-
-		JitoParams: &types.JitoParams{
-			Enable:    m.TradeBot.Config.Jito.Enable,
-			BundleUrl: m.TradeBot.Config.Jito.RpcUrl,
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		TemporalParams: &types.TemporalParams{
-			Enable:    m.TradeBot.Config.Temporal.Enable,
-			BundleUrl: m.TradeBot.Config.Temporal.RpcUrl,
-			ApiKey:    m.TradeBot.Config.Temporal.ApiKeys[0],
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-		BloXrouteParams: &types.BloXrouteParams{
-			Enable:    m.TradeBot.Config.BloXroute.Enable,
-			RpcUrl:    m.TradeBot.Config.BloXroute.RpcUrl,
-			ApiKeys:   m.TradeBot.Config.BloXroute.ApiKeys,
-			TipAmount: uint64(specialScheme.BuyTipFee * 1e9),
-		},
-	}
-
+	orderParams := core.BuildOrderParams(tradeParams, m.TradeBot.Config, specialScheme.BuyTipFee)
 	// 调用通用的卖出方法
-	go m.TradeBot.Trader.RaydiumCPMMBuy(context.Background(), orderParams)
+	go m.TradeBot.Trader.RaydiumCPMMBuy(context.Background(), *orderParams)
 	// 然后记录机器人的跟单交易
 	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress.String(), originalWallet, m.BotWallet, tradeInfo.CurrentPrice)
 }

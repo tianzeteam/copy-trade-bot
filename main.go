@@ -198,10 +198,13 @@ func main() {
 	go processWaitingSellTokens(tradeBot)
 
 	//------------------ 初始化nonce账户-------------------------
+	SKIP_CREATE_NONCE_ACCOUNT := config.SkipCreateNonceAccount
 	nonceManager := noncecache.NewNonceManager(config)
-	if err := nonceManager.Initialize(ctx, config); err != nil {
-		logger.Errorf("初始化nonce管理器失败: %v", err)
-		os.Exit(1)
+	if !SKIP_CREATE_NONCE_ACCOUNT {
+		if err := nonceManager.Initialize(ctx, config.PrivateKey); err != nil {
+			logger.Errorf("初始化nonce管理器失败: %v", err)
+			os.Exit(1)
+		}
 	}
 	// --------------------创建交易监控器-------------------------------
 	transactionMonitor = wallet.NewTransactionMonitor(tradeBot, walletMonitor, botWallet.PublicKey(), config.BuySolAmount, nonceManager)

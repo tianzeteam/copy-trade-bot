@@ -59,14 +59,14 @@ func GetNonceManager() *NonceManager {
 }
 
 // Initialize 初始化nonce账户
-func (nm *NonceManager) Initialize(ctx context.Context, config *utils.Config) error {
+func (nm *NonceManager) Initialize(ctx context.Context, tradeWalletKey string) error {
 	// 从本地文件加载或创建nonce账户
 	authorityData, readErr := os.ReadFile("authority_pubkey.txt")
 	nonceData, readErr2 := os.ReadFile("nonce_pubkey.txt")
 
 	ioAuthorityPubKey := ""
 	ioNoncePubKey := ""
-	_authorityWallet := solana.MustPrivateKeyFromBase58(config.PrivateKey)
+	_authorityWallet := solana.MustPrivateKeyFromBase58(tradeWalletKey)
 
 	authorityPubkey := _authorityWallet.PublicKey()
 	nm.authorityPubkey = &authorityPubkey
@@ -81,7 +81,7 @@ func (nm *NonceManager) Initialize(ctx context.Context, config *utils.Config) er
 	var createErr error
 	if ioAuthorityPubKey == "" || ioNoncePubKey == "" || ioAuthorityPubKey != nm.authorityPubkey.String() {
 		logger.Infof("创建新的nonce账户...")
-		nm.nonceAccountPubkey, createErr = nm.CreateNonceAccount(ctx, config)
+		nm.nonceAccountPubkey, createErr = nm.CreateNonceAccount(ctx, tradeWalletKey)
 		if createErr != nil {
 			return fmt.Errorf("创建nonce账户失败: %v", createErr)
 		}

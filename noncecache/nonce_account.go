@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"copytrade/logger"
-	"copytrade/utils"
 
 	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/programs/system"
@@ -167,9 +166,9 @@ func (b *NonceManager) GetRecentBlockhash(ctx context.Context) (solana.Hash, err
 }
 
 // CreateNonceAccount 创建一个新的nonce账户（调用上面两个函数）
-func (b *NonceManager) CreateNonceAccount(ctx context.Context, config *utils.Config) (*solana.PublicKey, error) {
+func (b *NonceManager) CreateNonceAccount(ctx context.Context, tradeWalletKey string) (*solana.PublicKey, error) {
 	// 生成一个新的密钥对作为nonce账户
-	tradeWallet := solana.MustPrivateKeyFromBase58(config.PrivateKey)
+	tradeWallet := solana.MustPrivateKeyFromBase58(tradeWalletKey)
 	nonceAccount := solana.NewWallet()
 	nonceAccountPubkey := nonceAccount.PublicKey()
 	logger.Infof("创建nonce账户: %s", nonceAccountPubkey.String())

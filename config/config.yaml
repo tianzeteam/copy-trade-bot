@@ -53,12 +53,14 @@ normal:
     buy_tip: 0.001
     sell_tip: 0.001
     enable: false
+    sell_enable: false
     mode: ""
     health_endpoint: ""
 jito:
     buy_tip: 0.0001
     sell_tip: 0.0001
     enable: true
+    sell_enable: true
     mode: ""
     health_endpoint: ""
     rpc_url: https://frankfurt.mainnet.block-engine.jito.wtf/api/v1
@@ -66,6 +68,7 @@ nextblock:
     buy_tip: 0.001
     sell_tip: 0.001
     enable: false
+    sell_enable: false
     mode: ""
     health_endpoint: ""
     rpc_url: http://fra.nextblock.io/api/v2/submit
@@ -75,6 +78,7 @@ temporal:
     buy_tip: 0.001
     sell_tip: 0.001
     enable: false
+    sell_enable: false
     mode: ""
     health_endpoint: ""
     rpc_url: http://ams2.nozomi.temporal.xyz/
@@ -84,6 +88,7 @@ bloXroute:
     buy_tip: 0.001
     sell_tip: 0.001
     enable: false
+    sell_enable: false
     mode: ""
     health_endpoint: ""
     rpc_url: http://germany.solana.dex.blxrbdn.com
@@ -93,6 +98,7 @@ zeroslot:
     buy_tip: 0.001
     sell_tip: 0.001
     enable: true
+    sell_enable: true
     mode: ""
     health_endpoint: ""
     rpc_url: http://ams1.0slot.trade
@@ -102,6 +108,7 @@ blockrazor:
     buy_tip: 0.001
     sell_tip: 0.001
     enable: false
+    sell_enable: false
     mode: fast
     health_endpoint: http://frankfurt.solana.blockrazor.xyz:443/health
     rpc_url: http://frankfurt.solana.blockrazor.xyz:443/sendTransaction
@@ -112,6 +119,7 @@ astralane:
     buy_tip: 0.001
     sell_tip: 0.001
     enable: true
+    sell_enable: true
     mode: ""
     health_endpoint: ""
     rpc_url: "http://45.139.132.160"
@@ -122,6 +130,7 @@ flashblock:
     buy_tip: 0.001
     sell_tip: 0.001
     enable: true
+    sell_enable: true
     mode: ""
     health_endpoint: ""
     rpc_url: "http://fra.flashblock.trade"
