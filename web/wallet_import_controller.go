@@ -13,6 +13,7 @@ import (
 	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/noncecache"
+	"copytrade/stream"
 	"copytrade/utils"
 	"copytrade/wallet"
 
@@ -84,25 +85,35 @@ func (c *WalletImportController) ImportPrivateKey(ctx *gin.Context) {
 	// 从私钥生成公钥和地址
 	publicKey := privateKey.PublicKey()
 	address := publicKey.String()
-
-	_botWallet := solana.Wallet{PrivateKey: privateKey}
-
-	global.UpdateConfigField("trade_wallet_key", _botWallet)
-	botWallet := global.GetConfig().TradeWalletKey
-	logger.Infof("更新后的botWallet: %s", botWallet.PublicKey().String())
-	// 更新钱包监控器
-	asset.GetBalanceManager().UpdateWalletAddress(address)
 	// 加载当前配置
 	config, err := utils.LoadConfig(c.ConfigPath)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("加载配置失败: %v", err)})
 		return
 	}
+	balance, err := asset.GetSolBalance(address, config.RPCUrl)
+	if err != nil {
+		logger.Errorf("获取sol余额失败: %v", err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("读取钱包sol余额失败: %v", err)})
+		return
+	}
+	if balance < 0.002 {
+		logger.Errorf("sol余额不足0.002，无法导入钱包")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "sol余额不足0.002，无法导入钱包"})
+		return
+	}
+
+	_botWallet := solana.Wallet{PrivateKey: privateKey}
+
+	global.UpdateConfigField("trade_wallet_key", _botWallet)
+
+	botWallet := global.GetConfig().TradeWalletKey
+	logger.Infof("更新后的botWallet: %s", botWallet.PublicKey().String())
+	// 更新钱包监控器
+	asset.GetBalanceManager().UpdateWalletAddress(address)
 
 	// 只更新trade_wallet_key
 	config.PrivateKey = privateKey.String()
-	// 保留其他配置不变
-
 	// 保存配置
 	configData, err := yaml.Marshal(config)
 	if err != nil {
@@ -116,15 +127,18 @@ func (c *WalletImportController) ImportPrivateKey(ctx *gin.Context) {
 	}
 	// 重新初始化nonce账户
 	nonceManager := noncecache.GetNonceManager()
+
 	if err := nonceManager.Initialize(ctx, config.PrivateKey); err != nil {
 		logger.Errorf("重新初始化nonce管理器失败: %v", err)
 		os.Exit(1)
 	}
+	global.UpdateConfigField("nonce_account_pubkey", nonceManager.GetNonceAccountPubkey().String())
+	// 重启流管理器
+	stream.GetStreamManager().Restart()
 	// 返回成功响应
 	response := PrivateKeyImportResponse{
 		Address: address,
 		Name:    req.Name,
-
 		Message: "钱包导入成功",
 	}
 
@@ -160,7 +174,7 @@ func (c *WalletImportController) GetPrivateKeyWallets(ctx *gin.Context) {
 	// 返回单个私钥钱包信息
 	wallet := PrivateKeyWalletResponse{
 		Address: address,
-		Name:    "默认私钥钱包",
+		Name:    "交易钱包",
 		Type:    "high_frequency",
 	}
 

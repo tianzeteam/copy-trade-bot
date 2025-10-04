@@ -69,6 +69,8 @@ type WalletResponse struct {
 	Enabled       bool   `json:"enabled"`
 	FollowSell    bool   `json:"follow_sell"`     // 是否跟卖
 	ParamSchemeID string `json:"param_scheme_id"` // 参数方案ID
+	Risk          string `json:"risk"`            // 风险等级: high, medium, low
+	Note          string `json:"note"`            // 备注信息
 	Timestamp     int64  `json:"timestamp"`       // 添加时间戳确保响应唯一性
 }
 
@@ -97,6 +99,8 @@ func (c *WalletController) GetAllWallets(ctx *gin.Context) {
 			Enabled:       w.Enabled, // 从Redis获取的钱包都是已启用的
 			FollowSell:    w.IsFollowSell,
 			ParamSchemeID: w.ParamSchemeID,
+			Risk:          w.Risk,
+			Note:          w.Note,
 			Timestamp:     time.Now().Unix(),
 		})
 	}
@@ -134,6 +138,8 @@ func (c *WalletController) GetWallet(ctx *gin.Context) {
 		Enabled:       w.Enabled,
 		FollowSell:    w.IsFollowSell,
 		ParamSchemeID: w.ParamSchemeID,
+		Risk:          w.Risk,
+		Note:          w.Note,
 		Timestamp:     time.Now().Unix(),
 	}
 
@@ -164,6 +170,8 @@ func (c *WalletController) CreateWallet(ctx *gin.Context) {
 		StopLossPct:   request.StopLossPct,
 		Enabled:       request.Enabled,
 		FollowSell:    request.FollowSell,
+		Risk:          request.Risk,
+		Note:          request.Note,
 	}
 
 	// 保存钱包
@@ -224,6 +232,8 @@ func (c *WalletController) UpdateWallet(ctx *gin.Context) {
 		Enabled:       request.Enabled,
 		FollowSell:    request.FollowSell,
 		ParamSchemeID: request.ParamSchemeID,
+		Risk:          request.Risk,
+		Note:          request.Note,
 	}
 
 	// 更新钱包

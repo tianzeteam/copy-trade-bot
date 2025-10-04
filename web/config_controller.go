@@ -52,7 +52,51 @@ func (c *ConfigController) handleGetConfig(ctx *gin.Context) {
 	// 从全局内存获取配置
 	config := global.GetConfig()
 
-	ctx.JSON(http.StatusOK, config)
+	// 创建安全的配置副本，只包含非敏感字段
+	sanitizedConfig := global.GlobalConfig{
+		// 交易平台启用状态
+		PumpTradeEnable:        config.PumpTradeEnable,
+		PumpAmmTradeEnable:     config.PumpAmmTradeEnable,
+		RaydiumTradeEnable:     config.RaydiumTradeEnable,
+		LaunchpadTradeEnable:   config.LaunchpadTradeEnable,
+		RepeatTradeEnable:      config.RepeatTradeEnable,
+		SellDelayTime:          config.SellDelayTime,
+		SellIntervalLimit:      config.SellIntervalLimit,
+		DevSell:                config.DevSell,
+		CapitalRecoveryPercent: config.CapitalRecoveryPercent,
+		// 注意：不包含 TradeWalletKey 和 GlobalBlockhash
+		NonceAccountAddress:    config.NonceAccountAddress,
+		
+		// 交易触发和池子大小参数
+		MinFollowTriggerAmount: config.MinFollowTriggerAmount,
+		MaxFollowTriggerAmount: config.MaxFollowTriggerAmount,
+		MinPoolSize:            config.MinPoolSize,
+		MaxPoolSize:            config.MaxPoolSize,
+		
+		// 交易参数
+		MaxBuyAmount:         config.MaxBuyAmount,
+		MinBuyAmount:         config.MinBuyAmount,
+		BuySolAmount:         config.BuySolAmount,
+		SellPercentage:       config.SellPercentage,
+		StopLossPercentage:   config.StopLossPercentage,
+		TakeProfitPercentage: config.TakeProfitPercentage,
+		
+		// 滑点参数
+		BuySlippage:  config.BuySlippage,
+		SellSlippage: config.SellSlippage,
+		
+		// 交易手续费参数
+		BuyPriorityFee:  config.BuyPriorityFee,
+		BuyTipFee:       config.BuyTipFee,
+		SellPriorityFee: config.SellPriorityFee,
+		SellTipFee:      config.SellTipFee,
+		
+		// 注意：不包含 WalletParamSchemes 以避免暴露敏感的参数模板信息
+		// 更新时间
+		UpdatedAt: config.UpdatedAt,
+	}
+
+	ctx.JSON(http.StatusOK, sanitizedConfig)
 }
 
 // handleUpdateConfig 更新内存中的配置
@@ -111,12 +155,52 @@ func (c *ConfigController) handleUpdateConfig(ctx *gin.Context) {
 		return
 	}
 
-	// 获取更新后的配置
+	// 获取更新后的配置并创建安全副本
 	updatedConfig := global.GetConfig()
+	sanitizedConfig := global.GlobalConfig{
+		// 交易平台启用状态
+		PumpTradeEnable:        updatedConfig.PumpTradeEnable,
+		PumpAmmTradeEnable:     updatedConfig.PumpAmmTradeEnable,
+		RaydiumTradeEnable:     updatedConfig.RaydiumTradeEnable,
+		LaunchpadTradeEnable:   updatedConfig.LaunchpadTradeEnable,
+		RepeatTradeEnable:      updatedConfig.RepeatTradeEnable,
+		SellDelayTime:          updatedConfig.SellDelayTime,
+		SellIntervalLimit:      updatedConfig.SellIntervalLimit,
+		DevSell:                updatedConfig.DevSell,
+		CapitalRecoveryPercent: updatedConfig.CapitalRecoveryPercent,
+		NonceAccountAddress:    updatedConfig.NonceAccountAddress,
+		
+		// 交易触发和池子大小参数
+		MinFollowTriggerAmount: updatedConfig.MinFollowTriggerAmount,
+		MaxFollowTriggerAmount: updatedConfig.MaxFollowTriggerAmount,
+		MinPoolSize:            updatedConfig.MinPoolSize,
+		MaxPoolSize:            updatedConfig.MaxPoolSize,
+		
+		// 交易参数
+		MaxBuyAmount:         updatedConfig.MaxBuyAmount,
+		MinBuyAmount:         updatedConfig.MinBuyAmount,
+		BuySolAmount:         updatedConfig.BuySolAmount,
+		SellPercentage:       updatedConfig.SellPercentage,
+		StopLossPercentage:   updatedConfig.StopLossPercentage,
+		TakeProfitPercentage: updatedConfig.TakeProfitPercentage,
+		
+		// 滑点参数
+		BuySlippage:  updatedConfig.BuySlippage,
+		SellSlippage: updatedConfig.SellSlippage,
+		
+		// 交易手续费参数
+		BuyPriorityFee:  updatedConfig.BuyPriorityFee,
+		BuyTipFee:       updatedConfig.BuyTipFee,
+		SellPriorityFee: updatedConfig.SellPriorityFee,
+		SellTipFee:      updatedConfig.SellTipFee,
+		
+		// 更新时间
+		UpdatedAt: updatedConfig.UpdatedAt,
+	}
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"status":  "success",
 		"message": "配置已更新",
-		"config":  updatedConfig,
+		"config":  sanitizedConfig,
 	})
 }

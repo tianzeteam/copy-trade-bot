@@ -39,13 +39,15 @@ type NonceManager struct {
 func NewNonceManager(config *utils.Config) *NonceManager {
 
 	once.Do(func() {
+		nonceAccountPubkey := solana.MustPublicKeyFromBase58(config.NonceAccountPubkey)
 		rpcClient := rpc.New(config.RPCUrl)
 		nonceClient := client.NewClient(config.RPCUrl)
 		nonceManager = &NonceManager{
-			rpcClient:       rpcClient,
-			nonceClient:     nonceClient,
-			refreshInterval: 350 * time.Millisecond, // 默认150毫秒刷新一次
-			stopChan:        make(chan struct{}),
+			rpcClient:          rpcClient,
+			nonceClient:        nonceClient,
+			nonceAccountPubkey: &nonceAccountPubkey,
+			refreshInterval:    350 * time.Millisecond, // 默认150毫秒刷新一次
+			stopChan:           make(chan struct{}),
 		}
 	})
 	return nonceManager
@@ -114,7 +116,7 @@ func (nm *NonceManager) Initialize(ctx context.Context, tradeWalletKey string) e
 		return fmt.Errorf("初始化时推进nonce失败，退出: %v", err)
 	}
 
-	// 获取当前nonce hash
+	//获取当前nonce hash,并设置到全局变量中
 	if err := nm.RefreshGlobalBlockhash(ctx); err != nil {
 		logger.Warnf("初始化时获取nonce当前hash失败，继续: %v", err)
 	}
@@ -160,29 +162,6 @@ func (nm *NonceManager) RefreshGlobalBlockhash(ctx context.Context) error {
 
 	logger.Debugf("全局区块哈希已刷新: %s", nm.globalBlockhash.String())
 	return nil
-}
-
-// startPeriodicRefresh 启动周期性刷新
-func (nm *NonceManager) startPeriodicRefresh(ctx context.Context) {
-	ticker := time.NewTicker(nm.refreshInterval)
-	defer ticker.Stop()
-
-	logger.Infof("开始周期性刷新全局区块哈希，间隔: %v", nm.refreshInterval)
-
-	for {
-		select {
-		case <-ticker.C:
-			if err := nm.RefreshGlobalBlockhash(ctx); err != nil {
-				logger.Errorf("周期性刷新全局区块哈希失败: %v", err)
-			}
-		case <-nm.stopChan:
-			logger.Infof("停止周期性刷新全局区块哈希")
-			return
-		case <-ctx.Done():
-			logger.Infof("上下文取消，停止周期性刷新")
-			return
-		}
-	}
 }
 
 // Stop 停止周期性刷新

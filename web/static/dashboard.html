@@ -36,6 +36,9 @@
                     <li class="nav-item">
                         <a class="nav-link" href="#" id="globalSellSettingsLink">卖出全局设置</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="blacklistManagementLink">黑名单管理</a>
+                    </li>
                 </ul>
                 <div class="d-flex align-items-center">
                     <span class="text-light me-3" id="currentUser"></span>
@@ -50,22 +53,66 @@
     <div class="container mt-4">
         <!-- 钱包选择与管理 -->
         <div class="card mb-4" id="walletManagementSection">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">钱包列表</h5>
-                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addWalletModal">
-                    <i class="bi bi-plus-circle"></i> 添加钱包
-                </button>
+            <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-3">
+                    <h5 class="mb-0">聪明钱包管理</h5>
+                    <span class="badge bg-secondary" id="walletCountBadge">0 个</span>
+                    <span class="badge bg-success" id="walletActiveBadge">运行 0</span>
+                    <span class="badge bg-secondary" id="walletInactiveBadge">停用 0</span>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <select class="form-select form-select-sm" id="riskFilterSelect" style="width: 140px;">
+                        <option value="">风险: 全部</option>
+                        <option value="high">高风险</option>
+                        <option value="medium">中风险</option>
+                        <option value="low">低风险</option>
+                    </select>
+                    <select class="form-select form-select-sm" id="statusFilterSelect" style="width: 140px;">
+                        <option value="">状态: 全部</option>
+                        <option value="active">运行</option>
+                        <option value="inactive">停用</option>
+                    </select>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button class="btn btn-outline-secondary active" id="walletViewCardsBtn" title="卡片视图"><i class="bi bi-grid-3x3-gap"></i></button>
+                        <button class="btn btn-outline-secondary" id="walletViewTableBtn" title="表格视图"><i class="bi bi-table"></i></button>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="exportWalletsBtn"><i class="bi bi-download"></i> 导出</button>
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addWalletModal">
+                        <i class="bi bi-plus-circle"></i> 添加钱包
+                    </button>
+                </div>
             </div>
             <div class="card-body">
-                <!-- 钱包选择下拉菜单 -->
-                <div class="mb-3">
+                <!-- 卡片视图容器 -->
+                <div id="walletCards" class="row row-cols-1 row-cols-md-3 g-3"></div>
+
+                <!-- 表格视图容器 -->
+                <div class="table-responsive d-none" id="walletTableWrapper">
+                    <table class="table table-hover align-middle" id="walletTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>钱包地址</th>
+                                <th>备注</th>
+                                <th>风险</th>
+                                <th>内/外参与</th>
+                                <th>启用</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <!-- 兼容旧版本的钱包选择下拉菜单 -->
+                <div class="mb-3 d-none" id="legacyWalletSelect">
                     <label for="walletSelect" class="form-label">选择监控钱包</label>
                     <select class="form-select" id="walletSelect">
                         <!-- 钱包选项将通过JS动态加载 -->
                     </select>
                 </div>
                 
-                <!-- 钱包信息卡片 -->
+                <!-- 兼容旧版本的钱包信息卡片 -->
                 <div id="walletInfo" class="d-none">
                     <div class="card">
                         <div class="card-body">
@@ -106,7 +153,6 @@
                                     <div class="form-group">
                                         <div class="input-group">
                                             <input type="hidden" class="form-control" id="exitTimeSec" min="1" value="300">
-                                          
                                         </div>
                                     </div>
                                 </div>
@@ -138,10 +184,10 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- 无钱包提示 -->
-                <div id="noWalletAlert" class="alert alert-warning d-none">
-                    没有可用的钱包。请添加一个新钱包。
+                <div id="noWalletAlert" class="alert alert-warning d-none mb-0">
+                    没有可用的钱包。请点击右上角"添加钱包"。
                 </div>
             </div>
         </div>
@@ -240,7 +286,7 @@
                                             <input type="number" class="form-control" id="schemeTokenAgeMinMinutes" min="0" step="1" value="0" placeholder="0">
                                             <span class="input-group-text">秒</span>
                                         </div>
-                                        <div class="form-text">
+                                        <div class="form-text-warning">
                                             <small>只跟单创建时间超过此秒数的代币，设为0表示无限制</small>
                                         </div>
                                     </div>
@@ -255,7 +301,7 @@
                                             <input type="number" class="form-control" id="schemeTokenAgeMaxMinutes" min="0" step="1" value="0" placeholder="0">
                                             <span class="input-group-text">秒</span>
                                         </div>
-                                        <div class="form-text">
+                                        <div class="form-text-warning">
                                             <small>只跟单创建时间少于此秒数的代币，设为0表示无限制</small>
                                         </div>
                                     </div>
@@ -590,10 +636,64 @@
             </div>
         </div>
         
+        <!-- 黑名单管理 -->
+        <div class="card mb-4" id="blacklistManagementSection">
+            <div class="card-header bg-danger bg-opacity-10 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-3">
+                    <h5 class="mb-0"><i class="bi bi-shield-x me-2"></i>黑名单地址管理</h5>
+                    <span class="badge bg-danger" id="blacklistCountBadge">0 个</span>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#addBlacklistModal">
+                        <i class="bi bi-plus-circle"></i> 添加黑名单
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#batchAddBlacklistModal">
+                        <i class="bi bi-list-ul"></i> 批量添加
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning border-warning">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+                        <div>
+                            <h6 class="alert-heading mb-1">黑名单功能说明</h6>
+                            <p class="mb-0">添加可疑的"阴谋小号"地址到黑名单，跟单时如果发现黑名单地址已购买某代币，将自动跳过该代币，避免被砸盘。</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 黑名单列表 -->
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle" id="blacklistTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 5%">#</th>
+                                <th style="width: 35%">钱包地址</th>
+                                <th style="width: 25%">备注</th>
+                                <th style="width: 15%">添加时间</th>
+                                <th style="width: 10%">状态</th>
+                                <th style="width: 10%">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="blacklistTableBody">
+                            <!-- 黑名单列表将通过JS动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 无黑名单提示 -->
+                <div id="noBlacklistAlert" class="alert alert-info d-none">
+                    <i class="bi bi-info-circle me-2"></i>
+                    暂无黑名单地址。点击"添加黑名单"或"批量添加"按钮添加可疑地址。
+                </div>
+            </div>
+        </div>
+        
         <!-- 私钥钱包管理 -->
         <div class="card mb-4" id="privateKeyManagementSection">
             <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-key me-2"></i>私钥钱包管理</h5>
+                <h5 class="mb-0"><i class="bi bi-key me-2"></i>交易钱包管理</h5>
                 <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#importPrivateKeyModal">
                     <i class="bi bi-plus-circle"></i> 导入私钥
                 </button>
@@ -693,7 +793,7 @@
             <div class="modal-content">
                 <div class="modal-header bg-warning bg-opacity-10">
                     <h5 class="modal-title" id="importPrivateKeyModalLabel">
-                        <i class="bi bi-key me-2"></i>导入私钥钱包
+                        <i class="bi bi-key me-2"></i>导入交易钱包
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -702,8 +802,8 @@
                         <div class="d-flex align-items-center">
                             <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
                             <div>
-                                <h6 class="alert-heading mb-1">安全提醒</h6>
-                                <p class="mb-0">私钥将安全存储在服务器端，请确保使用可信网络环境。</p>
+                                <h6 class="alert-heading mb-1">导入提醒</h6>
+                                <p class="mb-0">确保导入钱包至少保留0.002sol</p>
                             </div>
                         </div>
                     </div>
@@ -981,6 +1081,164 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="bi bi-x-circle me-1"></i>取消</button>
                     <button type="button" class="btn btn-primary" id="saveNewSchemeBtn"><i class="bi bi-save me-1"></i>创建模板</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 配置钱包模态框 -->
+    <div class="modal fade" id="walletConfigModal" tabindex="-1" aria-labelledby="walletConfigModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="walletConfigModalLabel">配置聪明钱包</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="walletConfigForm">
+                        <input type="hidden" id="cfgWalletAddress">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">备注</label>
+                                <input type="text" class="form-control" id="cfgWalletNote" placeholder="输入备注...">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">风险等级</label>
+                                <select class="form-select" id="cfgWalletRisk">
+                                    <option value="">未设置</option>
+                                    <option value="high">高风险</option>
+                                    <option value="medium">中风险</option>
+                                    <option value="low">低风险</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="cfgWalletEnabled">
+                                    <label class="form-check-label" for="cfgWalletEnabled">启用监控</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label"><i class="bi bi-link-45deg me-1"></i>绑定参数模板</label>
+                                <select class="form-select" id="cfgWalletParamScheme">
+                                    <option value="">不绑定参数模板</option>
+                                </select>
+                                <div class="form-text">绑定后，该钱包将使用所选模板的交易参数</div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">止盈 (%)</label>
+                                <input type="number" class="form-control" id="cfgTakeProfitPct" min="1" value="100">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">止损 (%)</label>
+                                <input type="number" class="form-control" id="cfgStopLossPct" min="1" value="10">
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="cfgWalletFollowSell">
+                                    <label class="form-check-label" for="cfgWalletFollowSell"><i class="bi bi-arrow-down-circle"></i> 启用跟卖功能</label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveWalletConfigBtn"><i class="bi bi-save"></i> 保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加黑名单模态框 -->
+    <div class="modal fade" id="addBlacklistModal" tabindex="-1" aria-labelledby="addBlacklistModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="addBlacklistModalLabel"><i class="bi bi-shield-x me-2"></i>添加黑名单地址</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addBlacklistForm">
+                        <div class="mb-3">
+                            <label for="blacklistAddress" class="form-label">钱包地址 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="blacklistAddress" required placeholder="输入Solana钱包地址">
+                            <div class="form-text">请输入完整的Solana钱包地址</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="blacklistNote" class="form-label">备注说明</label>
+                            <textarea class="form-control" id="blacklistNote" rows="3" placeholder="添加备注信息，例如：阴谋小号、砸盘地址等"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" id="confirmAddBlacklistBtn"><i class="bi bi-plus-circle"></i> 添加</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量添加黑名单模态框 -->
+    <div class="modal fade" id="batchAddBlacklistModal" tabindex="-1" aria-labelledby="batchAddBlacklistModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="batchAddBlacklistModalLabel"><i class="bi bi-list-ul me-2"></i>批量添加黑名单地址</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="batchAddBlacklistForm">
+                        <div class="mb-3">
+                            <label for="batchBlacklistAddresses" class="form-label">钱包地址列表 <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="batchBlacklistAddresses" rows="8" required placeholder="输入多个钱包地址，支持逗号、分号或换行符分隔&#10;例如：&#10;addr1,addr2,addr3&#10;或&#10;addr1&#10;addr2&#10;addr3"></textarea>
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>
+                                支持逗号、分号或换行符分隔多个地址
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="batchBlacklistNote" class="form-label">统一备注</label>
+                            <input type="text" class="form-control" id="batchBlacklistNote" placeholder="为所有地址添加统一备注">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" id="confirmBatchAddBlacklistBtn"><i class="bi bi-plus-circle"></i> 批量添加</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑黑名单模态框 -->
+    <div class="modal fade" id="editBlacklistModal" tabindex="-1" aria-labelledby="editBlacklistModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title" id="editBlacklistModalLabel"><i class="bi bi-pencil me-2"></i>编辑黑名单地址</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editBlacklistForm">
+                        <div class="mb-3">
+                            <label class="form-label">钱包地址</label>
+                            <input type="text" class="form-control" id="editBlacklistAddress" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editBlacklistNote" class="form-label">备注说明</label>
+                            <textarea class="form-control" id="editBlacklistNote" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="editBlacklistEnabled">
+                                <label class="form-check-label" for="editBlacklistEnabled">启用此黑名单</label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-warning" id="confirmEditBlacklistBtn"><i class="bi bi-save"></i> 保存</button>
                 </div>
             </div>
         </div>

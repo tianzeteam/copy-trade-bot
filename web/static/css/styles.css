@@ -12,11 +12,73 @@ body {
 .card {
     border-radius: 10px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 2px solid #5c8bef;
+}
+
+/* 钱包卡片特殊样式 - 增强边框 */
+#walletCards .card {
+    border: 1px solid #655cf0 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+}
+
+#walletCards .card:hover {
+    border-color: #9ca3af !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.08) !important;
 }
 
 .card-header {
     background-color: #f8f9fa;
     border-bottom: none;
+}
+
+/* 闪烁星星效果 */
+@keyframes sparkle {
+    0%, 100% {
+        opacity: 0;
+        transform: scale(0);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+.shimmer-effect {
+    position: relative;
+    overflow: hidden;
+}
+
+.shimmer-effect::before {
+    content: '✨';
+    position: absolute;
+    top: 50%;
+    left: -20px;
+    transform: translateY(-50%);
+    font-size: 14px;
+    animation: shimmer 2s linear infinite;
+    z-index: 2;
+    filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.8));
+}
+
+.shimmer-effect::after {
+    content: '⭐';
+    position: absolute;
+    top: 50%;
+    left: -20px;
+    transform: translateY(-50%);
+    font-size: 12px;
+    animation: shimmer 2s linear infinite 0.5s;
+    z-index: 2;
+    filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.8));
 }
 
 /* 表单样式 */
@@ -85,6 +147,10 @@ body {
     border-radius: 0 0 12px 12px;
     padding: 1rem 1.5rem;
     border-top: 1px solid #e9ecef;
+}
+.form-text-warning {
+    font-size: .875em;
+    color: #e3281b;
 }
 
 /* 私钥输入框样式优化 */

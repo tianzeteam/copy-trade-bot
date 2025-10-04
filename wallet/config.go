@@ -19,6 +19,8 @@ type WalletConfig struct {
 	Enabled       bool   `yaml:"enabled" json:"enabled"`                 // 是否启用
 	FollowSell    bool   `yaml:"follow_sell" json:"follow_sell"`         // 是否跟卖
 	ParamSchemeID string `yaml:"param_scheme_id" json:"param_scheme_id"` // 参数方案ID
+	Risk          string `yaml:"risk" json:"risk"`                       // 风险等级: high, medium, low
+	Note          string `yaml:"note" json:"note"`                       // 备注信息
 }
 
 // MonitorConfig 监控配置结构体
@@ -124,6 +126,8 @@ func CreateWalletSettings(config WalletConfig) (*WalletSettings, error) {
 		Enabled:       config.Enabled,
 		IsFollowSell:  config.FollowSell,
 		ParamSchemeID: config.ParamSchemeID,
+		Risk:          config.Risk,
+		Note:          config.Note,
 	}, nil
 }
 

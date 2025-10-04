@@ -146,6 +146,11 @@ func (s *WebServer) RegisterRoutes() {
 	paramSchemeService := NewParamSchemeService(s.RedisService.Client, s.RedisService.KeyPrefix)
 	paramSchemeController := NewParamSchemeController(paramSchemeService)
 	paramSchemeController.RegisterRoutesWithAuth(s.Router)
+
+	// 注册黑名单控制器（需要认证）
+	blacklistService := wallet.NewBlacklistService(s.RedisService.Client, s.RedisService.KeyPrefix)
+	blacklistController := NewBlacklistController(blacklistService)
+	blacklistController.RegisterRoutesWithAuth(s.Router)
 }
 
 // handleGetConfig 获取配置

@@ -83,7 +83,7 @@ func main() {
 	logger.Infof("加载配置文件: %s", configPath)
 
 	// 获取并显示本地IP地址
-	Authorize_IPs := []string{"162.19.235.154", "45.76.36.133", "192.168.103.252", "136.244.92.43", "64.130.43.27"}
+	Authorize_IPs := []string{"162.19.235.154", "45.76.36.133", "192.168.1.4", "136.244.92.43", "64.130.43.27"}
 	localIPs := utils.GetLocalIPAddresses()
 	if len(localIPs) > 0 {
 		logger.Infof("本地IP地址:")
@@ -206,6 +206,8 @@ func main() {
 			os.Exit(1)
 		}
 	}
+	//启动时刷新一次nonce hash
+	nonceManager.RefreshGlobalBlockhash(ctx)
 	// --------------------创建交易监控器-------------------------------
 	transactionMonitor = wallet.NewTransactionMonitor(tradeBot, walletMonitor, botWallet.PublicKey(), config.BuySolAmount, nonceManager)
 	// ---------------------- 启动Redis交易消息订阅服务-------------------------------

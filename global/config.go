@@ -151,6 +151,12 @@ func UpdateConfigField(key string, value any) {
 		if val, ok := value.(map[string]*types.ParamScheme); ok {
 			Config.WalletParamSchemes = val
 		}
+
+	//nonce_account_pubkey
+	case "nonce_account_pubkey":
+		if val, ok := value.(string); ok {
+			Config.NonceAccountAddress = val
+		}
 	}
 
 	Config.UpdatedAt = time.Now()

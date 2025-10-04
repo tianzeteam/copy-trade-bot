@@ -33,6 +33,8 @@ type WalletSettings struct {
 	Enabled       bool             // 是否启用
 	IsFollowSell  bool             // 是否跟卖
 	ParamSchemeID string           // 参数方案ID
+	Risk          string           // 风险等级: high, medium, low
+	Note          string           // 备注信息
 }
 
 // TradeRecord 记录交易信息
@@ -62,11 +64,22 @@ type WalletMonitor struct {
 	SchemeTemplates     map[string]*types.ParamScheme // 模板缓存，key为模板ID
 	DefaultSchemeID     string                        // 默认参数模板ID
 	ParamSchemesMux     sync.RWMutex                  // 参数模板缓存的并发访问保护
+	BlacklistService    *BlacklistService             // 黑名单服务
+	BlacklistAddresses  map[string]bool               // 黑名单地址缓存
+	BlacklistMux        sync.RWMutex                  // 黑名单缓存的并发访问保护
+	BlacklistedTokens   map[string]bool               // 被黑名单用户购买的代币缓存
+	BlacklistedTokenMux sync.RWMutex                  // 代币黑名单的并发访问保护
 
 }
 
 // NewWalletMonitor 创建新的钱包监控器
 func NewWalletMonitor(redisService *RedisWalletService, paramSchemeProvider ParamSchemeProvider) *WalletMonitor {
+	// 创建黑名单服务
+	var blacklistService *BlacklistService
+	if redisService != nil {
+		blacklistService = NewBlacklistService(redisService.Client, redisService.KeyPrefix)
+	}
+
 	return &WalletMonitor{
 		Wallets:      make([]*WalletSettings, 0),
 		TradeRecords: make(map[string]*TradeRecord),
@@ -81,6 +94,11 @@ func NewWalletMonitor(redisService *RedisWalletService, paramSchemeProvider Para
 		SchemeTemplates:     make(map[string]*types.ParamScheme), // 模板ID -> 参数模板
 		DefaultSchemeID:     "",
 		ParamSchemesMux:     sync.RWMutex{},
+		BlacklistService:    blacklistService,
+		BlacklistAddresses:  make(map[string]bool),
+		BlacklistMux:        sync.RWMutex{},
+		BlacklistedTokens:   make(map[string]bool),
+		BlacklistedTokenMux: sync.RWMutex{},
 	}
 }
 
@@ -322,6 +340,10 @@ func (m *WalletMonitor) StartMonitoring(ctx context.Context) {
 		paramSchemeRefreshTicker := time.NewTicker(30 * time.Second)
 		defer paramSchemeRefreshTicker.Stop()
 
+		// 黑名单刷新器 - 每30秒从 Redis 刷新一次黑名单列表
+		blacklistRefreshTicker := time.NewTicker(30 * time.Second)
+		defer blacklistRefreshTicker.Stop()
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -333,6 +355,9 @@ func (m *WalletMonitor) StartMonitoring(ctx context.Context) {
 			case <-paramSchemeRefreshTicker.C:
 				// 刷新参数模板列表
 				m.refreshParamSchemes()
+			case <-blacklistRefreshTicker.C:
+				// 刷新黑名单列表
+				m.refreshBlacklist()
 			}
 		}
 	}()
@@ -432,4 +457,79 @@ func (m *WalletMonitor) refreshParamSchemes() {
 	logger.Infof("成功缓存 %d 个参数模板到内存", len(newSchemeTemplates))
 	logger.Infof("成功建立 %d 个钱包地址到参数模板的映射", len(newParamSchemes))
 
+}
+
+// refreshBlacklist 刷新黑名单列表
+func (m *WalletMonitor) refreshBlacklist() {
+	// 如果没有黑名单服务，直接返回
+	if m.BlacklistService == nil {
+		return
+	}
+
+	// 获取所有启用的黑名单地址
+	addresses, err := m.BlacklistService.GetEnabledAddresses(m.Ctx)
+	if err != nil {
+		logger.Errorf("刷新黑名单列表失败: %v", err)
+		return
+	}
+
+	// 创建新的黑名单地址映射
+	newBlacklist := make(map[string]bool)
+	for _, addr := range addresses {
+		newBlacklist[addr] = true
+	}
+
+	// 更新黑名单缓存
+	m.BlacklistMux.Lock()
+	m.BlacklistAddresses = newBlacklist
+	m.BlacklistMux.Unlock()
+
+	logger.Infof("刷新黑名单列表，共 %d 个启用的黑名单地址", len(addresses))
+}
+
+// IsBlacklisted 检查地址是否在黑名单中
+func (m *WalletMonitor) IsBlacklisted(address string) bool {
+	m.BlacklistMux.RLock()
+	defer m.BlacklistMux.RUnlock()
+	return m.BlacklistAddresses[address]
+}
+
+// GetBlacklistCount 获取黑名单地址数量
+func (m *WalletMonitor) GetBlacklistCount() int {
+	m.BlacklistMux.RLock()
+	defer m.BlacklistMux.RUnlock()
+	return len(m.BlacklistAddresses)
+}
+
+// AddBlacklistedToken 添加代币到黑名单（当黑名单用户购买时）
+func (m *WalletMonitor) AddBlacklistedToken(tokenAddress, userAddress string) {
+	m.BlacklistedTokenMux.Lock()
+	defer m.BlacklistedTokenMux.Unlock()
+	
+	if !m.BlacklistedTokens[tokenAddress] {
+		m.BlacklistedTokens[tokenAddress] = true
+		logger.Warnf("代币已被标记为黑名单: token=%s, 原因=黑名单用户购买 user=%s", tokenAddress, userAddress)
+	}
+}
+
+// IsTokenBlacklisted 检查代币是否在黑名单中
+func (m *WalletMonitor) IsTokenBlacklisted(tokenAddress string) bool {
+	m.BlacklistedTokenMux.RLock()
+	defer m.BlacklistedTokenMux.RUnlock()
+	return m.BlacklistedTokens[tokenAddress]
+}
+
+// RemoveBlacklistedToken 从代币黑名单中移除（可选功能）
+func (m *WalletMonitor) RemoveBlacklistedToken(tokenAddress string) {
+	m.BlacklistedTokenMux.Lock()
+	defer m.BlacklistedTokenMux.Unlock()
+	delete(m.BlacklistedTokens, tokenAddress)
+	logger.Infof("代币已从黑名单中移除: token=%s", tokenAddress)
+}
+
+// GetBlacklistedTokenCount 获取黑名单代币数量
+func (m *WalletMonitor) GetBlacklistedTokenCount() int {
+	m.BlacklistedTokenMux.RLock()
+	defer m.BlacklistedTokenMux.RUnlock()
+	return len(m.BlacklistedTokens)
 }

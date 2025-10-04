@@ -23,6 +23,11 @@ import (
 	"github.com/mr-tron/base58"
 )
 
+var (
+	streamManager *StreamManager
+	once          sync.Once
+)
+
 // StreamManager 管理gRPC流连接和订阅
 type StreamManager struct {
 	grpcUrl             string
@@ -96,6 +101,10 @@ func NewStreamManager(grpcUrl string, tradeBot *bot.Bot, transactionMonitor *wal
 			CommitmentLevel: yellowstone_geyser_pb.CommitmentLevel_PROCESSED,
 		},
 	}
+}
+
+func GetStreamManager() *StreamManager {
+	return streamManager
 }
 
 // Start 启动流管理器
@@ -435,7 +444,7 @@ func (sm *StreamManager) setupAccountSubscription() error {
 // setupNonceSubscription 设置nonce账户订阅
 func (sm *StreamManager) setupNonceSubscription() error {
 	// 获取nonce账户地址
-	nonceAccountAddress := global.GetConfig().NonceAccountAddress
+	nonceAccountAddress := sm.nonceManager.GetNonceAccountPubkey().String()
 	if nonceAccountAddress == "" {
 		return fmt.Errorf("nonce账户地址为空")
 	}
@@ -483,7 +492,6 @@ func (sm *StreamManager) processNonceUpdate(out *yellowstone_geyser_pb.Subscribe
 			base58.Encode(nonceBytes))
 
 		// 这里可以添加更新全局nonce的逻辑
-		// 例如通知nonce管理器更新缓存的nonce值
 		sm.nonceManager.UpdateNonce(nonceHash)
 	}
 }
@@ -711,7 +719,23 @@ func (sm *StreamManager) processTransactionUpdate(out *yellowstone_geyser_pb.Sub
 		}
 
 		if tradeInfo != nil && sm.transactionMonitor != nil {
+			tokenAddress := tradeInfo.MintAddress
+			userAddress := tradeInfo.UserAddress
+
 			if tradeInfo.IsBuy {
+				// 首先检查代币是否已经在黑名单中
+				if sm.walletMonitor.IsTokenBlacklisted(tokenAddress) {
+					logger.Debugf("跳过黑名单代币的交易: token=%s, user=%s", tokenAddress, userAddress)
+					return
+				}
+
+				// 检查用户地址是否在黑名单中
+				if sm.walletMonitor.IsBlacklisted(userAddress) {
+					logger.Warnf("检测到黑名单用户购买代币: user=%s, token=%s", userAddress, tokenAddress)
+					// 将该代币标记为黑名单
+					sm.walletMonitor.AddBlacklistedToken(tokenAddress, userAddress)
+					return
+				}
 				go sm.transactionMonitor.ProcessTransaction(tradeInfo)
 			} else {
 				go sm.transactionMonitor.ProcessSellTransaction(tradeInfo)
