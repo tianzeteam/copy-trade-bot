@@ -1126,11 +1126,12 @@ function loadTradeSettings() {
     .then(settings => {
         if (!settings) return;
         
-        // 只填充5个交易开关设置
+        // 填充交易开关设置
         document.getElementById('pumpTradeEnable').checked = settings.pump_trade_enable;
         document.getElementById('pumpAmmTradeEnable').checked = settings.pump_amm_trade_enable;
         document.getElementById('raydiumTradeEnable').checked = settings.raydium_trade_enable;
         document.getElementById('launchpadTradeEnable').checked = settings.launchpad_trade_enable;
+        document.getElementById('meteoraDbcTradeEnable').checked = settings.meteora_dbc_trade_enable;
         document.getElementById('repeatTradeEnable').checked = settings.repeat_trade_enable;
     })
     .catch(error => {
@@ -1422,12 +1423,13 @@ function deleteScheme() {
 function saveTradeSettings() {
     console.log('开始保存交易设置...');
     
-    // 只保留5个交易开关设置
+    // 交易开关设置
     const settings = {
         pump_trade_enable: document.getElementById('pumpTradeEnable').checked,
         pump_amm_trade_enable: document.getElementById('pumpAmmTradeEnable').checked,
         raydium_trade_enable: document.getElementById('raydiumTradeEnable').checked,
         launchpad_trade_enable: document.getElementById('launchpadTradeEnable').checked,
+        meteora_dbc_trade_enable: document.getElementById('meteoraDbcTradeEnable').checked,
         repeat_trade_enable: document.getElementById('repeatTradeEnable').checked
     };
     

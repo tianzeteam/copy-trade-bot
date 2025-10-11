@@ -1,7 +1,7 @@
 skip_create_nonce_account: true
 nonce_account_pubkey: CeyfxPbWP81zny2j79rTWeYvi4GGNSnnmQ1UzMkZgv3V
 simulate_mode: false
-private_key: "27ndKddFnWqWmyDjWAPtXA6EkzWDuYmPprThQHybuFhePRD7BhUsh3LjMBrV9yFE9wjLHqqVAhTQpKQhEQgSD253"
+private_key: 27ndKddFnWqWmyDjWAPtXA6EkzWDuYmPprThQHybuFhePRD7BhUsh3LjMBrV9yFE9wjLHqqVAhTQpKQhEQgSD253
 grpc_url: https://solana-yellowstone-grpc.publicnode.com:443
 rpc_url: https://mainnet.helius-rpc.com/?api-key=dc537a21-36c2-4a5f-bcf8-90ae704fbbfc
 redis_db: 0
@@ -27,10 +27,11 @@ batch_sell_config:
     num_batches: 0
     thresholds: []
 skip_ata_check: true
-pump_trade_enable: true
-pump_amm_trade_enable: true
-raydium_trade_enable: true
-launchpad_trade_enable: true
+pump_trade_enable: false
+pump_amm_trade_enable: false
+raydium_trade_enable: false
+launchpad_trade_enable: false
+meteora_dbc_trade_enable: true
 repeat_trade_enable: false
 min_follow_trigger_amount: 0
 max_follow_trigger_amount: 0
@@ -47,8 +48,6 @@ logging:
     level: info
     format: text
     file: ""
-
-#swqos setting
 normal:
     buy_tip: 0.001
     sell_tip: 0.001
@@ -83,7 +82,7 @@ temporal:
     health_endpoint: ""
     rpc_url: http://ams2.nozomi.temporal.xyz/
     api_keys:
-        -  298b5025-d944-4584-ab1c-91872a055323
+        - 298b5025-d944-4584-ab1c-91872a055323
 bloXroute:
     buy_tip: 0.001
     sell_tip: 0.001
@@ -114,7 +113,6 @@ blockrazor:
     rpc_url: http://frankfurt.solana.blockrazor.xyz:443/sendTransaction
     api_keys:
         - fCpKRdHHLHornJqbEk4tfm494BcCBYL5gC3MuQEt7Y2PTwxwSFDyuLUGpJNfNQyi8lWx7VpAjSIhGn8DhLHh2IRJEixvIriT
-
 astralane:
     buy_tip: 0.001
     sell_tip: 0.001
@@ -122,10 +120,9 @@ astralane:
     sell_enable: true
     mode: ""
     health_endpoint: ""
-    rpc_url: "http://45.139.132.160"
+    rpc_url: http://45.139.132.160
     api_keys:
         - ruruyIhQjzCzTJBRsJpiWP69gPrwPHkkuhgXsFgZaxz8kUiq3fSQLiycCejO6w3v
-
 flashblock:
     buy_tip: 0.001
     sell_tip: 0.001
@@ -133,8 +130,6 @@ flashblock:
     sell_enable: true
     mode: ""
     health_endpoint: ""
-    rpc_url: "http://fra.flashblock.trade"
+    rpc_url: http://fra.flashblock.trade
     api_keys:
         - e07ffbb746914910
-
-    

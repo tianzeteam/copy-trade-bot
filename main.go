@@ -238,6 +238,7 @@ func main() {
 		"pump_amm_trade_enable":    config.PumpAmmTradeEnable,
 		"raydium_trade_enable":     config.RaydiumTradeEnable,
 		"launchpad_trade_enable":   config.LaunchpadTradeEnable,
+		"meteora_dbc_trade_enable": config.MeteoraDbcTradeEnable,
 		"repeat_trade_enable":      config.RepeatTradeEnable,
 		"trade_wallet_key":         config.PrivateKey,
 		"dev_sell":                 config.DevSell,

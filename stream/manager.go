@@ -855,9 +855,26 @@ func (sm *StreamManager) processTransactionUpdate(out *yellowstone_geyser_pb.Sub
 
 	// 处理Meteora DBC交易
 	if slices.Contains(accountsAddress, core.METEORA_DBC_PROGRAM_ID.String()) {
-		logger.Debugf("检测到 Meteora DBC 交易")
+		if !global.GetConfig().MeteoraDbcTradeEnable {
+			logger.Debugf("meteora_dbc trade is disabled")
+			return
+		}
 
 		dbcTradeInfo := sm.tradeBot.MeteoraDbcParse(out, ctx)
+
+		if dbcTradeInfo != nil {
+			logger.Debugf("检测到 Meteora DBC 交易 - 用户: %s, 代币: %s, SOL数量: %d (%.6f SOL), Token数量: %d, 交易类型: %s, 价格: %.8f SOL/Token, SOL储备: %.8f SOL, 时间: %s",
+				dbcTradeInfo.UserAddress.String(),
+				dbcTradeInfo.MintAddress.String(),
+				dbcTradeInfo.SolAmount,
+				float64(dbcTradeInfo.SolAmount)/1e9,
+				dbcTradeInfo.TokenAmount,
+				map[bool]string{true: "买入", false: "卖出"}[dbcTradeInfo.IsBuy],
+				dbcTradeInfo.CurrentPrice,
+				float64(dbcTradeInfo.QuoteReserve)/1e9,
+				dbcTradeInfo.TradeTime,
+			)
+		}
 
 		if dbcTradeInfo != nil && sm.transactionMonitor != nil {
 			mintAddress := dbcTradeInfo.MintAddress.String()
@@ -876,7 +893,7 @@ func (sm *StreamManager) processTransactionUpdate(out *yellowstone_geyser_pb.Sub
 					return
 				}
 
-				// 处理买入交易 - 使用 AMM 交易处理器
+				// 处理买入交易 - 使用 Meteora DBC 交易处理器
 				go sm.transactionMonitor.ProcessDbcTransaction(dbcTradeInfo)
 			} else {
 				go sm.transactionMonitor.ProcessDbcSellTransaction(dbcTradeInfo)

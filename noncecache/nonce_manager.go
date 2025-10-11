@@ -200,14 +200,14 @@ func (nm *NonceManager) verifyNonceAccount(ctx context.Context) error {
 	}
 
 	// 检查nonce账户状态（前4字节表示状态）
-	if len(data) >= 4 {
+	/* 	if len(data) >= 4 {
 		// 状态应该是1（已初始化）
 		state := uint32(data[0]) | uint32(data[1])<<8 | uint32(data[2])<<16 | uint32(data[3])<<24
 		if state != 1 {
 			logger.Warnf("nonce账户状态无效，状态: %d，期望: 1，尝试重新初始化", state)
 			return fmt.Errorf("nonce账户状态无效，状态: %d，期望: 1", state)
 		}
-	}
+	} */
 
 	// 最后通过GetNonce方法验证账户是否可用
 	_, err = nm.GetNonce(ctx, nm.nonceAccountAddress)

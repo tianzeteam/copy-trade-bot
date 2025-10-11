@@ -59,20 +59,21 @@ func (c *ConfigController) handleGetConfig(ctx *gin.Context) {
 		PumpAmmTradeEnable:     config.PumpAmmTradeEnable,
 		RaydiumTradeEnable:     config.RaydiumTradeEnable,
 		LaunchpadTradeEnable:   config.LaunchpadTradeEnable,
+		MeteoraDbcTradeEnable:  config.MeteoraDbcTradeEnable,
 		RepeatTradeEnable:      config.RepeatTradeEnable,
 		SellDelayTime:          config.SellDelayTime,
 		SellIntervalLimit:      config.SellIntervalLimit,
 		DevSell:                config.DevSell,
 		CapitalRecoveryPercent: config.CapitalRecoveryPercent,
 		// 注意：不包含 TradeWalletKey 和 GlobalBlockhash
-		NonceAccountAddress:    config.NonceAccountAddress,
-		
+		NonceAccountAddress: config.NonceAccountAddress,
+
 		// 交易触发和池子大小参数
 		MinFollowTriggerAmount: config.MinFollowTriggerAmount,
 		MaxFollowTriggerAmount: config.MaxFollowTriggerAmount,
 		MinPoolSize:            config.MinPoolSize,
 		MaxPoolSize:            config.MaxPoolSize,
-		
+
 		// 交易参数
 		MaxBuyAmount:         config.MaxBuyAmount,
 		MinBuyAmount:         config.MinBuyAmount,
@@ -80,17 +81,17 @@ func (c *ConfigController) handleGetConfig(ctx *gin.Context) {
 		SellPercentage:       config.SellPercentage,
 		StopLossPercentage:   config.StopLossPercentage,
 		TakeProfitPercentage: config.TakeProfitPercentage,
-		
+
 		// 滑点参数
 		BuySlippage:  config.BuySlippage,
 		SellSlippage: config.SellSlippage,
-		
+
 		// 交易手续费参数
 		BuyPriorityFee:  config.BuyPriorityFee,
 		BuyTipFee:       config.BuyTipFee,
 		SellPriorityFee: config.SellPriorityFee,
 		SellTipFee:      config.SellTipFee,
-		
+
 		// 注意：不包含 WalletParamSchemes 以避免暴露敏感的参数模板信息
 		// 更新时间
 		UpdatedAt: config.UpdatedAt,
@@ -134,7 +135,7 @@ func (c *ConfigController) handleUpdateConfig(ctx *gin.Context) {
 			}
 		}
 	}
-	
+
 	// 更新dev_sell
 	if devSell, ok := updates["dev_sell"]; ok {
 		if boolVal, ok := devSell.(bool); ok {
@@ -163,19 +164,20 @@ func (c *ConfigController) handleUpdateConfig(ctx *gin.Context) {
 		PumpAmmTradeEnable:     updatedConfig.PumpAmmTradeEnable,
 		RaydiumTradeEnable:     updatedConfig.RaydiumTradeEnable,
 		LaunchpadTradeEnable:   updatedConfig.LaunchpadTradeEnable,
+		MeteoraDbcTradeEnable:  updatedConfig.MeteoraDbcTradeEnable,
 		RepeatTradeEnable:      updatedConfig.RepeatTradeEnable,
 		SellDelayTime:          updatedConfig.SellDelayTime,
 		SellIntervalLimit:      updatedConfig.SellIntervalLimit,
 		DevSell:                updatedConfig.DevSell,
 		CapitalRecoveryPercent: updatedConfig.CapitalRecoveryPercent,
 		NonceAccountAddress:    updatedConfig.NonceAccountAddress,
-		
+
 		// 交易触发和池子大小参数
 		MinFollowTriggerAmount: updatedConfig.MinFollowTriggerAmount,
 		MaxFollowTriggerAmount: updatedConfig.MaxFollowTriggerAmount,
 		MinPoolSize:            updatedConfig.MinPoolSize,
 		MaxPoolSize:            updatedConfig.MaxPoolSize,
-		
+
 		// 交易参数
 		MaxBuyAmount:         updatedConfig.MaxBuyAmount,
 		MinBuyAmount:         updatedConfig.MinBuyAmount,
@@ -183,17 +185,17 @@ func (c *ConfigController) handleUpdateConfig(ctx *gin.Context) {
 		SellPercentage:       updatedConfig.SellPercentage,
 		StopLossPercentage:   updatedConfig.StopLossPercentage,
 		TakeProfitPercentage: updatedConfig.TakeProfitPercentage,
-		
+
 		// 滑点参数
 		BuySlippage:  updatedConfig.BuySlippage,
 		SellSlippage: updatedConfig.SellSlippage,
-		
+
 		// 交易手续费参数
 		BuyPriorityFee:  updatedConfig.BuyPriorityFee,
 		BuyTipFee:       updatedConfig.BuyTipFee,
 		SellPriorityFee: updatedConfig.SellPriorityFee,
 		SellTipFee:      updatedConfig.SellTipFee,
-		
+
 		// 更新时间
 		UpdatedAt: updatedConfig.UpdatedAt,
 	}

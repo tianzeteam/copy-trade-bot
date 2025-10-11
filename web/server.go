@@ -227,6 +227,7 @@ func (s *WebServer) handleGetTradeSettings(ctx *gin.Context) {
 		"pump_amm_trade_enable":     config.PumpAmmTradeEnable,
 		"raydium_trade_enable":      config.RaydiumTradeEnable,
 		"launchpad_trade_enable":    config.LaunchpadTradeEnable,
+		"meteora_dbc_trade_enable":  config.MeteoraDbcTradeEnable,
 		"repeat_trade_enable":       config.RepeatTradeEnable,
 		"sell_delay_time":           config.SellDelayTime,
 		"min_pool_size":             config.MinPoolSize,
@@ -250,11 +251,12 @@ func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
 
 	// 交易设置请求体 - 精简版本，只保留5个交易开关
 	type TradeSettingsRequest struct {
-		PumpTradeEnable      bool `json:"pump_trade_enable"`
-		PumpAmmTradeEnable   bool `json:"pump_amm_trade_enable"`
-		RaydiumTradeEnable   bool `json:"raydium_trade_enable"`
-		LaunchpadTradeEnable bool `json:"launchpad_trade_enable"`
-		RepeatTradeEnable    bool `json:"repeat_trade_enable"`
+		PumpTradeEnable       bool `json:"pump_trade_enable"`
+		PumpAmmTradeEnable    bool `json:"pump_amm_trade_enable"`
+		RaydiumTradeEnable    bool `json:"raydium_trade_enable"`
+		LaunchpadTradeEnable  bool `json:"launchpad_trade_enable"`
+		MeteoraDbcTradeEnable bool `json:"meteora_dbc_trade_enable"`
+		RepeatTradeEnable     bool `json:"repeat_trade_enable"`
 	}
 
 	var updates TradeSettingsRequest
@@ -295,6 +297,7 @@ func (s *WebServer) handleUpdateTradeSettings(ctx *gin.Context) {
 	config.PumpAmmTradeEnable = updates.PumpAmmTradeEnable
 	config.RaydiumTradeEnable = updates.RaydiumTradeEnable
 	config.LaunchpadTradeEnable = updates.LaunchpadTradeEnable
+	config.MeteoraDbcTradeEnable = updates.MeteoraDbcTradeEnable
 	config.RepeatTradeEnable = updates.RepeatTradeEnable
 	// 保留其他配置不变
 

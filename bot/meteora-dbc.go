@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"copytrade/asset"
+	"copytrade/core"
 	"copytrade/dbc"
 	"copytrade/global"
 	"copytrade/logger"
@@ -17,38 +18,83 @@ import (
 )
 
 // parseDbcSwapEvent 解析DBC Swap事件
-func (b *Bot) parseDbcSwapEvent(logMessages []string, pool string, config string, user string, mintAddress string) *global.DbcTradeEventInfo {
-	// 使用dbc包中的事件解析功能
-	for _, logMessage := range logMessages {
-		if len(logMessage) < 20 {
+// DBC事件通过InnerInstructions中的CPI发出，而不是在日志消息中
+func (b *Bot) parseDbcSwapEvent(innerInstructions []*yellowstone_geyser_pb.InnerInstructions, accountKeys []string, pool string, config string, user string, mintAddress string) *global.DbcTradeEventInfo {
+	// 将Yellowstone格式转换为标准格式
+	var standardInnerInstructions []solana.CompiledInstruction
+	for _, innerInst := range innerInstructions {
+		for _, inst := range innerInst.Instructions {
+			// 转换账户索引
+			accounts := make([]uint16, len(inst.Accounts))
+			for i, acc := range inst.Accounts {
+				accounts[i] = uint16(acc)
+			}
+
+			standardInnerInstructions = append(standardInnerInstructions, solana.CompiledInstruction{
+				ProgramIDIndex: uint16(inst.ProgramIdIndex),
+				Accounts:       accounts,
+				Data:           inst.Data,
+			})
+		}
+	}
+
+	// 转换账户密钥
+	var pubKeys solana.PublicKeySlice
+	for _, key := range accountKeys {
+		pk := solana.MustPublicKeyFromBase58(key)
+		pubKeys = append(pubKeys, pk)
+	}
+
+	// 从内部指令中提取事件数据
+	targetProgramId := core.METEORA_DBC_PROGRAM_ID
+	
+	// 首先收集所有DBC事件
+	var evtSwap *dbc.EvtSwap
+	var evtSwap2 *dbc.EvtSwap2
+	
+	for _, inst := range standardInnerInstructions {
+		if int(inst.ProgramIDIndex) >= len(pubKeys) {
 			continue
 		}
 
-		// 查找事件数据
-		// Solana日志格式: "Program data: <base64_encoded_data>"
-		if len(logMessage) > 14 && logMessage[:14] == "Program data: " {
-			eventDataStr := logMessage[14:]
-			eventData, err := base58.Decode(eventDataStr)
-			if err != nil {
-				logger.Debugf("解码事件数据失败: %v", err)
-				continue
-			}
-
-			// 尝试解析为EvtSwap事件
-			event, err := dbc.ParseAnyEvent(eventData)
-			if err != nil {
-				logger.Debugf("解析DBC事件失败: %v", err)
-				continue
-			}
-
-			// 检查是否是Swap事件
-			switch evt := event.(type) {
-			case *dbc.EvtSwap:
-				return b.processEvtSwap(evt, pool, config, user, mintAddress)
-			case *dbc.EvtSwap2:
-				return b.processEvtSwap2(evt, pool, config, user, mintAddress)
-			}
+		programId := pubKeys[inst.ProgramIDIndex]
+		if programId != targetProgramId {
+			continue
 		}
+
+		// 检查指令数据长度
+		if len(inst.Data) < 8 {
+			continue
+		}
+
+		// 跳过前8个字节的判别器，剩余的是事件数据
+		eventData := inst.Data[8:]
+
+		// 尝试解析为DBC事件
+		event, err := dbc.ParseAnyEvent(eventData)
+		if err != nil {
+			logger.Debugf("解析DBC事件失败: %v", err)
+			continue
+		}
+
+		// 收集不同类型的事件
+		switch evt := event.(type) {
+		case *dbc.EvtSwap:
+			evtSwap = evt
+		case *dbc.EvtSwap2:
+			evtSwap2 = evt
+		}
+	}
+
+	// 使用 EvtSwap 作为基础，从 EvtSwap2 中补充 QuoteReserveAmount
+	if evtSwap != nil {
+		tradeInfo := b.processEvtSwap(evtSwap, pool, config, user, mintAddress)
+		// 如果有 EvtSwap2，补充 QuoteReserveAmount 信息
+		if evtSwap2 != nil && tradeInfo != nil {
+			tradeInfo.QuoteReserve = evtSwap2.QuoteReserveAmount
+			logger.Debugf("从 EvtSwap2 补充 SOL储备量: %d (%.6f SOL)", tradeInfo.QuoteReserve, float64(tradeInfo.QuoteReserve)/1e9)
+		}
+		return tradeInfo
 	}
 
 	return nil
@@ -56,8 +102,8 @@ func (b *Bot) parseDbcSwapEvent(logMessages []string, pool string, config string
 
 // processEvtSwap 处理EvtSwap事件
 func (b *Bot) processEvtSwap(evt *dbc.EvtSwap, poolStr string, configStr string, userStr string, mintAddress string) *global.DbcTradeEventInfo {
-	// TradeDirection: 0 = Buy (SOL -> Token), 1 = Sell (Token -> SOL)
-	isBuy := evt.TradeDirection == 0
+	// TradeDirection: 0 = Base->Quote (Token->SOL, 卖出), 1 = Quote->Base (SOL->Token, 买入)
+	isBuy := evt.TradeDirection == 1
 
 	var solAmount, tokenAmount uint64
 	if isBuy {
@@ -70,16 +116,16 @@ func (b *Bot) processEvtSwap(evt *dbc.EvtSwap, poolStr string, configStr string,
 
 	// 创建交易事件信息对象
 	tradeInfo := &global.DbcTradeEventInfo{
-		UserAddress: solana.MustPublicKeyFromBase58(userStr),
-		SolAmount:   solAmount,
-		TokenAmount: tokenAmount,
-		IsBuy:       isBuy,
-		MintAddress: solana.MustPublicKeyFromBase58(mintAddress),
-		Pool:        evt.Pool,
-		Config:      evt.Config,
-		TimeStamp:   evt.CurrentTimestamp,
-		ReceivedAt:  time.Now(),
-		Router:      "meteora-dbc",
+		UserAddress:  solana.MustPublicKeyFromBase58(userStr),
+		SolAmount:    solAmount,
+		TokenAmount:  tokenAmount,
+		IsBuy:        isBuy,
+		MintAddress:  solana.MustPublicKeyFromBase58(mintAddress),
+		Pool:         evt.Pool,
+		Config:       evt.Config,
+		TimeStamp:    evt.CurrentTimestamp,
+		ReceivedAt:   time.Now(),
+		Router:       "meteora-dbc",
 	}
 
 	// 计算当前价格 (SOL/TOKEN)
@@ -100,7 +146,7 @@ func (b *Bot) processEvtSwap(evt *dbc.EvtSwap, poolStr string, configStr string,
 	// 格式化交易时间
 	tradeInfo.TradeTime = time.Unix(int64(evt.CurrentTimestamp), 0).Format("2006-01-02 15:04:05")
 
-	logger.Infof("解析到DBC Swap事件: 用户=%s, 代币=%s, SOL=%d, Token=%d, 是否买入=%v, 价格=%.8f",
+	logger.Debugf("解析到DBC Swap事件: 用户=%s, 代币=%s, SOL=%d, Token=%d, 是否买入=%v, 价格=%.8f",
 		tradeInfo.UserAddress, tradeInfo.MintAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.IsBuy, tradeInfo.CurrentPrice)
 
 	return tradeInfo
@@ -108,14 +154,21 @@ func (b *Bot) processEvtSwap(evt *dbc.EvtSwap, poolStr string, configStr string,
 
 // processEvtSwap2 处理EvtSwap2事件
 func (b *Bot) processEvtSwap2(evt *dbc.EvtSwap2, poolStr string, configStr string, userStr string, mintAddress string) *global.DbcTradeEventInfo {
-	// TradeDirection: 0 = Buy (SOL -> Token), 1 = Sell (Token -> SOL)
-	isBuy := evt.TradeDirection == 0
+	// TradeDirection: 0 = Base->Quote (Token->SOL, 卖出), 1 = Quote->Base (SOL->Token, 买入)
+	// 注意：DBC的方向定义与直觉相反
+	isBuy := evt.TradeDirection == 1
 
 	var solAmount, tokenAmount uint64
 	if isBuy {
+		// 买入: SOL -> Token (Quote -> Base)
+		// Amount0 是输入的 SOL 数量
+		// OutputAmount 是获得的 Token 数量
 		solAmount = evt.SwapParameters.Amount0
 		tokenAmount = evt.SwapResult.OutputAmount
 	} else {
+		// 卖出: Token -> SOL (Base -> Quote)
+		// Amount0 是输入的 Token 数量
+		// OutputAmount 是获得的 SOL 数量
 		tokenAmount = evt.SwapParameters.Amount0
 		solAmount = evt.SwapResult.OutputAmount
 	}
@@ -130,8 +183,8 @@ func (b *Bot) processEvtSwap2(evt *dbc.EvtSwap2, poolStr string, configStr strin
 		Pool:         evt.Pool,
 		Config:       evt.Config,
 		TimeStamp:    evt.CurrentTimestamp,
-		BaseReserve:  0, // 从池状态获取
-		QuoteReserve: evt.QuoteReserveAmount,
+		BaseReserve:  0,                      // EvtSwap2 不提供 BaseReserve
+		QuoteReserve: evt.QuoteReserveAmount, // SOL 储备量
 		ReceivedAt:   time.Now(),
 		Router:       "meteora-dbc",
 	}
@@ -152,8 +205,8 @@ func (b *Bot) processEvtSwap2(evt *dbc.EvtSwap2, poolStr string, configStr strin
 	// 格式化交易时间
 	tradeInfo.TradeTime = time.Unix(int64(evt.CurrentTimestamp), 0).Format("2006-01-02 15:04:05")
 
-	logger.Debugf("解析到DBC Swap2事件: 用户=%s, 代币=%s, SOL=%d, Token=%d, 是否买入=%v, 价格=%.8f, Quote储备=%d",
-		tradeInfo.UserAddress, tradeInfo.MintAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.IsBuy, tradeInfo.CurrentPrice, tradeInfo.QuoteReserve)
+	logger.Debugf("解析到DBC Swap2事件: 用户=%s, 代币=%s, SOL=%d, Token=%d, 是否买入=%v, 价格=%.8f, SOL储备=%d (%.6f SOL)",
+		tradeInfo.UserAddress, tradeInfo.MintAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.IsBuy, tradeInfo.CurrentPrice, tradeInfo.QuoteReserve, float64(tradeInfo.QuoteReserve)/1e9)
 
 	return tradeInfo
 }
@@ -180,25 +233,22 @@ func (b *Bot) MeteoraDbcParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx co
 	var pool, config, user, mintAddress string
 	var foundSwap bool
 
-	// DBC Program ID
-	dbcProgramID := solana.MustPublicKeyFromBase58("dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN")
-
 	for _, instruction := range instructions {
 		// 获取程序ID
 		if int(instruction.ProgramIdIndex) >= len(messages.AccountKeys) {
 			continue
 		}
-		programID := base58.Encode(messages.AccountKeys[instruction.ProgramIdIndex])
+		_programID := base58.Encode(messages.AccountKeys[instruction.ProgramIdIndex])
 
 		// 检查是否是DBC程序
-		if programID != dbcProgramID.String() {
+		if _programID != core.METEORA_DBC_PROGRAM_ID.String() {
 			continue
 		}
 
 		// 安全检查：确保数据长度足够
 		data := instruction.GetData()
 		if len(data) < 8 {
-			logger.Debug("指令数据不足8字节，跳过")
+			logger.Infof("指令数据不足8字节，跳过")
 			continue
 		}
 
@@ -228,7 +278,7 @@ func (b *Bot) MeteoraDbcParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx co
 			// 14: program
 
 			if len(instruction.Accounts) < 10 {
-				logger.Debug("DBC Swap指令账户数量不足")
+				logger.Infof("DBC Swap指令账户数量不足")
 				continue
 			}
 
@@ -260,8 +310,14 @@ func (b *Bot) MeteoraDbcParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx co
 		return nil
 	}
 
+	// 获取账户列表
+	accountList := b.GetAccountList(out)
+
+	// 获取内部指令
+	innerInstructions := txn.Transaction.Meta.InnerInstructions
+
 	// 处理DBC交易信息
-	tradeInfo := b.parseDbcSwapEvent(logMessages, pool, config, user, mintAddress)
+	tradeInfo := b.parseDbcSwapEvent(innerInstructions, accountList, pool, config, user, mintAddress)
 	if tradeInfo == nil {
 		return nil
 	}

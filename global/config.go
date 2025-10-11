@@ -16,6 +16,7 @@ type GlobalConfig struct {
 	PumpAmmTradeEnable     bool           `json:"pump_amm_trade_enable"`    // PumpAMM交易启用状态
 	RaydiumTradeEnable     bool           `json:"raydium_trade_enable"`     // Raydium交易启用状态
 	LaunchpadTradeEnable   bool           `json:"launchpad_trade_enable"`   // Launchpad交易启用状态
+	MeteoraDbcTradeEnable  bool           `json:"meteora_dbc_trade_enable"` // Meteora DBC交易启用状态
 	RepeatTradeEnable      bool           `json:"repeat_trade_enable"`      // 重复交易启用状态
 	SellDelayTime          int            `json:"sell_delay_time"`          // 延迟卖出时间（ms）
 	SellIntervalLimit      int            `json:"sell_interval_limit"`      // 卖出时间间隔限制（秒）
@@ -113,6 +114,10 @@ func UpdateConfigField(key string, value any) {
 		if val, ok := value.(bool); ok {
 			Config.LaunchpadTradeEnable = val
 		}
+	case "meteora_dbc_trade_enable":
+		if val, ok := value.(bool); ok {
+			Config.MeteoraDbcTradeEnable = val
+		}
 	case "repeat_trade_enable":
 		if val, ok := value.(bool); ok {
 			Config.RepeatTradeEnable = val
@@ -176,6 +181,7 @@ func InitConfig(config map[string]any) {
 		PumpAmmTradeEnable:     getBoolValue(config, "pump_amm_trade_enable", false),
 		RaydiumTradeEnable:     getBoolValue(config, "raydium_trade_enable", false),
 		LaunchpadTradeEnable:   getBoolValue(config, "launchpad_trade_enable", false),
+		MeteoraDbcTradeEnable:  getBoolValue(config, "meteora_dbc_trade_enable", false),
 		RepeatTradeEnable:      getBoolValue(config, "repeat_trade_enable", false),
 		SellIntervalLimit:      getIntValue(config, "sell_interval_limit", 2),
 		DevSell:                getBoolValue(config, "dev_sell", false),
