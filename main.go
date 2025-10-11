@@ -72,6 +72,8 @@ func processWaitingSellTokens(tradeBot *bot.Bot) {
 			go tradeBot.ExecuteRaydiumLaunchpadSellOrder(tokenInfo)
 		} else if platform == "cpmm" {
 			go tradeBot.ExecuteCpmmSellOrder(tokenInfo)
+		} else if platform == "meteora-dbc" {
+			go tradeBot.ExecuteDbcSellOrder(tokenInfo)
 		}
 	}
 }

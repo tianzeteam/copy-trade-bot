@@ -95,6 +95,7 @@ func NewStreamManager(grpcUrl string, tradeBot *bot.Bot, transactionMonitor *wal
 				core.RAYDIUM_CPMM_PROGRAM_ID.String(),
 				core.PHOTON_ROUTER_PROGRAM_ID.String(),
 				core.OKX_ROUTER_V2_PROGRAM_ID.String(),
+				core.METEORA_DBC_PROGRAM_ID.String(),
 			},
 			Vote:            false,
 			Failed:          false,
@@ -822,6 +823,65 @@ func (sm *StreamManager) processTransactionUpdate(out *yellowstone_geyser_pb.Sub
 				go sm.transactionMonitor.ProcessLaunchpadSellTransaction(launchpadTradeInfo)
 			}
 			go sm.walletMonitor.CheckExitConditions("launchpad", launchpadTradeInfo.MintAddress.String(), launchpadTradeInfo.CurrentPrice)
+		}
+		return
+	}
+
+	// 处理Raydium CPMM交易
+	if slices.Contains(accountsAddress, core.RAYDIUM_CPMM_PROGRAM_ID.String()) || innerProgramID == core.RAYDIUM_CPMM_PROGRAM_ID.String() {
+		if !global.GetConfig().LaunchpadTradeEnable {
+			logger.Debugf("cpmm trade is disabled")
+			return
+		}
+
+		var cpmmTradeInfo *global.CPMMTradeEventInfo
+
+		if innerProgramID == core.RAYDIUM_CPMM_PROGRAM_ID.String() {
+			cpmmTradeInfo = sm.tradeBot.UniversalCpmmParse(out, currentInstruction, ctx)
+		} else {
+			cpmmTradeInfo = sm.tradeBot.RaydiumCpmmParse(out, ctx)
+		}
+
+		if cpmmTradeInfo != nil && sm.transactionMonitor != nil {
+			if cpmmTradeInfo.IsBuy {
+				go sm.transactionMonitor.ProcessCpmmTransaction(cpmmTradeInfo)
+			} else {
+				go sm.transactionMonitor.ProcessCpmmSellTransaction(cpmmTradeInfo)
+			}
+			go sm.walletMonitor.CheckExitConditions("cpmm", cpmmTradeInfo.MintAddress.String(), cpmmTradeInfo.CurrentPrice)
+		}
+		return
+	}
+
+	// 处理Meteora DBC交易
+	if slices.Contains(accountsAddress, core.METEORA_DBC_PROGRAM_ID.String()) {
+		logger.Debugf("检测到 Meteora DBC 交易")
+
+		dbcTradeInfo := sm.tradeBot.MeteoraDbcParse(out, ctx)
+
+		if dbcTradeInfo != nil && sm.transactionMonitor != nil {
+			mintAddress := dbcTradeInfo.MintAddress.String()
+
+			if dbcTradeInfo.IsBuy {
+				// 首先检查代币是否已经在黑名单中
+				if sm.walletMonitor.IsTokenBlacklisted(mintAddress) {
+					logger.Debugf("跳过黑名单代币的交易: token=%s, user=%s", mintAddress, dbcTradeInfo.UserAddress)
+					return
+				}
+
+				// 检查用户地址是否在黑名单中
+				if sm.walletMonitor.IsBlacklisted(dbcTradeInfo.UserAddress.String()) {
+					logger.Warnf("检测到黑名单用户购买代币: user=%s, token=%s", dbcTradeInfo.UserAddress, mintAddress)
+					sm.walletMonitor.AddBlacklistedToken(mintAddress, dbcTradeInfo.UserAddress.String())
+					return
+				}
+
+				// 处理买入交易 - 使用 AMM 交易处理器
+				go sm.transactionMonitor.ProcessDbcTransaction(dbcTradeInfo)
+			} else {
+				go sm.transactionMonitor.ProcessDbcSellTransaction(dbcTradeInfo)
+			}
+			go sm.walletMonitor.CheckExitConditions("meteora-dbc", mintAddress, dbcTradeInfo.CurrentPrice)
 		}
 		return
 	}

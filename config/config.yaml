@@ -1,7 +1,7 @@
 skip_create_nonce_account: true
 nonce_account_pubkey: CeyfxPbWP81zny2j79rTWeYvi4GGNSnnmQ1UzMkZgv3V
 simulate_mode: false
-private_key: "5NpjegNAzJuWKeDrrQvfmSL4LCymBD6F4ijstJxHuk6zWspNJ69JGSknSEW8QV5SUrYKo6ScHRQQYbfDcizVUXVz"
+private_key: "27ndKddFnWqWmyDjWAPtXA6EkzWDuYmPprThQHybuFhePRD7BhUsh3LjMBrV9yFE9wjLHqqVAhTQpKQhEQgSD253"
 grpc_url: https://solana-yellowstone-grpc.publicnode.com:443
 rpc_url: https://mainnet.helius-rpc.com/?api-key=dc537a21-36c2-4a5f-bcf8-90ae704fbbfc
 redis_db: 0

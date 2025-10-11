@@ -661,3 +661,76 @@ func (b *Bot) ExecuteCpmmSellOrder(tokenInfo queue.TokenInfo) {
 	// 调用交易接口执行卖出
 	b.Trader.RaydiumCPMMSell(context.Background(), *orderParams)
 }
+
+func (b *Bot) ExecuteDbcSellOrder(tokenInfo queue.TokenInfo) {
+	// 实际的卖出逻辑
+	logger.Infof("执行 Meteora DBC 卖出订单: 代币=%s, 数量=%d", tokenInfo.Mint.String(), tokenInfo.Amount)
+	botWallet := global.GetConfig().TradeWalletKey.PublicKey()
+	
+	// 从全局缓存中获取DBC交易信息
+	tradeInfo := global.GetDBCTradeInfo(tokenInfo.Mint.String())
+	if tradeInfo == nil {
+		logger.Errorf("找不到代币 %s 的DBC交易信息", tokenInfo.Mint.String())
+		return
+	}
+	
+	_, specialScheme, _ := b.getSpecialScheme(tokenInfo.Mint.String())
+	if specialScheme == nil {
+		logger.Errorf("未找到代币 %s 的配置参数模版,使用默认模版", tokenInfo.Mint.String())
+		specialScheme = &types.ParamScheme{
+			SellSlippage:    0.5,
+			SellPriorityFee: 0.0005,
+			SellTipFee:      0.002,
+		}
+	}
+	
+	// 计算DBC账户信息
+	dbcAccounts, err := b.Trader.AccountsCalc.CalculateMeteoraDbcAccounts(
+		botWallet,
+		tradeInfo.Config.String(),
+		tokenInfo.Mint,
+		solana.SolMint,
+	)
+	if err != nil {
+		logger.Errorf("计算DBC账户信息失败: %v", err)
+		return
+	}
+
+	// 计算卖出金额
+	amounts, err := b.Trader.AmountsCalc.CalculateMeteoraDbcSellAmounts(
+		float64(tokenInfo.Amount),
+		tradeInfo.CurrentPrice,
+		6,
+		specialScheme.SellSlippage,
+	)
+	if err != nil {
+		logger.Errorf("计算DBC金额失败: %v", err)
+		return
+	}
+	
+	// 构建交易基础参数
+	globalBlockhash := noncecache.GetNonceManager().GetGlobalBlockhash()
+	tradeParams := types.TradeParams{
+		Accounts: types.TradeAccounts{
+			User:               botWallet,
+			Mint:               dbcAccounts.OutputTokenMint,
+			BaseMint:           dbcAccounts.OutputTokenMint,
+			QuoteMint:          dbcAccounts.InputTokenMint,
+			MeteoraDbcAccounts: dbcAccounts,
+			NonceAccount:       *noncecache.GetNonceManager().GetNonceAccountPubkey(),
+		},
+		Amount:    amounts.TokenAmount,
+		Cost:      amounts.MinOut,
+		Blockhash: *globalBlockhash,
+		FeeConfig: types.FeeConfig{
+			Slippage:    specialScheme.SellSlippage,
+			PriorityFee: uint64(specialScheme.SellPriorityFee * 1e9),
+		},
+	}
+
+	// 构建完整的订单参数
+	orderParams := core.BuildSellOrderParams(tradeParams, b.Config, specialScheme.SellTipFee)
+
+	// 调用交易接口执行卖出
+	b.Trader.MeteoraDbcSell(context.Background(), *orderParams)
+}

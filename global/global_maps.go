@@ -29,6 +29,24 @@ type TradeEventInfo struct {
 	ReceivedAt           time.Time // 接收时间
 }
 
+// DbcTradeEventInfo 存储DBC交易事件信息
+type DbcTradeEventInfo struct {
+	UserAddress  solana.PublicKey // 用户地址
+	SolAmount    uint64           // Sol数量
+	TokenAmount  uint64           // Token数量
+	IsBuy        bool             // 是否买入
+	MintAddress  solana.PublicKey // Mint地址
+	Pool         solana.PublicKey // 池地址
+	Config       solana.PublicKey // 配置地址
+	TimeStamp    uint64           // 时间戳
+	BaseReserve  uint64           // 基础代币储备
+	QuoteReserve uint64           // 报价代币储备
+	CurrentPrice float64          // 当前价格
+	TradeTime    string           // 交易时间
+	ReceivedAt   time.Time        // 接收时间
+	Router       string           // 路由器
+}
+
 // MyBuyMap 存储买入信息
 type MyBuyMap struct {
 	Decimal       uint32
@@ -173,6 +191,10 @@ var (
 	CpmmTradeInfoMap     = make(map[string]*CPMMTradeEventInfo)
 	CpmmTradeInfoMapLock = &sync.RWMutex{} // 用于保护映射表的读写锁
 
+	// DbcTradeInfoMap 全局DBC交易信息映射表，键为Mint地址
+	DbcTradeInfoMap     = make(map[string]*DbcTradeEventInfo)
+	DbcTradeInfoMapLock = &sync.RWMutex{} // 用于保护映射表的读写锁
+
 	// LaunchpadTradeEventMap 存储Launchpad交易事件信息，键为池地址
 	LaunchpadTradeEventMap     = make(map[string]*LaunchpadTradeEventInfo)
 	LaunchpadTradeEventMapLock = &sync.RWMutex{} // 用于保护映射表的读写锁
@@ -295,6 +317,20 @@ func GetCpmmTradeInfo(mintAddress string) *CPMMTradeEventInfo {
 	CpmmTradeInfoMapLock.RLock()
 	defer CpmmTradeInfoMapLock.RUnlock()
 	return CpmmTradeInfoMap[mintAddress]
+}
+
+// SetDBCTradeInfo 设置指定代币的DBC交易信息
+func SetDBCTradeInfo(mintAddress string, info *DbcTradeEventInfo) {
+	DbcTradeInfoMapLock.Lock()
+	defer DbcTradeInfoMapLock.Unlock()
+	DbcTradeInfoMap[mintAddress] = info
+}
+
+// GetDBCTradeInfo 获取指定代币的DBC交易信息
+func GetDBCTradeInfo(mintAddress string) *DbcTradeEventInfo {
+	DbcTradeInfoMapLock.RLock()
+	defer DbcTradeInfoMapLock.RUnlock()
+	return DbcTradeInfoMap[mintAddress]
 }
 
 // GetAmmPoolInfo 获取指定代币的AMM池信息

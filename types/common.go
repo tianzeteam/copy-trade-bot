@@ -194,6 +194,7 @@ type TradeAccounts struct {
 	RaydiumV4Accounts       *RaydiumV4Accounts
 	LaunchpadAccounts       *RaydiumLaunchpadAccounts
 	RaydiumCPMMAccounts     *RaydiumCPMMAccounts
+	MeteoraDbcAccounts      *MeteoraDbcAccounts
 	GlobalVolumeAccumulator solana.PublicKey // 全局成交量累加器地址
 	UserVolumeAccumulator   solana.PublicKey // 用户成交量累加器地址
 	NonceAccount            solana.PublicKey // nonce账户
@@ -215,6 +216,25 @@ type RaydiumCPMMAccounts struct {
 	InputTokenProgram  solana.PublicKey
 	OutputTokenProgram solana.PublicKey
 	Program            solana.PublicKey
+}
+
+// MeteoraDbcAccounts stores all the necessary accounts for interacting with Meteora DBC.
+type MeteoraDbcAccounts struct {
+	Payer                solana.PublicKey
+	Config               solana.PublicKey
+	PoolAuthority        solana.PublicKey
+	Pool                 solana.PublicKey
+	InputTokenAccount    solana.PublicKey
+	OutputTokenAccount   solana.PublicKey
+	InputVault           solana.PublicKey
+	OutputVault          solana.PublicKey
+	InputTokenMint       solana.PublicKey
+	OutputTokenMint      solana.PublicKey
+	InputTokenProgram    solana.PublicKey
+	OutputTokenProgram   solana.PublicKey
+	Authority            solana.PublicKey
+	ReferralTokenAccount solana.PublicKey
+	Program              solana.PublicKey
 }
 
 // FeeConfig 定义费用相关配置

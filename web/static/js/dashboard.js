@@ -4,6 +4,7 @@ let authToken = '';
 // 新增：钱包管理视图与缓存
 let walletViewMode = 'cards'; // 'cards' | 'table'
 let walletsCache = [];
+let statusFilter = ''; // '' | 'active' | 'inactive'
 
 // 配置常量
 const CONFIG = {
@@ -257,9 +258,42 @@ function setupViewToggle() {
 
 function setupFilters() {
     const riskSelect = document.getElementById('riskFilterSelect');
-    const statusSelect = document.getElementById('statusFilterSelect');
     if (riskSelect) riskSelect.addEventListener('change', renderWallets);
-    if (statusSelect) statusSelect.addEventListener('change', renderWallets);
+    
+    // 添加状态徽章点击事件
+    const countBadge = document.getElementById('walletCountBadge');
+    const activeBadge = document.getElementById('walletActiveBadge');
+    const inactiveBadge = document.getElementById('walletInactiveBadge');
+    
+    // 点击总数徽章显示所有钱包
+    if (countBadge) {
+        countBadge.addEventListener('click', () => {
+            statusFilter = '';
+            if (activeBadge) activeBadge.classList.remove('badge-filter-active');
+            if (inactiveBadge) inactiveBadge.classList.remove('badge-filter-active');
+            renderWallets();
+        });
+    }
+    
+    if (activeBadge) {
+        activeBadge.addEventListener('click', () => {
+            // 激活筛选运行中的钱包
+            statusFilter = 'active';
+            activeBadge.classList.add('badge-filter-active');
+            if (inactiveBadge) inactiveBadge.classList.remove('badge-filter-active');
+            renderWallets();
+        });
+    }
+    
+    if (inactiveBadge) {
+        inactiveBadge.addEventListener('click', () => {
+            // 激活筛选停用的钱包
+            statusFilter = 'inactive';
+            inactiveBadge.classList.add('badge-filter-active');
+            if (activeBadge) activeBadge.classList.remove('badge-filter-active');
+            renderWallets();
+        });
+    }
 }
 
 function setupWalletActions() {
@@ -351,11 +385,10 @@ function updateWalletSelect() {
 function renderWallets() {
     const noAlert = document.getElementById('noWalletAlert');
     const risk = document.getElementById('riskFilterSelect')?.value || '';
-    const status = document.getElementById('statusFilterSelect')?.value || '';
 
     let filteredList = walletsCache.slice();
     if (risk) filteredList = filteredList.filter(w => (w.risk || '') === risk);
-    if (status) filteredList = filteredList.filter(w => status === 'active' ? !!w.enabled : !w.enabled);
+    if (statusFilter) filteredList = filteredList.filter(w => statusFilter === 'active' ? !!w.enabled : !w.enabled);
 
     // 排序：运行状态的钱包显示在前面，停用状态的显示在后面
     filteredList.sort((a, b) => {
@@ -412,7 +445,7 @@ function createWalletCard(wallet, index) {
 
     col.innerHTML = `
         <div class="card h-100 overflow-hidden" style="aspect-ratio: 411/520; min-height: 160px; border-radius: 12px; transition: all 0.3s ease; ${!wallet.enabled ? 'border-color: #d1d5db !important;' : ''}">
-            <div class="card-body d-flex flex-column p-0 position-relative" style="background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);">
+            <div class="card-body d-flex flex-column p-0 position-relative" style="background: ${wallet.enabled ? 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)' : 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)'};">
                 <!-- 顶部装饰条 -->
                 <div class="w-100 ${wallet.enabled ? 'shimmer-effect' : ''}" style="height: 6px; background: ${wallet.enabled ? 'linear-gradient(90deg, #3b82f6 0%, #06b6d4 50%, #10b981 100%)' : 'linear-gradient(90deg, #e5e7eb 0%, #d1d5db 50%, #e5e7eb 100%)'};"></div>
 

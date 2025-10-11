@@ -1,12 +1,13 @@
 module copytrade
 
-go 1.24
+go 1.24.1
 
-toolchain go1.24.2
+toolchain go1.24.6
 
 require (
 	github.com/bloXroute-Labs/solana-trader-client-go v1.9.7
 	github.com/bloXroute-Labs/solana-trader-proto v1.9.3-0.20250116185214-3fc218b89806
+	github.com/gagliardetto/anchor-go v1.0.0
 	github.com/gagliardetto/gofuzz v1.2.2
 	github.com/gagliardetto/solana-go v1.12.0
 	github.com/golang-jwt/jwt/v4 v4.5.2

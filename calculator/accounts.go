@@ -5,6 +5,7 @@ import (
 	//"copytrade/global"
 	//"copytrade/types"
 
+	"copytrade/helpers"
 	"copytrade/logger"
 	"copytrade/types"
 	"fmt"
@@ -31,6 +32,9 @@ var (
 	// RAYDIUM_LAUNCHPAD_PROGRAM_ID is the program ID for the Raydium Launchpad
 	RAYDIUM_LAUNCHPAD_PROGRAM_ID = solana.MustPublicKeyFromBase58("LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj")
 	RAYDIUM_CPMM_PROGRAM_ID      = solana.MustPublicKeyFromBase58("CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C")
+
+	// METEORA_DBC_PROGRAM_ID is the program ID for Meteora DBC
+	METEORA_DBC_PROGRAM_ID = solana.MustPublicKeyFromBase58("dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN")
 )
 
 // AccountsCalculator 账户计算器
@@ -470,5 +474,56 @@ func (c *AccountsCalculator) CalculateRaydiumCPMMAccounts(user solana.PublicKey,
 		InputTokenProgram:  solana.TokenProgramID,
 		OutputTokenProgram: solana.TokenProgramID,
 		Program:            RAYDIUM_CPMM_PROGRAM_ID,
+	}, nil
+}
+
+// CalculateMeteoraDbcAccounts 计算Meteora DBC账户
+func (c *AccountsCalculator) CalculateMeteoraDbcAccounts(user solana.PublicKey, config string, baseMint, quoteMint solana.PublicKey) (*types.MeteoraDbcAccounts, error) {
+
+	// 使用 helpers 包中的辅助函数派生账户
+	configPubkey := solana.MustPublicKeyFromBase58(config)
+
+	// 使用 DeriveDbcPoolPDA 派生 pool 地址
+	pool := helpers.DeriveDbcPoolPDA(quoteMint, baseMint, configPubkey)
+
+	// 派生 pool authority PDA
+	poolAuthority := helpers.DerivePoolAuthorityPDA()
+
+	eventAuthority := helpers.DeriveEventAuthorityPDA()
+
+	// 计算用户的代币账户
+	inputTokenAccount, _, err := solana.FindAssociatedTokenAddress(user, quoteMint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find user input token account: %w", err)
+	}
+
+	outputTokenAccount, _, err := solana.FindAssociatedTokenAddress(user, baseMint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find user output token account: %w", err)
+	}
+
+	// 使用 helpers.DeriveTokenVaultPDA 派生 vault 地址
+	inputVault := helpers.DeriveTokenVaultPDA(pool, quoteMint)
+	outputVault := helpers.DeriveTokenVaultPDA(pool, baseMint)
+
+	// 使用 output token account 作为 referral account
+	referralTokenAccount := METEORA_DBC_PROGRAM_ID
+
+	return &types.MeteoraDbcAccounts{
+		Payer:                user,
+		Config:               configPubkey,
+		PoolAuthority:        poolAuthority,
+		Pool:                 pool,
+		InputTokenAccount:    inputTokenAccount,
+		OutputTokenAccount:   outputTokenAccount,
+		InputVault:           inputVault,
+		OutputVault:          outputVault,
+		InputTokenMint:       quoteMint,
+		OutputTokenMint:      baseMint,
+		InputTokenProgram:    solana.TokenProgramID,
+		OutputTokenProgram:   solana.TokenProgramID,
+		Authority:            eventAuthority,
+		ReferralTokenAccount: referralTokenAccount,
+		Program:              METEORA_DBC_PROGRAM_ID,
 	}, nil
 }

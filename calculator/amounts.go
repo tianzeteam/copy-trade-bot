@@ -376,3 +376,90 @@ func (c *AmountsCalculator) CalculateRaydiumCPMMBuyAmounts(solAmount float64, bu
 		MaxCost:      minOutUint64,
 	}, nil
 }
+
+// TokensForSol 计算SOL兑换代币的数量
+func (c *AmountsCalculator) CalculateMeteoraDbcBuyAmounts(solAmount float64, buyTipFee float64, prePrice float64, tokenDecimals uint64, slippage float64) (*BuyAmounts, error) {
+	// 使用最近的交易价格预估实时买入数量
+	// (solAmount / prePrice) * (1-slippage)
+
+	// 检查价格和精度是否有效
+	if prePrice <= 0 {
+		return nil, fmt.Errorf("invalid pre-trade price: %f", prePrice)
+	}
+
+	// 计算SOL金额（以lamports为单位）
+	// 1 SOL = 1e9 lamports
+	tipFeeLamports := buyTipFee * 1e9
+	solAmountLamports := solAmount * 1e9
+
+	// 计算最大支付的SOL数量
+	maxSolAmountLamports := (solAmountLamports + tipFeeLamports) * (1 + 0.2)
+
+	// 计算代币精度系数
+	tokenDecimalMultiplier := math.Pow10(int(tokenDecimals))
+
+	// 计算预期获得的原始代币数量（不考虑精度）
+	// 公式: (solAmount / prePrice)
+	expectedTokenAmount := solAmount / prePrice
+
+	// 将代币数量转换为带精度的数量
+	expectedTokenAmountWithDecimals := expectedTokenAmount * tokenDecimalMultiplier
+
+	// 考虑滑点，计算最小获得数量
+	// 公式: (solAmount / prePrice) * (1-slippage) * tokenDecimalMultiplier
+	minTokenAmountWithDecimals := expectedTokenAmountWithDecimals * (1 - slippage)
+
+	// 转换为uint64类型
+	tokenAmountUint64 := uint64(expectedTokenAmountWithDecimals)
+	minOutUint64 := uint64(minTokenAmountWithDecimals)
+
+	// 记录详细的计算过程
+	logger.Infof("Raydium CPMM Buy Calculation: SOL=%f, Price=%f, TokenDecimals=%d, Slippage=%f, ExpectedTokens=%f, MinTokens=%f",
+		solAmount, prePrice, tokenDecimals, slippage, expectedTokenAmountWithDecimals, minTokenAmountWithDecimals)
+
+	return &BuyAmounts{
+		TokenAmount:  tokenAmountUint64,
+		MaxSolAmount: uint64(maxSolAmountLamports),
+		SolAmount:    uint64(solAmountLamports),
+		MaxCost:      minOutUint64,
+	}, nil
+}
+
+// Sol to Token 计算代币兑换SOL的数量
+func (c *AmountsCalculator) CalculateMeteoraDbcSellAmounts(amountInWithDecimals float64, prePrice float64, tokenDecimals uint64, slippage float64) (*SellAmounts, error) {
+	// 使用最近的交易价格预估实时买入数量
+	// (amountInWithDecimals/math.Pow10(int(tokenDecimals)) * prePrice) * (1-slippage)
+
+	// 检查价格和精度是否有效
+	if prePrice <= 0 {
+		return nil, fmt.Errorf("invalid pre-trade price: %f", prePrice)
+	}
+
+	// 计算代币精度系数
+	tokenDecimalMultiplier := math.Pow10(int(tokenDecimals))
+
+	// 计算预期获得的sol数量（不考虑精度）
+	// 公式: (tokenAmount * prePrice)
+	expectedSolAmount := (amountInWithDecimals / tokenDecimalMultiplier) * prePrice
+
+	// 将代币数量转换为带精度的数量
+	expectedSolAmountLamports := expectedSolAmount * 1e9
+
+	// 考虑滑点，计算最小获得数量
+	// 公式: (solAmount / prePrice) * (1-slippage) * tokenDecimalMultiplier
+	minSolAmountWithDecimals := expectedSolAmountLamports * (1 - slippage)
+
+	// 转换为uint64类型
+	solAmountUint64 := uint64(expectedSolAmountLamports)
+	minOutUint64 := uint64(minSolAmountWithDecimals)
+
+	// 记录详细的计算过程
+	logger.Infof("Raydium V4 Sell Calculation: amountIn=%f, Price=%f, solLamport=%d, Slippage=%f, ExpectedSol=%f, MinSol=%f",
+		math.Pow10(int(tokenDecimals)), prePrice, solAmountUint64, slippage, solAmountUint64, minOutUint64)
+
+	return &SellAmounts{
+		TokenAmount: uint64(amountInWithDecimals),
+		SolAmount:   uint64(solAmountUint64),
+		MinOut:      minOutUint64,
+	}, nil
+}

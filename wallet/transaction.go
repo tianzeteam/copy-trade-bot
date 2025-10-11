@@ -954,6 +954,116 @@ func (m *TransactionMonitor) ProcessCpmmSellTransaction(tradeInfo *global.CPMMTr
 	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, "cpmm", walletSettings.Name, "follow_sell")
 }
 
+// ProcessDbcTransaction 处理DBC交易事件
+func (m *TransactionMonitor) ProcessDbcTransaction(tradeInfo *global.DbcTradeEventInfo) {
+
+	// 获取聪明钱包地址
+	copyAddress := tradeInfo.UserAddress
+
+	// 检查是否是我们监控的钱包
+	walletSettings := m.WalletMonitor.GetWallet(copyAddress)
+	if walletSettings == nil || !walletSettings.Enabled {
+
+		logger.Debugf("DBC 交易: 聪明钱包=%s, 代币=%s,Sol金额=%d, Token数量=%d, QuoteReserve=%d, time: %v",
+			copyAddress.String(), tradeInfo.MintAddress, tradeInfo.SolAmount, tradeInfo.TokenAmount, tradeInfo.QuoteReserve, time.Now().Format("2006-01-02 15:04:05.000000"))
+		// 不是我们监控的钱包，忽略
+		return
+	}
+	specialScheme, err := m.WalletMonitor.GetParamSchemeForWallet(copyAddress.String())
+	if err != nil {
+		logger.Errorf("获取参数模板失败: %v", err)
+		return
+	}
+	if float64(tradeInfo.SolAmount) < (specialScheme.MinFollowTriggerAmount*1e9) || float64(tradeInfo.SolAmount) > (specialScheme.MaxFollowTriggerAmount*1e9) {
+		//不在跟卖金额范围内，忽略
+		return
+	}
+	if float64(tradeInfo.QuoteReserve) < (specialScheme.MinPoolSize*1e9) || float64(tradeInfo.QuoteReserve) > (specialScheme.MaxPoolSize*1e9) {
+		//不在跟卖池子大小范围内，忽略
+		return
+	}
+	logger.Infof("检测到监控钱包DBC 交易: 钱包=%s (%s), 代币=%s, 数量=%d, time: %v",
+		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
+	// 记录跟单钱包的交易资产数据持仓
+	holdingsManager := asset.GetHoldingsManager()
+	holdingsManager.RecordTokenTransaction(copyAddress.String(), tradeInfo.MintAddress.String(), tradeInfo.IsBuy, tradeInfo.TokenAmount, tradeInfo.CurrentPrice)
+
+	// 执行跟单交易
+	_blockHash := m.NonceManager.GetGlobalBlockhash()
+
+	m.executeDbcCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount, specialScheme, *_blockHash)
+}
+
+func (m *TransactionMonitor) ProcessDbcSellTransaction(tradeInfo *global.DbcTradeEventInfo) {
+	// 只处理卖出交易
+
+	// 获取交易者钱包地址
+	copyAddress := tradeInfo.UserAddress
+
+	// 检查是否是我们监控的钱包
+	walletSettings := m.WalletMonitor.GetWallet(copyAddress)
+	if walletSettings == nil || !walletSettings.Enabled {
+		// 不是我们监控的钱包，忽略
+		return
+	}
+	if !walletSettings.IsFollowSell {
+		// 当前钱包不跟卖，忽略
+		return
+	}
+
+	logger.Infof("检测到监控钱包 DBC 卖出交易: 钱包=%s (%s), 代币=%s, 数量=%d, time: %v",
+		copyAddress.String(), walletSettings.Name, tradeInfo.MintAddress, tradeInfo.TokenAmount, time.Now().Format("2006-01-02 15:04:05.000000"))
+
+	// 获取代币信息
+	mintAddressStr := tradeInfo.MintAddress.String()
+	assetInfo, ok := global.GetPendingHoldAsset(mintAddressStr)
+	if !ok {
+		logger.Debugf("读取买入资产信息发生异常 ：%s", mintAddressStr)
+		return
+	}
+
+	// 处理跟单钱包的交易资产卖出
+	holdingsManager := asset.GetHoldingsManager()
+
+	holdingsManager.RecordTokenTransaction(copyAddress.String(), tradeInfo.MintAddress.String(), false, tradeInfo.TokenAmount, tradeInfo.CurrentPrice)
+
+	// 计算跟单的同比例卖出
+	// 1. 获取监控钱包的总买入量（多笔买入累计，不减去卖出量）
+	walletHoldings := holdingsManager.GetWalletHoldings(copyAddress.String())
+	monitoredWalletTotalBuyAmount := uint64(0)
+	if tokenHolding, exists := walletHoldings.GetTokenHolding(mintAddressStr); exists {
+		// 使用记录的总买入量
+		monitoredWalletTotalBuyAmount = tokenHolding.TotalBuyAmount
+	} else {
+		// 如果没有记录，则使用当前卖出量作为估计值
+		monitoredWalletTotalBuyAmount = tradeInfo.TokenAmount
+		logger.Warnf("无法获取监控钱包 %s 的代币 %s 总买入量，使用当前卖出量作为估计", copyAddress.String(), mintAddressStr)
+	}
+
+	if monitoredWalletTotalBuyAmount == 0 {
+		logger.Warnf("监控钱包 %s 的代币 %s 总买入量为0，无法计算卖出比例", copyAddress.String(), mintAddressStr)
+		return
+	}
+
+	// 2. 计算卖出比例
+	sellRatio := float64(tradeInfo.TokenAmount) / float64(monitoredWalletTotalBuyAmount)
+	logger.Infof("监控钱包 %s 卖出比例: %.2f%%", copyAddress.String(), sellRatio*100)
+
+	// 3. 根据比例计算我们需要卖出的数量
+	amountToSell := uint64(float64(assetInfo.InitBuyAmount) * sellRatio)
+	if amountToSell == 0 {
+		logger.Warnf("计算得到的卖出数量为0，取消卖出")
+		return
+	}
+
+	logger.Infof("执行 DBC 跟单卖出: 代币=%s, 卖出数量=%d (比例: %.2f%%)",
+		mintAddressStr, amountToSell, sellRatio*100)
+
+	// 执行卖出交易
+	_blockHash := m.NonceManager.GetGlobalBlockhash()
+	m.executeDbcSellTrade(tradeInfo, copyAddress, amountToSell, *_blockHash)
+}
+
 // executeCpmmCopyTrade
 func (m *TransactionMonitor) executeCpmmCopyTrade(tradeInfo *global.CPMMTradeEventInfo, originalWallet solana.PublicKey, originalAmount uint64, specialScheme *types.ParamScheme, _blockHash solana.Hash) {
 	// 检查是否已经交易过该代币
@@ -1021,4 +1131,95 @@ func (m *TransactionMonitor) executeCpmmCopyTrade(tradeInfo *global.CPMMTradeEve
 	go m.TradeBot.Trader.RaydiumCPMMBuy(context.Background(), *orderParams)
 	// 然后记录机器人的跟单交易
 	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress.String(), originalWallet, m.BotWallet, tradeInfo.CurrentPrice)
+}
+
+// executeDbcCopyTrade 执行DBC跟单买入
+func (m *TransactionMonitor) executeDbcCopyTrade(tradeInfo *global.DbcTradeEventInfo, originalWallet solana.PublicKey, originalAmount uint64, specialScheme *types.ParamScheme, _blockHash solana.Hash) {
+	// 检查是否已经交易过该代币
+	m.WalletMonitor.Mux.RLock()
+	if _, exists := m.WalletMonitor.TradedTokens[tradeInfo.MintAddress.String()]; exists && !global.GetConfig().RepeatTradeEnable {
+		logger.Infof("跳过重复交易: %s", tradeInfo.MintAddress)
+		m.WalletMonitor.Mux.RUnlock()
+		return
+	}
+
+	// 发送买入请求
+	logger.Infof("执行 Meteora DBC 跟单买入: 代币=%s, 金额=%f SOL", tradeInfo.MintAddress, m.BuySolAmount)
+	m.BotWallet = global.GetConfig().TradeWalletKey.PublicKey()
+	// 先记录原始交易者的交易
+	m.WalletMonitor.RecordTrade(tradeInfo.MintAddress.String(), originalWallet, tradeInfo.CurrentPrice, originalAmount)
+	m.WalletMonitor.Mux.RUnlock()
+
+	// 1. 计算DBC账户
+	dbcAccounts, err := m.TradeBot.Trader.AccountsCalc.CalculateMeteoraDbcAccounts(
+		m.BotWallet,
+		tradeInfo.Config.String(),
+		tradeInfo.MintAddress,
+		solana.SolMint,
+	)
+	if err != nil {
+		logger.Errorf("Failed to calculate DBC accounts: %v", err)
+		return
+	}
+
+	// 2. 计算买入金额
+	amounts, err := m.TradeBot.Trader.AmountsCalc.CalculateMeteoraDbcBuyAmounts(
+		specialScheme.BuySolAmount,
+		specialScheme.BuyTipFee,
+		tradeInfo.CurrentPrice,
+		6,
+		specialScheme.BuySlippage,
+	)
+	if err != nil {
+		logger.Errorf("Failed to calculate buy amounts: %v", err)
+		return
+	}
+
+	// 3. 构建交易参数
+	tradeParams := types.TradeParams{
+		Accounts: types.TradeAccounts{
+			User:               m.BotWallet,
+			Mint:               dbcAccounts.OutputTokenMint,
+			BaseMint:           dbcAccounts.OutputTokenMint,
+			QuoteMint:          dbcAccounts.InputTokenMint,
+			MeteoraDbcAccounts: dbcAccounts,
+			NonceAccount:       *m.NonceManager.GetNonceAccountPubkey(),
+		},
+		Amount:       amounts.SolAmount,
+		MaxSolAmount: amounts.MaxSolAmount,
+		Cost:         amounts.MaxCost,
+		Blockhash:    _blockHash,
+		FeeConfig: types.FeeConfig{
+			Slippage:    specialScheme.BuySlippage,
+			PriorityFee: uint64(specialScheme.BuyPriorityFee * 1e9),
+		},
+	}
+
+	// 4. 构建完整的订单参数
+	orderParams := core.BuildOrderParams(tradeParams, m.TradeBot.Config, specialScheme.BuyTipFee)
+	
+	// 5. 调用 Meteora DBC 买入方法
+	go m.TradeBot.Trader.MeteoraDbcBuy(context.Background(), *orderParams)
+	
+	// 记录机器人的跟单交易
+	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress.String(), originalWallet, m.BotWallet, tradeInfo.CurrentPrice)
+
+}
+
+// executeDbcSellTrade 执行DBC跟单卖出
+func (m *TransactionMonitor) executeDbcSellTrade(tradeInfo *global.DbcTradeEventInfo, originalWallet solana.PublicKey, amountToSell uint64, _blockHash solana.Hash) {
+	logger.Infof("执行 Meteora DBC 跟单卖出: 代币=%s, 数量=%d", tradeInfo.MintAddress, amountToSell)
+
+	// 获取代币信息
+	mintAddressStr := tradeInfo.MintAddress.String()
+	assetInfo, ok := global.GetPendingHoldAsset(mintAddressStr)
+	if !ok {
+		logger.Errorf("无法获取代币资产信息: %s", mintAddressStr)
+		return
+	}
+
+	// 通过卖出队列执行卖出
+	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, "meteora-dbc", originalWallet.String(), "follow_sell")
+
+	logger.Infof("DBC 跟单卖出已加入队列: 代币=%s, 数量=%d", mintAddressStr, amountToSell)
 }

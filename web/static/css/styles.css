@@ -181,9 +181,88 @@ body {
 /* 响应式调整 */
 @media (max-width: 768px) {
     .container {
-        padding: 15px;
+        padding: 10px;
+        max-width: 100%;
     }
     
+    /* 导航栏优化 */
+    .navbar-brand {
+        font-size: 1rem;
+    }
+    
+    /* 卡片头部优化 */
+    .card-header {
+        padding: 12px;
+    }
+    
+    .card-header h5 {
+        font-size: 1rem;
+    }
+    
+    .card-body {
+        padding: 12px;
+    }
+    
+    /* 钱包卡片优化 */
+    #walletCards .card {
+        margin-bottom: 12px;
+    }
+    
+    #walletCards .card-body {
+        padding: 12px;
+    }
+    
+    #walletCards .card-title {
+        font-size: 0.95rem;
+        margin-bottom: 8px;
+    }
+    
+    #walletCards .card-subtitle {
+        font-size: 0.75rem;
+        word-break: break-all;
+    }
+    
+    /* 徽章优化 */
+    .badge {
+        font-size: 0.7rem;
+        padding: 4px 8px;
+    }
+    
+    /* 按钮组优化 */
+    .btn-group-sm .btn,
+    .btn-sm {
+        padding: 4px 8px;
+        font-size: 0.8rem;
+    }
+    
+    /* 表单控件优化 */
+    .form-select-sm {
+        font-size: 0.8rem;
+        padding: 4px 8px;
+    }
+    
+    .form-control {
+        font-size: 0.85rem;
+        padding: 6px 10px;
+    }
+    
+    .input-group-text {
+        font-size: 0.8rem;
+        padding: 6px 10px;
+    }
+    
+    /* 表单标签优化 */
+    .form-label {
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+    }
+    
+    .form-text,
+    small {
+        font-size: 0.75rem;
+    }
+    
+    /* 多级卖出配置优化 */
     .level-card .row {
         flex-direction: column;
     }
@@ -215,10 +294,142 @@ body {
         padding: 1rem;
     }
     
+    .modal-title {
+        font-size: 1rem;
+    }
+    
     /* 移动端表单调整 */
     .row .col-md-8,
-    .row .col-md-4 {
+    .row .col-md-4,
+    .row .col-md-6,
+    .row .col-md-3 {
         margin-bottom: 1rem;
+    }
+    
+    /* 开关按钮优化 */
+    .form-check-input {
+        transform: scale(0.9);
+    }
+    
+    .form-check-label {
+        font-size: 0.85rem;
+    }
+    
+    /* 图标优化 */
+    .bi {
+        font-size: 0.9rem;
+    }
+    
+    /* 卡片内按钮优化 */
+    .card .btn {
+        font-size: 0.8rem;
+        padding: 6px 12px;
+    }
+    
+    /* 钱包卡片按钮优化 */
+    #walletCards .btn {
+        font-size: 0.85rem;
+        padding: 8px 12px;
+        white-space: nowrap;
+    }
+    
+    #walletCards .btn-outline-danger {
+        border-width: 2px;
+        font-weight: 600;
+    }
+}
+
+/* 小屏手机优化 */
+@media (max-width: 576px) {
+    .container {
+        padding: 8px;
+    }
+    
+    /* 进一步缩小卡片间距 */
+    #walletCards .card {
+        margin-bottom: 10px;
+    }
+    
+    #walletCards .card-body {
+        padding: 10px;
+    }
+    
+    /* 钱包地址显示优化 */
+    #walletCards .card-subtitle {
+        font-size: 0.7rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    /* 按钮组垂直排列 */
+    .card-header .d-flex {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .card-header .btn-group {
+        width: 100%;
+    }
+    
+    /* 徽章容器优化 */
+    .card-header .d-flex.gap-3 {
+        gap: 8px !important;
+        flex-wrap: wrap;
+    }
+    
+    /* 表单行优化 */
+    .row.g-3,
+    .row.g-4 {
+        gap: 8px !important;
+    }
+    
+    /* Toast 通知位置调整 */
+    .toast-container {
+        padding: 1rem !important;
+    }
+    
+    /* 小屏手机钱包卡片按钮优化 */
+    #walletCards .btn {
+        font-size: 0.85rem !important;
+        padding: 8px 10px !important;
+        line-height: 1.5 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        white-space: nowrap !important;
+    }
+    
+    #walletCards .btn-outline-danger {
+        border-width: 2px !important;
+        font-weight: 600 !important;
+        color: #dc3545 !important;
+        border-color: #dc3545 !important;
+        background-color: transparent !important;
+    }
+    
+    #walletCards .btn-outline-danger:hover,
+    #walletCards .btn-outline-danger:active {
+        background-color: #dc3545 !important;
+        color: white !important;
+    }
+    
+    /* 确保按钮图标都可见 */
+    #walletCards .btn i {
+        font-size: 0.9rem !important;
+        margin-right: 4px !important;
+        display: inline-block !important;
+    }
+    
+    /* 强制显示按钮 */
+    #walletCards .btn-outline-danger {
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+    
+    /* 按钮容器不要限制高度 */
+    #walletCards .card-body > div {
+        overflow: visible !important;
     }
 }
 
@@ -253,4 +464,19 @@ body {
     .text-muted {
         color: #adb5bd !important;
     }
+}
+
+/* 状态徽章筛选样式 */
+.badge-filter-active {
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5), 0 0 8px rgba(13, 110, 253, 0.6);
+    transform: scale(1.05);
+    transition: all 0.2s ease;
+}
+
+#walletCountBadge:hover,
+#walletActiveBadge:hover,
+#walletInactiveBadge:hover {
+    opacity: 0.85;
+    transform: scale(1.05);
+    transition: all 0.2s ease;
 }
