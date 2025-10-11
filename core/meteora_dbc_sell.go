@@ -26,8 +26,13 @@ func (t *TraderImpl) MeteoraDbcSell(ctx context.Context, params types.OrderParam
 	logger.Infof("token amount in: %d", params.TradeParams.Amount)
 	logger.Infof("min sol out: %d", params.TradeParams.Cost)
 	logger.Infof("Time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
-
+	mintAddress := params.TradeParams.Accounts.Mint.String()
 	botWallet := global.GetConfig().TradeWalletKey
+	// 检查是否可以卖出（3秒内同一个币最多卖出一次）
+	if !global.CanSellToken(mintAddress) {
+		logger.Warnf("代币 %s 卖出频率过高，3秒内只能卖出一次", mintAddress)
+		return "", fmt.Errorf("代币 %s 卖出频率过高，3秒内只能卖出一次", mintAddress)
+	}
 	instructions := []solana.Instruction{}
 
 	// 创建nonce advance指令
@@ -58,10 +63,10 @@ func (t *TraderImpl) MeteoraDbcSell(ctx context.Context, params types.OrderParam
 		dbcAccounts.Pool,
 		dbcAccounts.OutputTokenAccount, // 代币账户作为input
 		dbcAccounts.InputTokenAccount,  // SOL账户作为output
-		dbcAccounts.InputVault,         // SOL vault
 		dbcAccounts.OutputVault,        // 代币vault
-		dbcAccounts.InputTokenMint,     // SOL mint
+		dbcAccounts.InputVault,         // SOL vault
 		dbcAccounts.OutputTokenMint,    // 代币mint
+		dbcAccounts.InputTokenMint,     // SOL mint
 		botWallet.PublicKey(),
 		dbcAccounts.ReferralTokenAccount,
 		params.TradeParams.Amount, // 代币数量
@@ -218,6 +223,45 @@ func (t *TraderImpl) MeteoraDbcSell(ctx context.Context, params types.OrderParam
 				return
 			}
 			resultChan <- sig
+		}()
+	}
+
+	if t.Config.Normal.Enable {
+		log.Printf("[Normal] 准备发送交易...")
+		go func() {
+			// 构建交易
+			tx, err := solana.NewTransaction(
+				instructions,
+				params.TradeParams.Blockhash,
+				solana.TransactionPayer(botWallet.PublicKey()),
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("创建交易失败: %w", err)
+				return
+			}
+
+			// 签名交易
+			_, err = tx.Sign(
+				func(key solana.PublicKey) *solana.PrivateKey {
+					if key.Equals(botWallet.PublicKey()) {
+						return &botWallet.PrivateKey
+					}
+					return nil
+				},
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("签名交易失败: %w", err)
+				return
+			}
+
+			// 发送交易
+			sig, err := t.Client.SendTransaction(ctx, tx)
+			if err != nil {
+				errChan <- fmt.Errorf("发送交易失败: %w", err)
+				return
+			}
+
+			resultChan <- sig.String()
 		}()
 	}
 

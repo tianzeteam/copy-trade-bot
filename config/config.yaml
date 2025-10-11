@@ -1,7 +1,7 @@
-skip_create_nonce_account: true
+skip_create_nonce_account: false
 nonce_account_pubkey: CeyfxPbWP81zny2j79rTWeYvi4GGNSnnmQ1UzMkZgv3V
 simulate_mode: false
-private_key: 27ndKddFnWqWmyDjWAPtXA6EkzWDuYmPprThQHybuFhePRD7BhUsh3LjMBrV9yFE9wjLHqqVAhTQpKQhEQgSD253
+private_key: 5NpjegNAzJuWKeDrrQvfmSL4LCymBD6F4ijstJxHuk6zWspNJ69JGSknSEW8QV5SUrYKo6ScHRQQYbfDcizVUXVz
 grpc_url: https://solana-yellowstone-grpc.publicnode.com:443
 rpc_url: https://mainnet.helius-rpc.com/?api-key=dc537a21-36c2-4a5f-bcf8-90ae704fbbfc
 redis_db: 0
@@ -66,8 +66,8 @@ jito:
 nextblock:
     buy_tip: 0.001
     sell_tip: 0.001
-    enable: false
-    sell_enable: false
+    enable: true
+    sell_enable: true
     mode: ""
     health_endpoint: ""
     rpc_url: http://fra.nextblock.io/api/v2/submit
@@ -76,8 +76,8 @@ nextblock:
 temporal:
     buy_tip: 0.001
     sell_tip: 0.001
-    enable: false
-    sell_enable: false
+    enable: true
+    sell_enable: true
     mode: ""
     health_endpoint: ""
     rpc_url: http://ams2.nozomi.temporal.xyz/
@@ -86,8 +86,8 @@ temporal:
 bloXroute:
     buy_tip: 0.001
     sell_tip: 0.001
-    enable: false
-    sell_enable: false
+    enable: true
+    sell_enable: true
     mode: ""
     health_endpoint: ""
     rpc_url: http://germany.solana.dex.blxrbdn.com
@@ -106,8 +106,8 @@ zeroslot:
 blockrazor:
     buy_tip: 0.001
     sell_tip: 0.001
-    enable: false
-    sell_enable: false
+    enable: true
+    sell_enable: true
     mode: fast
     health_endpoint: http://frankfurt.solana.blockrazor.xyz:443/health
     rpc_url: http://frankfurt.solana.blockrazor.xyz:443/sendTransaction

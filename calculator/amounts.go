@@ -366,7 +366,7 @@ func (c *AmountsCalculator) CalculateRaydiumCPMMBuyAmounts(solAmount float64, bu
 	minOutUint64 := uint64(minTokenAmountWithDecimals)
 
 	// 记录详细的计算过程
-	logger.Infof("Raydium CPMM Buy Calculation: SOL=%f, Price=%f, TokenDecimals=%d, Slippage=%f, ExpectedTokens=%f, MinTokens=%f",
+	logger.Infof("Raydium CPMM Buy Calculation: SOL=%f, Price=%.8f, TokenDecimals=%d, Slippage=%f, ExpectedTokens=%f, MinTokens=%f",
 		solAmount, prePrice, tokenDecimals, slippage, expectedTokenAmountWithDecimals, minTokenAmountWithDecimals)
 
 	return &BuyAmounts{

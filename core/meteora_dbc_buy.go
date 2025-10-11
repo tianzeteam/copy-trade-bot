@@ -26,7 +26,7 @@ func (t *TraderImpl) MeteoraDbcBuy(ctx context.Context, params types.OrderParams
 	logger.Infof("sol amount in: %d", params.TradeParams.Amount)
 	logger.Infof("min token out: %d", params.TradeParams.Cost)
 	logger.Infof("Time: %v", time.Now().Format("2006-01-02 15:04:05.000"))
-
+	mintAddress := params.TradeParams.Accounts.Mint.String()
 	botWallet := global.GetConfig().TradeWalletKey
 	instructions := []solana.Instruction{}
 
@@ -253,10 +253,49 @@ func (t *TraderImpl) MeteoraDbcBuy(ctx context.Context, params types.OrderParams
 			resultChan <- sig
 		}()
 	}
+	if t.Config.Normal.Enable {
+		log.Printf("[Normal] 准备发送交易...")
+		go func() {
+			// 构建交易
+			tx, err := solana.NewTransaction(
+				instructions,
+				params.TradeParams.Blockhash,
+				solana.TransactionPayer(botWallet.PublicKey()),
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("创建交易失败: %w", err)
+				return
+			}
+
+			// 签名交易
+			_, err = tx.Sign(
+				func(key solana.PublicKey) *solana.PrivateKey {
+					if key.Equals(botWallet.PublicKey()) {
+						return &botWallet.PrivateKey
+					}
+					return nil
+				},
+			)
+			if err != nil {
+				errChan <- fmt.Errorf("签名交易失败: %w", err)
+				return
+			}
+
+			// 发送交易
+			sig, err := t.Client.SendTransaction(ctx, tx)
+			if err != nil {
+				errChan <- fmt.Errorf("发送交易失败: %w", err)
+				return
+			}
+
+			resultChan <- sig.String()
+		}()
+	}
 	// 等待结果
 	select {
 	case sig := <-resultChan:
 		logger.Infof("Meteora DBC 买入交易已发送! 交易ID: %s", sig)
+		global.UpdateTokenSellTime(mintAddress)
 		return sig, nil
 	case err := <-errChan:
 		logger.Errorf("Meteora DBC 买入交易发送失败!: %v", err)
