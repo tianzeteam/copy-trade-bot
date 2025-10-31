@@ -1,7 +1,7 @@
-skip_create_nonce_account: false
+skip_create_nonce_account: true
 nonce_account_pubkey: CeyfxPbWP81zny2j79rTWeYvi4GGNSnnmQ1UzMkZgv3V
 simulate_mode: false
-private_key: 5NpjegNAzJuWKeDrrQvfmSL4LCymBD6F4ijstJxHuk6zWspNJ69JGSknSEW8QV5SUrYKo6ScHRQQYbfDcizVUXVz
+private_key: QhdErk44YuyJpp3hN1P2zNYbEhgvQ4NoJ5nFDpLSUkabiav3VYXAT5AQd5bjx7jTpCjD8dDqjZCivk6emMtu6J7
 grpc_url: https://solana-yellowstone-grpc.publicnode.com:443
 rpc_url: https://mainnet.helius-rpc.com/?api-key=dc537a21-36c2-4a5f-bcf8-90ae704fbbfc
 redis_db: 0
@@ -26,12 +26,19 @@ multi_sell_levels:
 batch_sell_config:
     num_batches: 0
     thresholds: []
+profit_target_monitor:
+    enable: false
+    check_interval: 10
+    timeout: 60
+    target_profit_percent: 20
+    partial_sell_percent: 50
+    full_exit_on_timeout: true
 skip_ata_check: true
 pump_trade_enable: false
 pump_amm_trade_enable: false
 raydium_trade_enable: false
 launchpad_trade_enable: false
-meteora_dbc_trade_enable: true
+meteora_dbc_trade_enable: false
 repeat_trade_enable: false
 min_follow_trigger_amount: 0
 max_follow_trigger_amount: 0

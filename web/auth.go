@@ -69,7 +69,7 @@ func InitAuth() {
 		// 默认密码：admin123
 		adminPassword := os.Getenv("ADMIN_PASSWORD")
 		passwordHash, _ := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
-		users["admin"] = User{
+		users["admin10111"] = User{
 			Username: "admin10111",
 			Password: string(passwordHash),
 			Role:     "admin",

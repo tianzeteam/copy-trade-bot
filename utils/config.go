@@ -31,6 +31,16 @@ type BatchSellConfig struct {
 	Thresholds []int `yaml:"thresholds"`  // 每批卖出的价格阈值（百分比）
 }
 
+// ProfitTargetMonitorConfig 盈利目标监控配置
+type ProfitTargetMonitorConfig struct {
+	Enable              bool    `yaml:"enable"`                 // 是否启用盈利目标监控
+	CheckInterval       int     `yaml:"check_interval"`         // 检查间隔（秒）
+	Timeout             int     `yaml:"timeout"`                // 监控超时时间（秒）
+	TargetProfitPercent float64 `yaml:"target_profit_percent"`  // 目标盈利百分比
+	PartialSellPercent  int     `yaml:"partial_sell_percent"`   // 未达标时部分卖出比例
+	FullExitOnTimeout   bool    `yaml:"full_exit_on_timeout"`   // 超时未达标是否全部清仓
+}
+
 // LogConfig 表示日志配置
 type LogConfig struct {
 	Level  string `yaml:"level"`  // 日志级别: debug, info, warn, error, fatal
@@ -55,10 +65,11 @@ type Config struct {
 	CapitalRecoveryPercent float64          `yaml:"capital_recovery_percent"`
 	SellIntervalLimit      int              `yaml:"sell_interval_limit"`
 	SellMode               string           `yaml:"sell_mode"`
-	SellDelayTime          int              `yaml:"sell_delay_time"`
-	MultiSellLevels        []MultiSellLevel `yaml:"multi_sell_levels"`
-	BatchSellConfig        BatchSellConfig  `yaml:"batch_sell_config"`
-	SkipATACheck           bool             `yaml:"skip_ata_check"`
+	SellDelayTime          int                       `yaml:"sell_delay_time"`
+	MultiSellLevels        []MultiSellLevel          `yaml:"multi_sell_levels"`
+	BatchSellConfig        BatchSellConfig           `yaml:"batch_sell_config"`
+	ProfitTargetMonitor    ProfitTargetMonitorConfig `yaml:"profit_target_monitor"`
+	SkipATACheck           bool                      `yaml:"skip_ata_check"`
 	PumpTradeEnable        bool             `yaml:"pump_trade_enable"`
 	PumpAmmTradeEnable     bool             `yaml:"pump_amm_trade_enable"`
 	RaydiumTradeEnable     bool             `yaml:"raydium_trade_enable"`

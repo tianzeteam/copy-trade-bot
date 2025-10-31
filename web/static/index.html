@@ -3,27 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Copy Trade Bot - 聪明钱包管理</title>
+    <title data-i18n="app.title">Copy Trade Bot - 聪明钱包管理</title>
     <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .language-switcher {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 5px;
+        }
+        .language-switcher button {
+            background-color: rgba(13, 110, 253, 0.1);
+            border: 1px solid rgba(13, 110, 253, 0.3);
+            color: #0d6efd;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .language-switcher button:hover {
+            background-color: rgba(13, 110, 253, 0.2);
+        }
+        .language-switcher button.active {
+            background-color: #0d6efd;
+            color: white;
+            font-weight: 600;
+        }
+    </style>
 </head>
 <body>
+    <!-- 语言切换按钮 -->
+    <div class="language-switcher">
+        <button data-lang-switch="zh" class="active">中文</button>
+        <button data-lang-switch="en">English</button>
+    </div>
+
     <div class="container mt-4">
-        <h1 class="text-center mb-4">Copy Trade Bot - 聪明钱包管理</h1>
+        <h1 class="text-center mb-4" data-i18n="app.title">Copy Trade Bot - 聪明钱包管理</h1>
         
         <!-- 钱包选择与管理 -->
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">钱包列表</h5>
+                <h5 class="mb-0" data-i18n="wallet.title">钱包列表</h5>
                 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addWalletModal">
-                    <i class="bi bi-plus-circle"></i> 添加钱包
+                    <i class="bi bi-plus-circle"></i> <span data-i18n="wallet.add">添加钱包</span>
                 </button>
             </div>
             <div class="card-body">
                 <!-- 钱包选择下拉菜单 -->
                 <div class="mb-3">
-                    <label for="walletSelect" class="form-label">选择监控钱包</label>
+                    <label for="walletSelect" class="form-label" data-i18n="wallet.select">选择监控钱包</label>
                     <select class="form-select" id="walletSelect">
                         <!-- 钱包选项将通过JS动态加载 -->
                     </select>
@@ -35,12 +69,12 @@
                         <div class="card-body">
                             <h5 class="card-title" id="walletName"></h5>
                             <h6 class="card-subtitle mb-2 text-muted" id="walletAddress"></h6>
-                            <p class="card-text">钱包类型: <span id="walletType"></span></p>
+                            <p class="card-text"><span data-i18n="wallet.type">钱包类型</span>: <span id="walletType"></span></p>
                             
                             <div class="row mt-4">
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        <label for="takeProfitPct" class="form-label">止盈百分比 (%)</label>
+                                        <label for="takeProfitPct" class="form-label" data-i18n="trade.take_profit">止盈百分比 (%)</label>
                                         <div class="input-group">
                                             <input type="number" class="form-control" id="takeProfitPct" min="1" value="100">
                                             <span class="input-group-text">%</span>
@@ -49,7 +83,7 @@
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        <label for="stopLossPct" class="form-label">止损百分比 (%)</label>
+                                        <label for="stopLossPct" class="form-label" data-i18n="trade.stop_loss">止损百分比 (%)</label>
                                         <div class="input-group">
                                             <input type="number" class="form-control" id="stopLossPct" min="1" value="10">
                                             <span class="input-group-text">%</span>
@@ -58,7 +92,7 @@
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-group">
-                                        <label for="exitTimeSec" class="form-label">持仓时间 (秒)</label>
+                                        <label for="exitTimeSec" class="form-label" data-i18n="trade.holding_time">持仓时间 (秒)</label>
                                         <div class="input-group">
                                             <input type="number" class="form-control" id="exitTimeSec" min="1" value="300">
                                             <span class="input-group-text">秒</span>
@@ -69,17 +103,17 @@
                             
                             <div class="form-check mt-3">
                                 <input class="form-check-input" type="checkbox" id="walletEnabled" checked>
-                                <label class="form-check-label" for="walletEnabled">
+                                <label class="form-check-label" for="walletEnabled" data-i18n="wallet.enabled">
                                     启用此钱包监控
                                 </label>
                             </div>
                             
                             <div class="d-flex justify-content-end mt-3">
                                 <button type="button" class="btn btn-danger me-2" id="deleteWalletBtn">
-                                    <i class="bi bi-trash"></i> 删除钱包
+                                    <i class="bi bi-trash"></i> <span data-i18n="wallet.delete">删除钱包</span>
                                 </button>
                                 <button type="button" class="btn btn-primary" id="updateWalletBtn">
-                                    <i class="bi bi-save"></i> 保存更改
+                                    <i class="bi bi-save"></i> <span data-i18n="wallet.save">保存更改</span>
                                 </button>
                             </div>
                         </div>
@@ -87,7 +121,7 @@
                 </div>
                 
                 <!-- 无钱包提示 -->
-                <div id="noWalletAlert" class="alert alert-warning d-none">
+                <div id="noWalletAlert" class="alert alert-warning d-none" data-i18n="wallet.no_wallet">
                     没有可用的钱包。请添加一个新钱包。
                 </div>
             </div>
@@ -96,7 +130,7 @@
         <!-- 交易开关设置 -->
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">交易开关设置</h5>
+                <h5 class="mb-0" data-i18n="trade.title">交易开关设置</h5>
             </div>
             <div class="card-body">
                 <!-- 交易开关部分 -->
@@ -110,7 +144,7 @@
                                 <div class="form-check form-switch p-2 border rounded shadow-sm">
                                     <input class="form-check-input" type="checkbox" id="pumpTradeEnable" style="transform: scale(1.2);">
                                     <label class="form-check-label ms-2" for="pumpTradeEnable">
-                                        <i class="bi bi-currency-exchange text-primary me-1"></i> Pump 交易
+                                        <i class="bi bi-currency-exchange text-primary me-1"></i> <span data-i18n="trade.pump">Pump 交易</span>
                                     </label>
                                 </div>
                             </div>
@@ -118,7 +152,7 @@
                                 <div class="form-check form-switch p-2 border rounded shadow-sm">
                                     <input class="form-check-input" type="checkbox" id="pumpAmmTradeEnable" style="transform: scale(1.2);">
                                     <label class="form-check-label ms-2" for="pumpAmmTradeEnable">
-                                        <i class="bi bi-arrow-left-right text-success me-1"></i> Pump AMM 交易
+                                        <i class="bi bi-arrow-left-right text-success me-1"></i> <span data-i18n="trade.pump_amm">Pump AMM 交易</span>
                                     </label>
                                 </div>
                             </div>
@@ -126,7 +160,7 @@
                                 <div class="form-check form-switch p-2 border rounded shadow-sm">
                                     <input class="form-check-input" type="checkbox" id="raydiumTradeEnable" style="transform: scale(1.2);">
                                     <label class="form-check-label ms-2" for="raydiumTradeEnable">
-                                        <i class="bi bi-lightning-charge text-warning me-1"></i> Raydium 交易
+                                        <i class="bi bi-lightning-charge text-warning me-1"></i> <span data-i18n="trade.raydium">Raydium 交易</span>
                                     </label>
                                 </div>
                             </div>
@@ -134,7 +168,7 @@
                                 <div class="form-check form-switch p-2 border rounded shadow-sm">
                                     <input class="form-check-input" type="checkbox" id="launchpadTradeEnable" style="transform: scale(1.2);">
                                     <label class="form-check-label ms-2" for="launchpadTradeEnable">
-                                        <i class="bi bi-rocket-takeoff text-info me-1"></i> Launchpad 交易
+                                        <i class="bi bi-rocket-takeoff text-info me-1"></i> <span data-i18n="trade.launchpad">Launchpad 交易</span>
                                     </label>
                                 </div>
                             </div>
@@ -145,34 +179,34 @@
                 <!-- 池子大小设置 -->
                 <div class="card mb-4 border-light shadow-sm">
                     <div class="card-header bg-light">
-                        <h5 class="mb-0"><i class="bi bi-water me-2"></i>池子大小设置</h5>
+                        <h5 class="mb-0"><i class="bi bi-water me-2"></i><span data-i18n="trade.pool_size">池子大小设置</span></h5>
                     </div>
                     <div class="card-body">
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="minPoolSize" class="form-label fw-medium">
-                                        <i class="bi bi-arrow-down-circle text-danger me-1"></i>最小池子大小
+                                        <i class="bi bi-arrow-down-circle text-danger me-1"></i><span data-i18n="trade.min_pool">最小池子大小</span>
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-light"><i class="bi bi-coin"></i></span>
                                         <input type="number" class="form-control" id="minPoolSize" min="0" step="0.1" placeholder="例如: 1.5">
                                         <span class="input-group-text bg-light fw-medium">SOL</span>
                                     </div>
-                                    <small class="text-muted">设置交易池最小大小阈值</small>
+                                    <small class="text-muted" data-i18n="form.pool_min_hint">设置交易池最小大小阈值</small>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="maxPoolSize" class="form-label fw-medium">
-                                        <i class="bi bi-arrow-up-circle text-success me-1"></i>最大池子大小
+                                        <i class="bi bi-arrow-up-circle text-success me-1"></i><span data-i18n="trade.max_pool">最大池子大小</span>
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-light"><i class="bi bi-coin"></i></span>
                                         <input type="number" class="form-control" id="maxPoolSize" min="0" step="0.1" placeholder="例如: 100">
                                         <span class="input-group-text bg-light fw-medium">SOL</span>
                                     </div>
-                                    <small class="text-muted">设置交易池最大大小阈值</small>
+                                    <small class="text-muted" data-i18n="form.pool_max_hint">设置交易池最大大小阈值</small>
                                 </div>
                             </div>
                         </div>
@@ -181,34 +215,34 @@
                 <!-- 触发买入数量设置 -->
                 <div class="card mb-4 border-light shadow-sm">
                     <div class="card-header bg-light">
-                        <h5 class="mb-0"><i class="bi bi-graph-up-arrow me-2"></i>触发买入数量设置</h5>
+                        <h5 class="mb-0"><i class="bi bi-graph-up-arrow me-2"></i><span data-i18n="trade.trigger_amount">触发买入数量设置</span></h5>
                     </div>
                     <div class="card-body">
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="minFollowTriggerAmount" class="form-label fw-medium">
-                                        <i class="bi bi-dash-circle text-danger me-1"></i>最小触发买入数量
+                                        <i class="bi bi-dash-circle text-danger me-1"></i><span data-i18n="trade.min_trigger">最小触发买入数量</span>
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-light"><i class="bi bi-coin"></i></span>
                                         <input type="number" class="form-control" id="minFollowTriggerAmount" min="0" step="0.0001" placeholder="例如: 0.0001">
                                         <span class="input-group-text bg-light fw-medium">SOL</span>
                                     </div>
-                                    <small class="text-muted">设置触发交易的最小数量阈值</small>
+                                    <small class="text-muted" data-i18n="form.trigger_min_hint">设置触发交易的最小数量阈值</small>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="maxFollowTriggerAmount" class="form-label fw-medium">
-                                        <i class="bi bi-plus-circle text-success me-1"></i>最大触发买入数量
+                                        <i class="bi bi-plus-circle text-success me-1"></i><span data-i18n="trade.max_trigger">最大触发买入数量</span>
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text bg-light"><i class="bi bi-coin"></i></span>
                                         <input type="number" class="form-control" id="maxFollowTriggerAmount" min="0" step="0.1" placeholder="例如: 10">
                                         <span class="input-group-text bg-light fw-medium">SOL</span>
                                     </div>
-                                    <small class="text-muted">设置触发交易的最大数量阈值</small>
+                                    <small class="text-muted" data-i18n="form.trigger_max_hint">设置触发交易的最大数量阈值</small>
                                 </div>
                             </div>
                         </div>
@@ -218,14 +252,14 @@
                 <!-- 交易参数设置 -->
                 <div class="card mb-4 border-light shadow-sm">
                     <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0"><i class="bi bi-gear-fill me-2"></i>交易参数设置</h5>
+                        <h5 class="mb-0"><i class="bi bi-gear-fill me-2"></i><span data-i18n="trade.params">交易参数设置</span></h5>
                     </div>
                     <div class="card-body">
                         <!-- 买入参数 -->
                         <div class="card mb-3 border-success">
                             <div class="card-header bg-success bg-opacity-25">
                                 <h6 class="mb-0 text-success">
-                                    <i class="bi bi-cart-plus me-2"></i>买入参数
+                                    <i class="bi bi-cart-plus me-2"></i><span data-i18n="settings.buy_params">买入参数</span>
                                 </h6>
                             </div>
                             <div class="card-body">
@@ -239,7 +273,7 @@
                                                 <input type="number" class="form-control border-success" id="buySlippage" min="0" max="1" step="0.01" placeholder="例如: 0.05">
                                                 <span class="input-group-text bg-success text-white"></span>
                                             </div>
-                                            <small class="form-text text-muted">范围: 0-1 </small>
+                                            <small class="form-text text-muted"><span data-i18n="form.range">范围</span>: 0-1 </small>
                                         </div>
                                     </div>
                                     <div class="col-md-3">
@@ -251,7 +285,7 @@
                                                 <input type="number" class="form-control border-success" id="buyPriorityFee" min="0" step="0.0001" placeholder="例如: 0.0001">
                                                 <span class="input-group-text bg-success text-white">SOL</span>
                                             </div>
-                                            <small class="form-text text-muted">交易优先级费用</small>
+                                            <small class="form-text text-muted" data-i18n="form.trade_priority_hint">交易优先级费用</small>
                                         </div>
                                     </div>
                                     <div class="col-md-3">
@@ -263,7 +297,7 @@
                                                 <input type="number" class="form-control border-success" id="buyTipFee" min="0" step="0.0001" placeholder="例如: 0.0001">
                                                 <span class="input-group-text bg-success text-white">SOL</span>
                                             </div>
-                                            <small class="form-text text-muted">给验证者的额外奖励</small>
+                                            <small class="form-text text-muted" data-i18n="form.tip_hint">给验证者的额外奖励</small>
                                         </div>
                                     </div>
                                     <div class="col-md-3">
@@ -275,7 +309,7 @@
                                                 <input type="number" class="form-control border-success" id="buySolAmount" min="0" step="0.0001" placeholder="例如: 0.1">
                                                 <span class="input-group-text bg-success text-white">SOL</span>
                                             </div>
-                                            <small class="form-text text-muted">单次交易金额</small>
+                                            <small class="form-text text-muted" data-i18n="form.buy_amount_hint">单次交易金额</small>
                                         </div>
                                     </div>
                                 </div>
@@ -286,7 +320,7 @@
                         <div class="card mb-3 border-danger">
                             <div class="card-header bg-danger bg-opacity-25">
                                 <h6 class="mb-0 text-danger">
-                                    <i class="bi bi-cart-dash me-2"></i>卖出参数
+                                    <i class="bi bi-cart-dash me-2"></i><span data-i18n="settings.sell_params">卖出参数</span>
                                 </h6>
                             </div>
                             <div class="card-body">
@@ -300,7 +334,7 @@
                                                 <input type="number" class="form-control border-danger" id="sellSlippage" min="0" max="1" step="0.01" placeholder="例如: 0.05">
                                                 <span class="input-group-text bg-danger text-white"></span>
                                             </div>
-                                            <small class="form-text text-muted">范围: 0-1 </small>
+                                            <small class="form-text text-muted"><span data-i18n="form.range">范围</span>: 0-1 </small>
                                         </div>
                                     </div>
                                     <div class="col-md-3">
@@ -312,7 +346,7 @@
                                                 <input type="number" class="form-control border-danger" id="sellPriorityFee" min="0" step="0.0001" placeholder="例如: 0.0001">
                                                 <span class="input-group-text bg-danger text-white">SOL</span>
                                             </div>
-                                            <small class="form-text text-muted">交易优先级费用</small>
+                                            <small class="form-text text-muted" data-i18n="form.trade_priority_hint">交易优先级费用</small>
                                         </div>
                                     </div>
                                     <div class="col-md-3">
@@ -324,7 +358,7 @@
                                                 <input type="number" class="form-control border-danger" id="sellTipFee" min="0" step="0.0001" placeholder="例如: 0.0001">
                                                 <span class="input-group-text bg-danger text-white">SOL</span>
                                             </div>
-                                            <small class="form-text text-muted">给验证者的额外奖励</small>
+                                            <small class="form-text text-muted" data-i18n="form.tip_hint">给验证者的额外奖励</small>
                                         </div>
                                     </div>
                                     <div class="col-md-3">
@@ -336,7 +370,7 @@
                                                 <input type="number" class="form-control border-danger" id="sellDelayTime" min="0" step="1" placeholder="例如: 6000">
                                                 <span class="input-group-text bg-danger text-white">毫秒</span>
                                             </div>
-                                            <small class="form-text text-muted">卖出延迟时间(毫秒)</small>
+                                            <small class="form-text text-muted" data-i18n="form.sell_delay_hint">卖出延迟时间(毫秒)</small>
                                         </div>
                                     </div>
                                 </div>
@@ -345,7 +379,7 @@
                         <!-- 保存按钮 -->
                         <div class="d-flex justify-content-end mt-4">
                             <button type="button" class="btn btn-primary btn-lg shadow-sm" id="saveTradeSettingsBtn">
-                                <i class="bi bi-save me-2"></i> 保存交易设置
+                                <i class="bi bi-save me-2"></i> <span data-i18n="trade.save_settings">保存交易设置</span>
                             </button>
                         </div>
                     </div>
@@ -358,7 +392,7 @@
             <div class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true" id="successAlert">
                 <div class="d-flex">
                     <div class="toast-body" id="successMessage">
-                        <i class="bi bi-check-circle me-2"></i> 操作成功！
+                        <i class="bi bi-check-circle me-2"></i> <span data-i18n="msg.success_toast">操作成功！</span>
                     </div>
                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                 </div>
@@ -367,7 +401,7 @@
             <div class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true" id="errorAlert">
                 <div class="d-flex">
                     <div class="toast-body">
-                        <i class="bi bi-exclamation-triangle me-2"></i> <span id="errorMessage">操作失败！请检查输入并重试。</span>
+                        <i class="bi bi-exclamation-triangle me-2"></i> <span id="errorMessage" data-i18n="msg.error_toast">操作失败！请检查输入并重试。</span>
                     </div>
                     <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                 </div>
@@ -380,64 +414,89 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="addWalletModalLabel">添加新钱包</h5>
+                    <h5 class="modal-title" id="addWalletModalLabel" data-i18n="modal.add_wallet">添加新钱包</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <form id="addWalletForm">
                         <div class="mb-3">
-                            <label for="newWalletAddress" class="form-label">钱包地址</label>
+                            <label for="newWalletAddress" class="form-label" data-i18n="wallet.address">钱包地址</label>
                             <input type="text" class="form-control" id="newWalletAddress" required>
-                            <div class="form-text">输入有效的Solana钱包地址</div>
+                            <div class="form-text" data-i18n="form.valid_solana">输入有效的Solana钱包地址</div>
                         </div>
                         <div class="mb-3">
-                            <label for="newWalletName" class="form-label">钱包名称</label>
+                            <label for="newWalletName" class="form-label" data-i18n="wallet.name">钱包名称</label>
                             <input type="text" class="form-control" id="newWalletName" required>
                         </div>
                         <div class="mb-3">
-                            <label for="newWalletType" class="form-label">钱包类型</label>
+                            <label for="newWalletType" class="form-label" data-i18n="wallet.type">钱包类型</label>
                             <select class="form-select" id="newWalletType" required>
-                                <option value="high_frequency">高频交易</option>
-                                <option value="low_frequency">低频交易</option>
+                                <option value="high_frequency" data-i18n="wallet.high_frequency">高频交易</option>
+                                <option value="low_frequency" data-i18n="wallet.low_frequency">低频交易</option>
                             </select>
                         </div>
                         <div class="row">
                             <div class="col-md-4">
                                 <div class="mb-3">
-                                    <label for="newTakeProfitPct" class="form-label">止盈 (%)</label>
+                                    <label for="newTakeProfitPct" class="form-label" data-i18n="wallet.take_profit_label">止盈 (%)</label>
                                     <input type="number" class="form-control" id="newTakeProfitPct" min="1" value="100" required>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="mb-3">
-                                    <label for="newStopLossPct" class="form-label">止损 (%)</label>
+                                    <label for="newStopLossPct" class="form-label" data-i18n="wallet.stop_loss_label">止损 (%)</label>
                                     <input type="number" class="form-control" id="newStopLossPct" min="1" value="10" required>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="mb-3">
-                                    <label for="newExitTimeSec" class="form-label">持仓时间 (秒)</label>
+                                    <label for="newExitTimeSec" class="form-label" data-i18n="wallet.holding_time_label">持仓时间 (秒)</label>
                                     <input type="number" class="form-control" id="newExitTimeSec" min="1" value="300" required>
                                 </div>
                             </div>
                         </div>
                         <div class="form-check mb-3">
                             <input class="form-check-input" type="checkbox" id="newWalletEnabled" checked>
-                            <label class="form-check-label" for="newWalletEnabled">
+                            <label class="form-check-label" for="newWalletEnabled" data-i18n="wallet.enabled">
                                 启用此钱包监控
                             </label>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" id="saveNewWalletBtn">添加钱包</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-i18n="modal.cancel">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveNewWalletBtn" data-i18n="modal.add">添加钱包</button>
                 </div>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/i18n.js"></script>
     <script src="/static/js/dashboard.js"></script>
+    <script>
+        // 更新语言切换按钮状态
+        function updateLanguageButtons() {
+            const currentLang = i18n.getCurrentLang();
+            document.querySelectorAll('[data-lang-switch]').forEach(button => {
+                const lang = button.getAttribute('data-lang-switch');
+                if (lang === currentLang) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            });
+        }
+        
+        // 监听语言变更事件
+        window.addEventListener('languageChanged', () => {
+            updateLanguageButtons();
+        });
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            updateLanguageButtons();
+        });
+    </script>
 </body>
 </html>

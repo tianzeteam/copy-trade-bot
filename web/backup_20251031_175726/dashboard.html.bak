@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BeyondJeet CopyTrade - 控制面板</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">BeyondJeet CopyTrade</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#"></a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="walletManagementLink">聪明钱包管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="privateKeyManagementLink">交易钱包管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="paramSchemeLink">参数模板</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="tradeSettingsLink">交易设置</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="globalSellSettingsLink">卖出全局设置</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="blacklistManagementLink">黑名单管理</a>
+                    </li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <span class="text-light me-3" id="currentUser"></span>
+                    <button class="btn btn-outline-warning me-2" id="restartServerBtn">
+                        <i class="bi bi-arrow-clockwise"></i> 重启服务
+                    </button>
+                    <button class="btn btn-outline-light" id="logoutBtn">
+                        <i class="bi bi-box-arrow-right"></i> 退出
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- 钱包选择与管理 -->
+        <div class="card mb-4" id="walletManagementSection">
+            <div class="card-header d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-3">
+                    <h5 class="mb-0">聪明钱包管理</h5>
+                    <span class="badge bg-primary" id="walletCountBadge" style="cursor: pointer; user-select: none;" title="点击显示所有钱包">0 个</span>
+                    <span class="badge bg-success" id="walletActiveBadge" style="cursor: pointer; user-select: none;" title="点击筛选运行中的钱包">运行 0</span>
+                    <span class="badge bg-secondary" id="walletInactiveBadge" style="cursor: pointer; user-select: none;" title="点击筛选停用的钱包">停用 0</span>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <select class="form-select form-select-sm" id="riskFilterSelect" style="width: 140px;">
+                        <option value="">风险: 全部</option>
+                        <option value="high">高风险</option>
+                        <option value="medium">中风险</option>
+                        <option value="low">低风险</option>
+                    </select>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button class="btn btn-outline-secondary active" id="walletViewCardsBtn" title="卡片视图"><i class="bi bi-grid-3x3-gap"></i></button>
+                        <button class="btn btn-outline-secondary" id="walletViewTableBtn" title="表格视图"><i class="bi bi-table"></i></button>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="exportWalletsBtn"><i class="bi bi-download"></i> 导出</button>
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addWalletModal">
+                        <i class="bi bi-plus-circle"></i> 添加钱包
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- 卡片视图容器 -->
+                <div id="walletCards" class="row row-cols-1 row-cols-md-3 g-3"></div>
+
+                <!-- 表格视图容器 -->
+                <div class="table-responsive d-none" id="walletTableWrapper">
+                    <table class="table table-hover align-middle" id="walletTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>钱包地址</th>
+                                <th>备注</th>
+                                <th>风险</th>
+                                <th>内/外参与</th>
+                                <th>启用</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <!-- 兼容旧版本的钱包选择下拉菜单 -->
+                <div class="mb-3 d-none" id="legacyWalletSelect">
+                    <label for="walletSelect" class="form-label">选择监控钱包</label>
+                    <select class="form-select" id="walletSelect">
+                        <!-- 钱包选项将通过JS动态加载 -->
+                    </select>
+                </div>
+                
+                <!-- 兼容旧版本的钱包信息卡片 -->
+                <div id="walletInfo" class="d-none">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title" id="walletName"></h5>
+                            <h6 class="card-subtitle mb-2 text-muted" id="walletAddress"></h6>
+                            <p class="card-text">钱包类型: <span id="walletType"></span></p>
+                            
+                            <!-- 参数模板绑定 -->
+                            <div class="form-group mb-3">
+                                <label for="walletParamScheme" class="form-label"><i class="bi bi-link-45deg me-1"></i> 绑定参数模板</label>
+                                <select class="form-select" id="walletParamScheme">
+                                    <option value="">不绑定参数模板</option>
+                                    <!-- 参数模板选项将通过JS动态加载 -->
+                                </select>
+                                <div class="form-text">绑定后，该钱包将使用选定参数模板的交易设置</div>
+                            </div>
+                            
+                            <div class="row mt-4">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="takeProfitPct" class="form-label">止盈百分比 (%)</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="takeProfitPct" min="1" value="100">
+                                            <span class="input-group-text">%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="stopLossPct" class="form-label">止损百分比 (%)</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control" id="stopLossPct" min="1" value="10">
+                                            <span class="input-group-text">%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <div class="input-group">
+                                            <input type="hidden" class="form-control" id="exitTimeSec" min="1" value="300">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-check mt-3">
+                                <input class="form-check-input" type="checkbox" id="walletEnabled" checked>
+                                <label class="form-check-label" for="walletEnabled">
+                                    启用此钱包监控
+                                </label>
+                            </div>
+                            
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" id="walletFollowSell" checked>
+                                <label class="form-check-label" for="walletFollowSell">
+                                    <i class="bi bi-arrow-down-circle"></i> 启用跟卖功能
+                                </label>
+                                <div class="form-text">启用后，当监控钱包卖出代币时，将自动按比例卖出</div>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <button type="button" class="btn btn-danger me-2" id="deleteWalletBtn">
+                                    <i class="bi bi-trash"></i> 删除钱包
+                                </button>
+                                <button type="button" class="btn btn-primary" id="updateWalletBtn">
+                                    <i class="bi bi-save"></i> 保存更改
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 无钱包提示 -->
+                <div id="noWalletAlert" class="alert alert-warning d-none mb-0">
+                    没有可用的钱包。请点击右上角"添加钱包"。
+                </div>
+            </div>
+        </div>
+        
+        <!-- 参数模板管理 -->
+        <div class="card mb-4" id="paramSchemeSection">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">参数模板管理</h5>
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addSchemeModal">
+                    <i class="bi bi-plus-circle"></i> 创建新模板
+                </button>
+            </div>
+            <div class="card-body">
+                <!-- 参数模板选择下拉菜单 -->
+                <div class="mb-3">
+                    <label for="schemeSelect" class="form-label">选择参数模板</label>
+                    <select class="form-select" id="schemeSelect">
+                        <!-- 参数模板选项将通过JS动态加载 -->
+                    </select>
+                </div>
+                
+                <!-- 参数模板信息卡片 -->
+                <div id="schemeInfo" class="d-none">
+                    <!-- 基本信息卡片 -->
+                    <div class="card mb-4 border-primary">
+                        <div class="card-header bg-primary bg-opacity-10 d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>基本信息</h6>
+                            <span class="badge bg-primary" id="schemeId"></span>
+                        </div>
+                        <div class="card-body">
+                            <h5 class="card-title" id="schemeName"></h5>
+                            <p class="card-text text-muted" id="schemeDescription"></p>
+                        </div>
+                    </div>
+                    
+                    <!-- 交易触发参数卡片 -->
+                    <div class="card mb-4 border-info">
+                        <div class="card-header bg-info bg-opacity-10">
+                            <h6 class="mb-0"><i class="bi bi-lightning-charge me-2"></i>交易触发参数</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                             
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeMinFollowTriggerAmount" class="form-label">最小跟单触发金额</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
+                                            <input type="number" class="form-control" id="schemeMinFollowTriggerAmount" min="0" step="0.01">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeMaxFollowTriggerAmount" class="form-label">最大跟单触发金额</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
+                                            <input type="number" class="form-control" id="schemeMaxFollowTriggerAmount" min="0" step="0.01">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeMinPoolSize" class="form-label">最小池子大小 (SOL)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-water"></i></span>
+                                            <input type="number" class="form-control" id="schemeMinPoolSize" min="0" step="0.1">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeMaxPoolSize" class="form-label">最大池子大小 (SOL)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-water"></i></span>
+                                            <input type="number" class="form-control" id="schemeMaxPoolSize" min="0" step="0.1">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 代币创建时间过滤 -->
+
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeTokenAgeMinMinutes" class="form-label">
+                                            <i class="bi bi-clock me-1"></i>代币最小创建时间 (秒)
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-hourglass-split"></i></span>
+                                            <input type="number" class="form-control" id="schemeTokenAgeMinMinutes" min="0" step="1" value="0" placeholder="0">
+                                            <span class="input-group-text">秒</span>
+                                        </div>
+                                        <div class="form-text-warning">
+                                            <small>只跟单创建时间超过此秒数的代币，设为0表示无限制</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeTokenAgeMaxMinutes" class="form-label">
+                                            <i class="bi bi-clock me-1"></i>代币最大创建时间 (秒)
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-hourglass-bottom"></i></span>
+                                            <input type="number" class="form-control" id="schemeTokenAgeMaxMinutes" min="0" step="1" value="0" placeholder="0">
+                                            <span class="input-group-text">秒</span>
+                                        </div>
+                                        <div class="form-text-warning">
+                                            <small>只跟单创建时间少于此秒数的代币，设为0表示无限制</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 买入参数卡片 -->
+                    <div class="card mb-4 border-success">
+                        <div class="card-header bg-success bg-opacity-10">
+                            <h6 class="mb-0"><i class="bi bi-cart-plus me-2 text-success"></i>买入参数</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeBuySolAmount" class="form-label">购买金额 (SOL)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
+                                            <input type="number" class="form-control" id="schemeBuySolAmount" min="0" step="0.01">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeBuySlippage" class="form-label">买入滑点 (0-1)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-sliders"></i></span>
+                                            <input type="number" class="form-control" id="schemeBuySlippage" min="0" step="0.1">
+                                            <span class="input-group-text"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                         
+                         
+                            </div>
+                            
+                            <div class="row">
+                             
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeBuyPriorityFee" class="form-label">买入优先费</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-lightning-charge"></i></span>
+                                            <input type="number" class="form-control" id="schemeBuyPriorityFee" min="0">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeBuyTipFee" class="form-label">买入小费</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-coin"></i></span>
+                                            <input type="number" class="form-control" id="schemeBuyTipFee" min="0">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 卖出参数卡片 -->
+                    <div class="card mb-4 border-danger">
+                        <div class="card-header bg-danger bg-opacity-10">
+                            <h6 class="mb-0"><i class="bi bi-cart-dash me-2 text-danger"></i>卖出参数</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeSellDelayTime" class="form-label">卖出延迟时间 (毫秒)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-clock"></i></span>
+                                            <input type="number" class="form-control" id="schemeSellDelayTime" min="0">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeSellSlippage" class="form-label">卖出滑点 (0-1)</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-sliders"></i></span>
+                                            <input type="number" class="form-control" id="schemeSellSlippage" min="0" step="0.1">
+                                            <span class="input-group-text"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                           
+                             
+                            </div>
+                            
+                            <div class="row">
+                              
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeSellPriorityFee" class="form-label">卖出优先费</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-lightning-charge"></i></span>
+                                            <input type="number" class="form-control" id="schemeSellPriorityFee" min="0">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeSellTipFee" class="form-label">卖出小费</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="bi bi-coin"></i></span>
+                                            <input type="number" class="form-control" id="schemeSellTipFee" min="0">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" type="checkbox" id="schemeIsDefault">
+                        <label class="form-check-label" for="schemeIsDefault">
+                            <i class="bi bi-star-fill text-warning me-1"></i> 设为默认参数模板
+                        </label>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end">
+                        <button type="button" class="btn btn-danger me-2" id="deleteSchemeBtn">
+                            <i class="bi bi-trash"></i> 删除模板
+                        </button>
+                        <button type="button" class="btn btn-primary" id="updateSchemeBtn">
+                            <i class="bi bi-save"></i> 保存更改
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 无参数模板提示 -->
+                <div id="noSchemeAlert" class="alert alert-warning d-none">
+                    没有可用的参数模板。请创建一个新模板。
+                </div>
+            </div>
+        </div>
+        
+        <!-- 交易开关设置 -->
+        <div class="card mb-4" id="tradeSettingsSection">
+            <div class="card-header bg-primary bg-opacity-10 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-toggles me-2"></i>交易开关设置</h5>
+            </div>
+            <div class="card-body">
+                <div class="row row-cols-1 row-cols-md-3 g-4">
+                    <div class="col">
+                        <div class="card h-100 border-primary">
+                            <div class="card-body d-flex align-items-center">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="pumpTradeEnable">
+                                    <label class="form-check-label" for="pumpTradeEnable">
+                                        <img src="/static/images/pump-logo.svg" alt="Pump" width="20" height="20" class="me-2">Pump 交易开关
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100 border-info">
+                            <div class="card-body d-flex align-items-center">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="pumpAmmTradeEnable">
+                                    <label class="form-check-label" for="pumpAmmTradeEnable">
+                                        <img src="/static/images/pumpamm-logo.svg" alt="Pump AMM" width="20" height="20" class="me-2">Pump AMM 交易开关
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100 border-success">
+                            <div class="card-body d-flex align-items-center">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="raydiumTradeEnable">
+                                    <label class="form-check-label" for="raydiumTradeEnable">
+                                        <img src="/static/images/raydium-logo.svg" alt="Raydium" width="20" height="20" class="me-2">Raydium 交易开关
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100 border-warning">
+                            <div class="card-body d-flex align-items-center">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="launchpadTradeEnable">
+                                    <label class="form-check-label" for="launchpadTradeEnable">
+                                        <img src="/static/images/bonk-logo.svg" alt="Bonk" width="20" height="20" class="me-2">Bonk 交易开关
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100 border-secondary">
+                            <div class="card-body d-flex align-items-center">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="meteoraDbcTradeEnable">
+                                    <label class="form-check-label" for="meteoraDbcTradeEnable">
+                                        <i class="bi bi-water me-2"></i>Meteora DBC 交易开关
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card h-100 border-danger">
+                            <div class="card-body d-flex align-items-center">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="repeatTradeEnable">
+                                    <label class="form-check-label" for="repeatTradeEnable">
+                                        <img src="/static/images/repeat-trade-logo.svg" alt="Repeat Trade" width="20" height="20" class="me-2">重复交易开关
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 d-flex justify-content-end">
+                    <button type="button" class="btn btn-primary" id="saveTradeSettingsBtn">
+                        <i class="bi bi-save"></i> 保存交易设置
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 卖出全局设置 -->
+        <div class="card mb-4" id="globalSellSettingsSection">
+            <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-graph-down me-2"></i>卖出全局设置</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info border-info">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-info-circle-fill me-3 fs-4"></i>
+                        <div>
+                            <h6 class="alert-heading mb-1">全局卖出策略</h6>
+                            <p class="mb-0">配置全局卖出策略参数，这些设置将影响所有交易的卖出行为。</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card border-warning mb-4">
+                    <div class="card-header bg-warning bg-opacity-10">
+                        <h6 class="mb-0"><i class="bi bi-percent me-2"></i>本金回收设置</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="capitalRecoveryPercent" class="form-label fw-semibold">
+                                        <i class="bi bi-arrow-up-circle me-1"></i>抽回本金盈利百分比 (%)
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-percent"></i></span>
+                                        <input 
+                                            type="number" 
+                                            class="form-control" 
+                                            id="capitalRecoveryPercent" 
+                                            min="0" 
+                                            max="100" 
+                                            step="0.1" 
+                                            value="0"
+                                            placeholder="输入盈利百分比"
+                                        >
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <div class="form-text">
+                                        <i class="bi bi-lightbulb me-1"></i>
+                                        <small>当代币盈利达到此百分比时，自动卖出部分代币回收本金。设为0表示禁用此功能。</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">
+                                        <i class="bi bi-calculator me-1"></i>策略说明
+                                    </label>
+                                    <div class="card bg-light">
+                                        <div class="card-body p-3">
+                                            <h6 class="card-title text-primary mb-2">本金回收策略</h6>
+                                            <ul class="list-unstyled mb-0 small">
+                                                <li class="mb-1"><i class="bi bi-check-circle text-success me-1"></i> 当盈利达到设定百分比时触发</li>
+                                                <li class="mb-1"><i class="bi bi-check-circle text-success me-1"></i> 自动卖出部分代币回收投入本金</li>
+                                                <li class="mb-1"><i class="bi bi-check-circle text-success me-1"></i> 剩余代币继续持有，实现零成本持仓</li>
+                                                <li class="mb-0"><i class="bi bi-check-circle text-success me-1"></i> 降低投资风险，锁定部分收益</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card border-danger">
+                    <div class="card-header bg-danger bg-opacity-10">
+                        <h6 class="mb-0"><i class="bi bi-shield-exclamation me-2"></i>开发者卖出监控</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="devSellEnable">
+                                    <label class="form-check-label fw-semibold" for="devSellEnable">
+                                        <i class="bi bi-eye me-1"></i>启用开发者卖出监控
+                                    </label>
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        <small>当代币创建者卖出代币时，自动卖出您持有的该代币。</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">
+                                        <i class="bi bi-shield-lock me-1"></i>安全策略说明
+                                    </label>
+                                    <div class="card bg-light">
+                                        <div class="card-body p-3">
+                                            <h6 class="card-title text-danger mb-2">开发者卖出监控</h6>
+                                            <ul class="list-unstyled mb-0 small">
+                                                <li class="mb-1"><i class="bi bi-exclamation-triangle text-danger me-1"></i> 实时监控代币创建者的卖出行为</li>
+                                                <li class="mb-1"><i class="bi bi-exclamation-triangle text-danger me-1"></i> 当创建者卖出时立即触发您的卖出操作</li>
+                                                <li class="mb-1"><i class="bi bi-exclamation-triangle text-danger me-1"></i> 有效防范地毯拉盘和开发者抛售</li>
+                                                <li class="mb-0"><i class="bi bi-exclamation-triangle text-danger me-1"></i> 保护您的投资免受突发风险</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 d-flex justify-content-end">
+                    <button type="button" class="btn btn-warning" id="saveGlobalSellSettingsBtn">
+                        <i class="bi bi-save me-1"></i> 保存全局卖出设置
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 黑名单管理 -->
+        <div class="card mb-4" id="blacklistManagementSection">
+            <div class="card-header bg-danger bg-opacity-10 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-3">
+                    <h5 class="mb-0"><i class="bi bi-shield-x me-2"></i>黑名单地址管理</h5>
+                    <span class="badge bg-danger" id="blacklistCountBadge">0 个</span>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#addBlacklistModal">
+                        <i class="bi bi-plus-circle"></i> 添加黑名单
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#batchAddBlacklistModal">
+                        <i class="bi bi-list-ul"></i> 批量添加
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning border-warning">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+                        <div>
+                            <h6 class="alert-heading mb-1">黑名单功能说明</h6>
+                            <p class="mb-0">添加可疑的"阴谋小号"地址到黑名单，跟单时如果发现黑名单地址已购买某代币，将自动跳过该代币，避免被砸盘。</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 黑名单列表 -->
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle" id="blacklistTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 5%">#</th>
+                                <th style="width: 35%">钱包地址</th>
+                                <th style="width: 25%">备注</th>
+                                <th style="width: 15%">添加时间</th>
+                                <th style="width: 10%">状态</th>
+                                <th style="width: 10%">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="blacklistTableBody">
+                            <!-- 黑名单列表将通过JS动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 无黑名单提示 -->
+                <div id="noBlacklistAlert" class="alert alert-info d-none">
+                    <i class="bi bi-info-circle me-2"></i>
+                    暂无黑名单地址。点击"添加黑名单"或"批量添加"按钮添加可疑地址。
+                </div>
+            </div>
+        </div>
+        
+        <!-- 私钥钱包管理 -->
+        <div class="card mb-4" id="privateKeyManagementSection">
+            <div class="card-header bg-warning bg-opacity-10 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-key me-2"></i>交易钱包管理</h5>
+                <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#importPrivateKeyModal">
+                    <i class="bi bi-plus-circle"></i> 导入私钥
+                </button>
+            </div>
+            <div class="card-body">
+                <!-- 私钥钱包列表 -->
+                <div id="privateKeyWalletList">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        私钥钱包用于执行自动交易，私钥将安全存储在服务器端。
+                    </div>
+                    <!-- 私钥钱包列表将通过JS动态加载 -->
+                </div>
+                
+                <!-- 无钱包提示 -->
+                <div id="noPrivateKeyWalletAlert" class="alert alert-warning d-none">
+                    没有私钥钱包。请导入一个私钥钱包。
+                </div>
+            </div>
+        </div>
+        
+        <div class="alert alert-success mt-3 d-none" id="successAlert">
+            操作成功！
+        </div>
+        
+        <div class="alert alert-danger mt-3 d-none" id="errorAlert">
+            操作失败！请检查输入并重试。
+        </div>
+    </div>
+
+    <!-- 添加钱包模态框 -->
+    <div class="modal fade" id="addWalletModal" tabindex="-1" aria-labelledby="addWalletModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addWalletModalLabel">添加监控钱包</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addWalletForm">
+                        <div class="mb-3">
+                            <label for="newWalletAddress" class="form-label">钱包地址</label>
+                            <input type="text" class="form-control" id="newWalletAddress" required>
+                            <div class="form-text">输入有效的Solana钱包地址进行监控</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newWalletName" class="form-label">钱包名称</label>
+                            <input type="text" class="form-control" id="newWalletName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newWalletType" class="form-label">钱包类型</label>
+                            <select class="form-select" id="newWalletType" required>
+                                <option value="high_frequency">高频交易</option>
+                                <option value="low_frequency">低频交易</option>
+                            </select>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="newTakeProfitPct" class="form-label">止盈 (%)</label>
+                                    <input type="number" class="form-control" id="newTakeProfitPct" min="1" value="100" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="newStopLossPct" class="form-label">止损 (%)</label>
+                                    <input type="number" class="form-control" id="newStopLossPct" min="1" value="10" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="newWalletEnabled" checked>
+                            <label class="form-check-label" for="newWalletEnabled">
+                                启用此钱包监控
+                            </label>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="newWalletFollowSell" checked>
+                            <label class="form-check-label" for="newWalletFollowSell">
+                                <i class="bi bi-arrow-down-circle"></i> 启用跟卖功能
+                            </label>
+                            <div class="form-text">启用后，当监控钱包卖出代币时，将自动按比例卖出</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveNewWalletBtn">添加钱包</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导入私钥模态框 -->
+    <div class="modal fade" id="importPrivateKeyModal" tabindex="-1" aria-labelledby="importPrivateKeyModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning bg-opacity-10">
+                    <h5 class="modal-title" id="importPrivateKeyModalLabel">
+                        <i class="bi bi-key me-2"></i>导入交易钱包
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning border-warning">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-exclamation-triangle-fill me-3 fs-4"></i>
+                            <div>
+                                <h6 class="alert-heading mb-1">导入提醒</h6>
+                                <p class="mb-0">确保导入钱包至少保留0.002sol</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form id="importPrivateKeyForm">
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="mb-4">
+                                    <label for="privateKeyInput" class="form-label fw-semibold">
+                                        <i class="bi bi-shield-lock me-1"></i>私钥或助记词
+                                    </label>
+                                    <textarea 
+                                        class="form-control" 
+                                        id="privateKeyInput" 
+                                        rows="4" 
+                                        required 
+                                        placeholder="输入64位十六进制私钥或12/24个单词的助记词"
+                                        style="font-family: 'Courier New', monospace; font-size: 0.9rem;"
+                                    ></textarea>
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        <small>支持格式：64位十六进制私钥、助记词短语（空格分隔）</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="mb-3">
+                                    <label for="pkWalletName" class="form-label fw-semibold">
+                                        <i class="bi bi-tag me-1"></i>钱包名称
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        class="form-control" 
+                                        id="pkWalletName" 
+                                        required
+                                        placeholder="为您的钱包设置一个易识别的名称"
+                                    >
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">
+                                        <i class="bi bi-check-circle me-1"></i>状态
+                                    </label>
+                                    <div class="form-control-plaintext">
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-shield-check me-1"></i>安全导入
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>取消
+                    </button>
+                    <button type="button" class="btn btn-warning" id="confirmImportPrivateKeyBtn">
+                        <i class="bi bi-key me-1"></i>导入私钥
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加参数模板模态框 -->
+    <div class="modal fade" id="addSchemeModal" tabindex="-1" aria-labelledby="addSchemeModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="addSchemeModalLabel"><i class="bi bi-gear-fill me-2"></i>创建新参数模板</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="newSchemeForm">
+                        <!-- 基本信息卡片 -->
+                        <div class="card mb-4 border-primary">
+                            <div class="card-header bg-primary bg-opacity-10">
+                                <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>基本信息</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="newSchemeName" class="form-label">模板名称</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-tag"></i></span>
+                                                <input type="text" class="form-control" id="newSchemeName" required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="newSchemeDescription" class="form-label">模板描述</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-card-text"></i></span>
+                                                <input type="text" class="form-control" id="newSchemeDescription">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 交易触发参数卡片 -->
+                        <div class="card mb-4 border-info">
+                            <div class="card-header bg-info bg-opacity-10">
+                                <h6 class="mb-0"><i class="bi bi-lightning-charge me-2"></i>交易触发参数</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                 
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeMinFollowTriggerAmount" class="form-label">最小跟单触发金额</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeMinFollowTriggerAmount" min="0" step="0.01" value="0.1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeMaxFollowTriggerAmount" class="form-label">最大跟单触发金额</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeMaxFollowTriggerAmount" min="0" step="0.01" value="10">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeMinPoolSize" class="form-label">最小池子大小 (SOL)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-water"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeMinPoolSize" min="0" step="0.1" value="1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeMaxPoolSize" class="form-label">最大池子大小 (SOL)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-water"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeMaxPoolSize" min="0" step="0.1" value="100">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 买入参数卡片 -->
+                        <div class="card mb-4 border-success">
+                            <div class="card-header bg-success bg-opacity-10">
+                                <h6 class="mb-0"><i class="bi bi-cart-plus me-2 text-success"></i>买入参数</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeBuySolAmount" class="form-label">购买金额 (SOL)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeBuySolAmount" min="0" step="0.01" value="0.5">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeBuySlippage" class="form-label">买入滑点 (0-1)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-sliders"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeBuySlippage" min="0" step="0.1" value="1">
+                                                <span class="input-group-text"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                                
+                                <div class="row">
+                                
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeBuyPriorityFee" class="form-label">买入优先费</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-lightning-charge"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeBuyPriorityFee" min="0" value="1000">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeBuyTipFee" class="form-label">买入小费</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-coin"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeBuyTipFee" min="0" value="0">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 卖出参数卡片 -->
+                        <div class="card mb-4 border-danger">
+                            <div class="card-header bg-danger bg-opacity-10">
+                                <h6 class="mb-0"><i class="bi bi-cart-dash me-2 text-danger"></i>卖出参数</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeSellDelayTime" class="form-label">卖出延迟时间 (毫秒)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-clock"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeSellDelayTime" min="0" value="0">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeSellSlippage" class="form-label">卖出滑点 (0-1)</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-sliders"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeSellSlippage" min="0" step="0.1" value="1">
+                                                <span class="input-group-text"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                  
+                                  
+                                </div>
+                                
+                                <div class="row">
+                                  
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeSellPriorityFee" class="form-label">卖出优先费</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-lightning-charge"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeSellPriorityFee" min="0" value="1000">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="newSchemeSellTipFee" class="form-label">卖出小费</label>
+                                            <div class="input-group">
+                                                <span class="input-group-text"><i class="bi bi-coin"></i></span>
+                                                <input type="number" class="form-control" id="newSchemeSellTipFee" min="0" value="0">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="newSchemeIsDefault">
+                            <label class="form-check-label" for="newSchemeIsDefault">
+                                <i class="bi bi-star-fill text-warning me-1"></i> 设为默认参数模板
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="bi bi-x-circle me-1"></i>取消</button>
+                    <button type="button" class="btn btn-primary" id="saveNewSchemeBtn"><i class="bi bi-save me-1"></i>创建模板</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 配置钱包模态框 -->
+    <div class="modal fade" id="walletConfigModal" tabindex="-1" aria-labelledby="walletConfigModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="walletConfigModalLabel">配置聪明钱包</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="walletConfigForm">
+                        <input type="hidden" id="cfgWalletAddress">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">备注</label>
+                                <input type="text" class="form-control" id="cfgWalletNote" placeholder="输入备注...">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">风险等级</label>
+                                <select class="form-select" id="cfgWalletRisk">
+                                    <option value="">未设置</option>
+                                    <option value="high">高风险</option>
+                                    <option value="medium">中风险</option>
+                                    <option value="low">低风险</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="cfgWalletEnabled">
+                                    <label class="form-check-label" for="cfgWalletEnabled">启用监控</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label"><i class="bi bi-link-45deg me-1"></i>绑定参数模板</label>
+                                <select class="form-select" id="cfgWalletParamScheme">
+                                    <option value="">不绑定参数模板</option>
+                                </select>
+                                <div class="form-text">绑定后，该钱包将使用所选模板的交易参数</div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">止盈 (%)</label>
+                                <input type="number" class="form-control" id="cfgTakeProfitPct" min="1" value="100">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">止损 (%)</label>
+                                <input type="number" class="form-control" id="cfgStopLossPct" min="1" value="10">
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="cfgWalletFollowSell">
+                                    <label class="form-check-label" for="cfgWalletFollowSell"><i class="bi bi-arrow-down-circle"></i> 启用跟卖功能</label>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveWalletConfigBtn"><i class="bi bi-save"></i> 保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加黑名单模态框 -->
+    <div class="modal fade" id="addBlacklistModal" tabindex="-1" aria-labelledby="addBlacklistModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="addBlacklistModalLabel"><i class="bi bi-shield-x me-2"></i>添加黑名单地址</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addBlacklistForm">
+                        <div class="mb-3">
+                            <label for="blacklistAddress" class="form-label">钱包地址 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="blacklistAddress" required placeholder="输入Solana钱包地址">
+                            <div class="form-text">请输入完整的Solana钱包地址</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="blacklistNote" class="form-label">备注说明</label>
+                            <textarea class="form-control" id="blacklistNote" rows="3" placeholder="添加备注信息，例如：阴谋小号、砸盘地址等"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" id="confirmAddBlacklistBtn"><i class="bi bi-plus-circle"></i> 添加</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量添加黑名单模态框 -->
+    <div class="modal fade" id="batchAddBlacklistModal" tabindex="-1" aria-labelledby="batchAddBlacklistModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="batchAddBlacklistModalLabel"><i class="bi bi-list-ul me-2"></i>批量添加黑名单地址</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="batchAddBlacklistForm">
+                        <div class="mb-3">
+                            <label for="batchBlacklistAddresses" class="form-label">钱包地址列表 <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="batchBlacklistAddresses" rows="8" required placeholder="输入多个钱包地址，支持逗号、分号或换行符分隔&#10;例如：&#10;addr1,addr2,addr3&#10;或&#10;addr1&#10;addr2&#10;addr3"></textarea>
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>
+                                支持逗号、分号或换行符分隔多个地址
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="batchBlacklistNote" class="form-label">统一备注</label>
+                            <input type="text" class="form-control" id="batchBlacklistNote" placeholder="为所有地址添加统一备注">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" id="confirmBatchAddBlacklistBtn"><i class="bi bi-plus-circle"></i> 批量添加</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑黑名单模态框 -->
+    <div class="modal fade" id="editBlacklistModal" tabindex="-1" aria-labelledby="editBlacklistModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title" id="editBlacklistModalLabel"><i class="bi bi-pencil me-2"></i>编辑黑名单地址</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editBlacklistForm">
+                        <div class="mb-3">
+                            <label class="form-label">钱包地址</label>
+                            <input type="text" class="form-control" id="editBlacklistAddress" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editBlacklistNote" class="form-label">备注说明</label>
+                            <textarea class="form-control" id="editBlacklistNote" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="editBlacklistEnabled">
+                                <label class="form-check-label" for="editBlacklistEnabled">启用此黑名单</label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-warning" id="confirmEditBlacklistBtn"><i class="bi bi-save"></i> 保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Restart Confirmation Modal -->
+    <div class="modal fade" id="restartConfirmModal" tabindex="-1" aria-labelledby="restartConfirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="restartConfirmModalLabel">确认重启</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    您确定要重启服务器进程吗？该操作将短暂中断服务。
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" id="confirmRestartBtn">确定重启</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

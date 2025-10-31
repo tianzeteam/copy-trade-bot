@@ -1203,7 +1203,6 @@ func (m *TransactionMonitor) executeDbcCopyTrade(tradeInfo *global.DbcTradeEvent
 	
 	// 记录机器人的跟单交易
 	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress.String(), originalWallet, m.BotWallet, tradeInfo.CurrentPrice)
-
 }
 
 // executeDbcSellTrade 执行DBC跟单卖出

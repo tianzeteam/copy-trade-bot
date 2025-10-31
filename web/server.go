@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 
@@ -128,6 +129,7 @@ func (s *WebServer) RegisterRoutes() {
 		// 注册交易设置API
 		api.GET("/trade-settings", s.handleGetTradeSettings)
 		api.POST("/trade-settings", s.handleUpdateTradeSettings)
+		api.POST("/restart-process", s.handleRestartProcess)
 	}
 
 	// 注册钱包控制器（需要认证）
@@ -244,6 +246,32 @@ func (s *WebServer) handleGetTradeSettings(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, tradeSettings)
+}
+
+// handleRestartProcess handles the server restart request.
+func (s *WebServer) handleRestartProcess(ctx *gin.Context) {
+	// Command to restart the supervisor process
+	// Assuming the process name is 'copy-trade-bot'. This might need to be configured.
+	cmd := exec.Command("sudo", "supervisorctl", "restart", "all")
+
+	// Execute the command
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.Errorf("Failed to restart supervisor process: %v, output: %s", err, string(output))
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to restart server process.",
+			"details": err.Error(),
+			"output":  string(output),
+		})
+		return
+	}
+
+	logger.Infof("Supervisor process restarted successfully. Output: %s", string(output))
+	ctx.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "Server process is restarting.",
+		"output":  string(output),
+	})
 }
 
 // handleUpdateTradeSettings 更新交易设置

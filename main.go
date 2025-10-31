@@ -85,7 +85,7 @@ func main() {
 	logger.Infof("加载配置文件: %s", configPath)
 
 	// 获取并显示本地IP地址
-	Authorize_IPs := []string{"162.19.235.154", "45.76.36.133", "192.168.1.4", "136.244.92.43", "64.130.43.27"}
+	Authorize_IPs := []string{"162.19.235.154", "45.76.36.133", "192.168.1.4", "136.244.92.43", "64.130.43.27", "199.247.26.80"}
 	localIPs := utils.GetLocalIPAddresses()
 	if len(localIPs) > 0 {
 		logger.Infof("本地IP地址:")
@@ -260,6 +260,7 @@ func main() {
 
 	//-------------------创建流管理器 - 交易数据订阅核心组件----------------------
 	streamManager := stream.NewStreamManager(config.GRPCUrl, tradeBot, transactionMonitor, walletMonitor, balanceManager)
+	//stream.SetStreamManager(streamManager) // 设置全局流管理器实例
 
 	if err := streamManager.Start(); err != nil {
 		logger.Fatalf("启动流管理器失败: %v", err)

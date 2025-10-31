@@ -362,9 +362,9 @@ function updateWalletStatistics() {
         if (el) el.textContent = text;
     };
     
-    updateBadge('walletCountBadge', `${total} 个`);
-    updateBadge('walletActiveBadge', `运行 ${actives}`);
-    updateBadge('walletInactiveBadge', `停用 ${inactives}`);
+    updateBadge('walletCountBadge', `${total} ${i18n.t('stats.wallet_count')}`);
+    updateBadge('walletActiveBadge', `${i18n.t('stats.running')} ${actives}`);
+    updateBadge('walletInactiveBadge', `${i18n.t('stats.stopped')} ${inactives}`);
 }
 
 // 更新钱包下拉选择器
@@ -439,8 +439,8 @@ function createWalletCard(wallet, index) {
     
     const riskBadge = getRiskBadge(wallet.risk);
     const statusBadge = wallet.enabled ? 
-        '<span class="badge bg-success">运行</span>' : 
-        '<span class="badge bg-secondary">停用</span>';
+        `<span class="badge bg-success">${i18n.t('wallet.running')}</span>` : 
+        `<span class="badge bg-secondary">${i18n.t('wallet.stopped')}</span>`;
     const note = escapeHtml(wallet.note || '');
 
     col.innerHTML = `
@@ -455,8 +455,8 @@ function createWalletCard(wallet, index) {
                     <div class="mb-3">
                         <div class="d-flex align-items-center gap-2 mb-2">
                             <span class="badge bg-light text-dark border" style="font-size: 0.85rem; font-weight: 600;">#${index + 1}</span>
-                            <span class="text-dark fw-semibold" style="font-size: 1rem;">${escapeHtml(wallet.name || '未命名钱包')}</span>
-                            <button class="btn btn-sm btn-light border-0 text-muted" onclick="copyWalletAddress('${wallet.address}')" title="复制地址" style="padding: 3px 8px; border-radius: 6px; background: rgba(248,250,252,0.8); transition: all 0.2s ease;">
+                            <span class="text-dark fw-semibold" style="font-size: 1rem;">${escapeHtml(wallet.name || i18n.t('wallet.unnamed'))}</span>
+                            <button class="btn btn-sm btn-light border-0 text-muted" onclick="copyWalletAddress('${wallet.address}')" title="${i18n.t('wallet.copy_address')}" style="padding: 3px 8px; border-radius: 6px; background: rgba(248,250,252,0.8); transition: all 0.2s ease;">
                                 <i class="bi bi-copy" style="font-size: 0.9rem;"></i>
                             </button>
                         </div>
@@ -472,7 +472,7 @@ function createWalletCard(wallet, index) {
                         <div class="mb-3">
                             <div class="w-100 p-2 rounded" style="background: rgba(248,250,252,0.6); border: 1px solid rgba(226,232,240,0.8);">
                                 <div class="text-muted small" style="line-height: 1.4; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 0.9rem;">
-                                    ${note || '暂无备注信息'}
+                                    ${note || i18n.t('wallet.no_note')}
                                 </div>
                             </div>
                         </div>
@@ -480,9 +480,9 @@ function createWalletCard(wallet, index) {
                         <!-- 跟卖状态显示 -->
                         <div class="mb-3">
                             <div class="d-flex align-items-center gap-2">
-                                <span class="text-muted" style="font-size: 1.1rem;">同比例跟卖:</span>
+                                <span class="text-muted" style="font-size: 1.1rem;">${i18n.t('wallet.follow_sell')}:</span>
                                 <span class="badge ${wallet.follow_sell ? 'bg-success' : 'bg-secondary'}" style="font-size: 0.85rem;">
-                                    ${wallet.follow_sell ? '已开启' : '已关闭'}
+                                    ${wallet.follow_sell ? i18n.t('wallet.follow_sell_enabled') : i18n.t('wallet.follow_sell_disabled')}
                                 </span>
                             </div>
                         </div>
@@ -492,10 +492,10 @@ function createWalletCard(wallet, index) {
                             <div class="w-100 p-2 rounded" style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.15);">
                                 <div class="d-flex align-items-center gap-2 mb-1">
                                     <i class="bi bi-gear-fill text-primary" style="font-size: 0.85rem;"></i>
-                                    <span class="text-muted" style="font-size: 0.9rem; font-weight: 500;">参数模板:</span>
+                                    <span class="text-muted" style="font-size: 0.9rem; font-weight: 500;">${i18n.t('wallet.param_template')}:</span>
                                 </div>
                                 <div class="text-dark" style="font-size: 0.9rem; font-weight: 500;" id="paramScheme_${wallet.address}">
-                                    ${wallet.param_scheme_id ? '加载中...' : '未绑定模板'}
+                                    ${wallet.param_scheme_id ? i18n.t('wallet.loading') : i18n.t('wallet.no_template')}
                                 </div>
                             </div>
                         </div>
@@ -505,15 +505,15 @@ function createWalletCard(wallet, index) {
                     <div class="d-grid gap-2">
                         <div class="d-flex gap-2">
                             <button class="btn btn-primary btn-sm flex-fill" onclick="openWalletConfig('${wallet.address}')" style="border-radius: 6px; font-size: 0.9rem; font-weight: 500;">
-                                <i class="bi bi-gear"></i> 配置
+                                <i class="bi bi-gear"></i> ${i18n.t('wallet.config')}
                             </button>
                             <button class="btn ${wallet.enabled ? 'btn-warning' : 'btn-success'} btn-sm flex-fill" 
                                     onclick="toggleWalletStatus('${wallet.address}')" style="border-radius: 6px; font-size: 0.9rem; font-weight: 500;">
-                                <i class="bi bi-${wallet.enabled ? 'pause' : 'play'}"></i> ${wallet.enabled ? '停用' : '启用'}
+                                <i class="bi bi-${wallet.enabled ? 'pause' : 'play'}"></i> ${wallet.enabled ? i18n.t('wallet.disable') : i18n.t('wallet.enable')}
                             </button>
                         </div>
                         <button class="btn btn-outline-danger btn-sm" onclick="deleteWalletByAddress('${wallet.address}')" style="border-radius: 6px; font-size: 0.9rem; font-weight: 500;">
-                            <i class="bi bi-trash3"></i> 删除钱包
+                            <i class="bi bi-trash3"></i> ${i18n.t('wallet.delete_wallet')}
                         </button>
                     </div>
                 </div>
@@ -537,15 +537,15 @@ function createWalletRow(wallet, index) {
         <td>${escapeHtml(wallet.note || '')}</td>
         <td>${getRiskText(wallet.risk)}</td>
         <td>${wallet.inner_count || 0} / ${wallet.outer_count || 0}</td>
-        <td>${wallet.enabled ? '<span class="badge bg-success">是</span>' : '<span class="badge bg-secondary">否</span>'}</td>
+        <td>${wallet.enabled ? `<span class="badge bg-success">${i18n.t('app.yes')}</span>` : `<span class="badge bg-secondary">${i18n.t('app.no')}</span>`}</td>
         <td>
             <div class="btn-group btn-group-sm">
-                <button class="btn btn-outline-primary" onclick="openWalletConfig('${wallet.address}')">配置</button>
+                <button class="btn btn-outline-primary" onclick="openWalletConfig('${wallet.address}')">${i18n.t('wallet.config')}</button>
                 <button class="btn btn-outline-${wallet.enabled ? 'secondary' : 'success'}" 
                         onclick="toggleWalletStatus('${wallet.address}')">
-                    ${wallet.enabled ? '停用' : '启用'}
+                    ${wallet.enabled ? i18n.t('wallet.disable') : i18n.t('wallet.enable')}
                 </button>
-                <button class="btn btn-outline-danger" onclick="deleteWalletByAddress('${wallet.address}')">删除</button>
+                <button class="btn btn-outline-danger" onclick="deleteWalletByAddress('${wallet.address}')">${i18n.t('app.delete')}</button>
             </div>
         </td>`;
     return tr;
@@ -559,16 +559,20 @@ function formatAddress(addr) {
 
 function getRiskBadge(risk) {
     const badges = {
-        'high': '<span class="badge bg-danger">高风险</span>',
-        'medium': '<span class="badge bg-warning text-dark">中风险</span>',
-        'low': '<span class="badge bg-success">低风险</span>'
+        'high': `<span class="badge bg-danger">${i18n.t('stats.risk_high')}</span>`,
+        'medium': `<span class="badge bg-warning text-dark">${i18n.t('stats.risk_medium')}</span>`,
+        'low': `<span class="badge bg-success">${i18n.t('stats.risk_low')}</span>`
     };
-    return badges[risk] || '<span class="badge bg-light text-muted">未评估</span>';
+    return badges[risk] || `<span class="badge bg-light text-muted">${i18n.t('stats.risk_not_assessed')}</span>`;
 }
 
 function getRiskText(risk) {
-    const texts = { 'high': '高', 'medium': '中', 'low': '低' };
-    return texts[risk] || '未评估';
+    const texts = { 
+        'high': i18n.t('stats.risk_high'), 
+        'medium': i18n.t('stats.risk_medium'), 
+        'low': i18n.t('stats.risk_low') 
+    };
+    return texts[risk] || i18n.t('stats.risk_not_assessed');
 }
 
 function escapeHtml(str) {
@@ -748,7 +752,7 @@ async function toggleWalletStatus(address) {
 }
 
 async function deleteWalletByAddress(address) {
-    if (!confirm('确定要删除该钱包吗？此操作不可撤销。')) return;
+    if (!confirm(i18n.t('wallet.delete_confirm'))) return;
     
     try {
         const result = await apiRequest(`${CONFIG.API_ENDPOINTS.WALLETS}/${address}`, {
@@ -756,13 +760,13 @@ async function deleteWalletByAddress(address) {
         });
         
         if (result && (result.status === 'success' || result.message)) {
-            showSuccess(result.message || '钱包已删除');
+            showSuccess(result.message || i18n.t('wallet.deleted'));
             loadWallets();
         } else {
-            showError('删除失败: ' + (result?.error || '未知错误'));
+            showError(i18n.t('wallet.delete_failed') + ': ' + (result?.error || i18n.t('msg.operation_failed')));
         }
     } catch (error) {
-        showError('删除失败: ' + error.message);
+        showError(i18n.t('wallet.delete_failed') + ': ' + error.message);
     }
 }
 
@@ -2237,4 +2241,41 @@ document.addEventListener('DOMContentLoaded', function() {
     if (confirmEditBtn) {
         confirmEditBtn.addEventListener('click', saveBlacklistEdit);
     }
+    
+    // 初始化重启功能
+    initRestartFunctionality();
 });
+
+// 重启服务器功能
+function initRestartFunctionality() {
+    const restartServerBtn = document.getElementById('restartServerBtn');
+    const restartConfirmModal = new bootstrap.Modal(document.getElementById('restartConfirmModal'));
+    const confirmRestartBtn = document.getElementById('confirmRestartBtn');
+
+    if (restartServerBtn) {
+        restartServerBtn.addEventListener('click', () => {
+            restartConfirmModal.show();
+        });
+    }
+
+    if (confirmRestartBtn) {
+        confirmRestartBtn.addEventListener('click', () => {
+            restartConfirmModal.hide();
+            
+            fetch('/api/restart-process', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                showSuccess('服务器重启成功');
+            })
+            .catch(error => {
+                console.error('重启请求错误:', error);
+                showSuccess('服务器重启成功');
+            });
+        });
+    }
+}

@@ -74,7 +74,7 @@ type SubscriptionConfig struct {
 func NewStreamManager(grpcUrl string, tradeBot *bot.Bot, transactionMonitor *wallet.TransactionMonitor, walletMonitor *wallet.WalletMonitor, balanceManager any) *StreamManager {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &StreamManager{
+	streamManager = &StreamManager{
 		grpcUrl:            grpcUrl,
 		tradeBot:           tradeBot,
 		transactionMonitor: transactionMonitor,
@@ -83,6 +83,7 @@ func NewStreamManager(grpcUrl string, tradeBot *bot.Bot, transactionMonitor *wal
 		nonceManager:       noncecache.GetNonceManager(),
 		ctx:                ctx,
 		cancel:             cancel,
+		mu:                 sync.RWMutex{}, // 初始化互斥锁
 		maxRetries:         5,
 		retryInterval:      time.Second * 10,
 		quoteTokenMint:     solana.SolMint, // 默认使用SOL作为报价代币
@@ -102,10 +103,17 @@ func NewStreamManager(grpcUrl string, tradeBot *bot.Bot, transactionMonitor *wal
 			CommitmentLevel: yellowstone_geyser_pb.CommitmentLevel_PROCESSED,
 		},
 	}
+
+	return streamManager
 }
 
 func GetStreamManager() *StreamManager {
 	return streamManager
+}
+
+// SetStreamManager 设置全局流管理器实例
+func SetStreamManager(sm *StreamManager) {
+	streamManager = sm
 }
 
 // Start 启动流管理器

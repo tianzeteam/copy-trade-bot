@@ -371,6 +371,11 @@ func (b *Bot) MeteoraDbcParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx co
 					CopyAddress:  walletAddress,
 				}
 				go b.sdkClient.PublishDelayedCPMessage(b.Config.TradeChannel, message, specialScheme.SellDelayTime)
+				
+				// 启动盈利目标监控
+				creatorPubkey := solana.PublicKey{} // DBC没有creator概念，使用空值
+				b.StartProfitTargetMonitoring(mintAddress, "meteora-dbc", tradeInfo.CurrentPrice, 
+					tradeInfo.TokenAmount, creatorPubkey, botWallet)
 			}
 
 		} else {

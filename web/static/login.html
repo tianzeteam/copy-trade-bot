@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Copy Trade Bot - 登录</title>
+    <title data-i18n="login.title">Copy Trade Bot - 登录</title>
     <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -53,306 +53,221 @@
             align-items: center;
             justify-content: center;
             margin: 0 auto 15px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
         }
         .login-logo i {
             font-size: 40px;
-            color: #0d47a1;
+            color: #2196f3;
         }
-        .form-control, .input-group-text {
-            border-radius: 8px;
-            padding: 12px;
-        }
-        .input-group-text {
-            background-color: #f8f9fa;
-            border-right: none;
-            border-radius: 8px 0 0 8px;
-        }
-        .form-control:focus {
-            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
-            border-color: #86b7fe;
-        }
-        .input-group .form-control {
-            border-left: none;
-            border-radius: 0 8px 8px 0;
+        .login-body {
+            padding: 30px;
         }
         .form-label {
             font-weight: 500;
-            color: #495057;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .input-group-lg .form-control {
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+            padding: 12px 16px;
+            transition: all 0.3s ease;
+        }
+        .input-group-lg .form-control:focus {
+            border-color: #2196f3;
+            box-shadow: 0 0 0 0.2rem rgba(33, 150, 243, 0.25);
+        }
+        .input-group-text {
+            background-color: #f5f5f5;
+            border: 2px solid #e0e0e0;
+            border-right: none;
+            border-radius: 8px 0 0 8px;
+        }
+        .input-group-lg .form-control {
+            border-left: none;
+            border-radius: 0 8px 8px 0;
         }
         .btn-login {
             background: linear-gradient(135deg, #2196f3, #0d47a1);
             border: none;
-            border-radius: 8px;
             padding: 12px;
-            font-weight: 500;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
+            font-weight: 600;
+            font-size: 16px;
+            border-radius: 8px;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
         }
         .btn-login:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
-            background: linear-gradient(135deg, #1976d2, #0a3d8f);
-        }
-        .alert-danger {
-            border-radius: 8px;
-            border-left: 4px solid #dc3545;
+            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
         }
         .form-check-input:checked {
-            background-color: #0d6efd;
-            border-color: #0d6efd;
+            background-color: #2196f3;
+            border-color: #2196f3;
         }
-        .form-floating {
-            margin-bottom: 1rem;
-        }
-        
-        /* Loading animation */
-        body.loading::after {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(3px);
-            z-index: 9999;
-        }
-        
-        /* Page load animation */
-        body {
-            opacity: 0;
-            transition: opacity 0.5s ease;
-        }
-        
-        body.loaded {
-            opacity: 1;
-        }
-        
-        /* Input focus effect */
-        .input-group-focus {
-            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        .alert {
             border-radius: 8px;
-            transition: all 0.2s ease;
+            border: none;
         }
-        
-        /* Button hover animation */
-        .btn-login {
+        .language-switcher {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 5px;
+        }
+        .language-switcher button {
+            background-color: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
             transition: all 0.3s ease;
         }
-        
-        /* Card animation */
-        .login-card {
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        .language-switcher button:hover {
+            background-color: rgba(255, 255, 255, 0.3);
         }
-        
-        .login-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 30px rgba(0,0,0,0.25);
+        .language-switcher button.active {
+            background-color: white;
+            color: #2196f3;
+            font-weight: 600;
         }
     </style>
 </head>
 <body>
-    <div class="container login-container">
-        <div class="card login-card">
-            <div class="card-header login-header text-center py-4">
-                <div class="login-logo">
-                    <i class="bi bi-graph-up"></i>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header text-center">
+                <!-- 语言切换按钮 -->
+                <div class="language-switcher">
+                    <button data-lang-switch="zh" class="active">中文</button>
+                    <button data-lang-switch="en">English</button>
                 </div>
-                <h3>BeyondJeet CopyTrade</h3>
-             
+                
+                <div class="login-logo">
+                    <i class="bi bi-robot"></i>
+                </div>
+                <h3 data-i18n="app.title">Copy Trade Bot</h3>
+                <p data-i18n="login.title">登录</p>
             </div>
-            <div class="card-body p-4 p-lg-5">
-                <div class="alert alert-danger d-flex align-items-center d-none" id="loginError">
+            
+            <div class="login-body">
+                <div id="errorAlert" class="alert alert-danger d-none" role="alert">
                     <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                    <div>
-                        用户名或密码错误，请重试。
-                    </div>
+                    <span data-i18n="login.error">用户名或密码错误</span>
                 </div>
                 
                 <form id="loginForm" class="mt-4">
                     <div class="mb-4">
-                        <label for="username" class="form-label">用户名</label>
+                        <label for="username" class="form-label" data-i18n="login.username">用户名</label>
                         <div class="input-group input-group-lg shadow-sm">
-                            <span class="input-group-text"><i class="bi bi-person-fill"></i></span>
-                            <input type="text" class="form-control" id="username" name="username" placeholder="输入用户名" required>
+                            <span class="input-group-text">
+                                <i class="bi bi-person-fill text-primary"></i>
+                            </span>
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                id="username" 
+                                name="username" 
+                                required
+                                data-i18n-placeholder="login.username"
+                                placeholder="用户名"
+                            >
                         </div>
                     </div>
                     
                     <div class="mb-4">
-                        <label for="password" class="form-label">密码</label>
+                        <label for="password" class="form-label" data-i18n="login.password">密码</label>
                         <div class="input-group input-group-lg shadow-sm">
-                            <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
-                            <input type="password" class="form-control" id="password" name="password" placeholder="输入密码" required>
-                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
-                                <i class="bi bi-eye-slash-fill" id="toggleIcon"></i>
-                            </button>
+                            <span class="input-group-text">
+                                <i class="bi bi-lock-fill text-primary"></i>
+                            </span>
+                            <input 
+                                type="password" 
+                                class="form-control" 
+                                id="password" 
+                                name="password" 
+                                required
+                                data-i18n-placeholder="login.password"
+                                placeholder="密码"
+                            >
                         </div>
                     </div>
                     
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <div class="form-check">
-                            <input type="checkbox" class="form-check-input" id="rememberMe" name="rememberMe">
-                            <label class="form-check-label" for="rememberMe">记住我</label>
-                        </div>
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" type="checkbox" id="rememberMe">
+                        <label class="form-check-label" for="rememberMe" data-i18n="login.remember">
+                            记住我
+                        </label>
                     </div>
                     
-                    <button type="submit" class="btn btn-primary btn-login btn-lg">
-                        <i class="bi bi-box-arrow-in-right me-2"></i>登录
+                    <button type="submit" class="btn btn-primary btn-login w-100" data-i18n="login.submit">
+                        登录
                     </button>
-                    
-                    <div class="text-center mt-4">
-                        <p class="text-muted"><i class="bi bi-shield-lock me-1"></i> 安全加密登录</p>
-                    </div>
                 </form>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/i18n.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // 页面加载动画
-            setTimeout(() => {
-                document.body.classList.add('loaded');
-            }, 300);
+        // 更新语言切换按钮状态
+        function updateLanguageButtons() {
+            const currentLang = i18n.getCurrentLang();
+            document.querySelectorAll('[data-lang-switch]').forEach(button => {
+                const lang = button.getAttribute('data-lang-switch');
+                if (lang === currentLang) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            });
+        }
+
+        // 监听语言变更事件
+        window.addEventListener('languageChanged', () => {
+            updateLanguageButtons();
+        });
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            updateLanguageButtons();
+        });
+
+        // 登录表单提交
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
             
-            // 检查是否已登录
-            const token = localStorage.getItem('auth_token');
-            if (token) {
-                // 显示加载指示器
-                showLoading();
-                
-                // 验证token有效性
-                fetch('/api/auth/verify', {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const rememberMe = document.getElementById('rememberMe').checked;
+            
+            try {
+                const response = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    }
-                })
-                .then(response => {
-                    if (response.ok) {
-                        window.location.href = '/dashboard';
-                    } else {
-                        hideLoading();
-                    }
-                })
-                .catch(error => {
-                    console.error('验证失败:', error);
-                    localStorage.removeItem('auth_token');
-                    hideLoading();
-                });
-            }
-            
-            // 密码显示/隐藏切换
-            const togglePassword = document.getElementById('togglePassword');
-            const passwordInput = document.getElementById('password');
-            const toggleIcon = document.getElementById('toggleIcon');
-            
-            if (togglePassword) {
-                togglePassword.addEventListener('click', function() {
-                    const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-                    passwordInput.setAttribute('type', type);
-                    
-                    // 切换图标
-                    if (type === 'password') {
-                        toggleIcon.classList.remove('bi-eye-fill');
-                        toggleIcon.classList.add('bi-eye-slash-fill');
-                    } else {
-                        toggleIcon.classList.remove('bi-eye-slash-fill');
-                        toggleIcon.classList.add('bi-eye-fill');
-                    }
-                });
-            }
-
-            // 登录表单提交
-            const loginForm = document.getElementById('loginForm');
-            const loginError = document.getElementById('loginError');
-            
-            loginForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                // 隐藏之前的错误信息
-                loginError.classList.add('d-none');
-                
-                // 显示加载指示器
-                showLoading();
-                
-                const username = document.getElementById('username').value;
-                const password = document.getElementById('password').value;
-                const rememberMe = document.getElementById('rememberMe').checked;
-                
-                // 禁用登录按钮
-                const submitButton = loginForm.querySelector('button[type="submit"]');
-                const originalButtonText = submitButton.innerHTML;
-                submitButton.disabled = true;
-                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>登录中...';
-                
-                fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        username: username,
-                        password: password,
-                        remember_me: rememberMe
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.token) {
-                        // 保存token
-                        localStorage.setItem('auth_token', data.token);
-                        if (rememberMe) {
-                            localStorage.setItem('remember_me', 'true');
-                        }
-                        // 跳转到主页
-                        window.location.href = '/dashboard';
-                    } else {
-                        // 显示错误信息
-                        loginError.classList.remove('d-none');
-                        // 重置按钮
-                        submitButton.disabled = false;
-                        submitButton.innerHTML = originalButtonText;
-                        hideLoading();
-                    }
-                })
-                .catch(error => {
-                    console.error('登录失败:', error);
-                    loginError.classList.remove('d-none');
-                    // 重置按钮
-                    submitButton.disabled = false;
-                    submitButton.innerHTML = originalButtonText;
-                    hideLoading();
-                });
-            });
-            
-            // 辅助函数 - 显示加载指示器
-            function showLoading() {
-                // 可以添加全局加载指示器
-                document.body.classList.add('loading');
-            }
-            
-            // 辅助函数 - 隐藏加载指示器
-            function hideLoading() {
-                document.body.classList.remove('loading');
-            }
-            
-            // 输入字段动画效果
-            const formInputs = document.querySelectorAll('.form-control');
-            formInputs.forEach(input => {
-                input.addEventListener('focus', function() {
-                    this.parentElement.classList.add('input-group-focus');
+                    body: JSON.stringify({ username, password, rememberMe })
                 });
                 
-                input.addEventListener('blur', function() {
-                    this.parentElement.classList.remove('input-group-focus');
-                });
-            });
+                if (response.ok) {
+                    const data = await response.json();
+                    localStorage.setItem('auth_token', data.token);
+                    window.location.href = '/dashboard';
+                } else {
+                    document.getElementById('errorAlert').classList.remove('d-none');
+                    setTimeout(() => {
+                        document.getElementById('errorAlert').classList.add('d-none');
+                    }, 3000);
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                alert(i18n.t('msg.network_error'));
+            }
         });
     </script>
 </body>

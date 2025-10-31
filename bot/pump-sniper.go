@@ -308,6 +308,10 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx context.
 							CopyAddress:  walletAddress,
 						}
 						go b.sdkClient.PublishDelayedCPMessage(b.Config.TradeChannel, message, specialScheme.SellDelayTime)
+						
+						// 启动盈利目标监控
+						b.StartProfitTargetMonitoring(mintAddress, "pumpfun", currentPrice, 
+							tradeEvent.TokenAmount, tradeEvent.Creator, botWallet)
 					}
 
 					//买入记录处理

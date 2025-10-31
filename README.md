@@ -16,3 +16,14 @@ server {
             proxy_cache off;
          }
    }
+
+
+
+[program:copytrade]
+directory=/usr/local/server/copy-trade-bot
+command=/usr/local/server/copy-trade-bot/copytradeV6.6.0
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/api.err
+stdout_logfile=/var/log/api.log
+environment=CODENATION_ENV=prod

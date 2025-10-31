@@ -42,6 +42,9 @@ type Bot struct {
 	// 卖出策略
 	sellStrategy SellStrategy
 
+	// 盈利目标监控器
+	profitMonitor *ProfitTargetMonitor
+
 	// OpenBook market states map, with baseMint as key
 	marketStates     map[string]*MarketState
 	marketStatesLock sync.RWMutex
@@ -146,8 +149,45 @@ func NewBot(config *utils.Config, sdkClient *sdk.TradeSubscriptionClient) (*Bot,
 		marketStates:     make(map[string]*MarketState),
 		marketStatesLock: sync.RWMutex{},
 	}
+	
+	// 初始化盈利目标监控器（需要在Bot创建后初始化，因为需要传入bot实例）
+	b.profitMonitor = NewProfitTargetMonitor(&config.ProfitTargetMonitor, b)
+	
 	b.fetchBlockhashLoop()
 	return b, nil
+}
+
+// GetProfitMonitor 获取盈利目标监控器
+func (b *Bot) GetProfitMonitor() *ProfitTargetMonitor {
+	return b.profitMonitor
+}
+
+// StartProfitTargetMonitoring 启动盈利目标监控
+func (b *Bot) StartProfitTargetMonitoring(mintAddress string, platform string, buyPrice float64, buyAmount uint64, creator solana.PublicKey, owner solana.PublicKey) {
+	// 检查是否启用盈利目标监控
+	if !b.Config.ProfitTargetMonitor.Enable {
+		return
+	}
+	
+	// 创建监控任务
+	task := &ProfitTargetTask{
+		MintAddress:        mintAddress,
+		WalletAddress:      owner.String(),
+		Platform:           platform,
+		BuyPrice:           buyPrice,
+		BuyAmount:          buyAmount,
+		BuyTime:            time.Now(),
+		TargetProfit:       b.Config.ProfitTargetMonitor.TargetProfitPercent,
+		Timeout:            time.Duration(b.Config.ProfitTargetMonitor.Timeout) * time.Second,
+		PartialSellPercent: b.Config.ProfitTargetMonitor.PartialSellPercent,
+		FullExitOnTimeout:  b.Config.ProfitTargetMonitor.FullExitOnTimeout,
+		CancelChan:         make(chan struct{}),
+		Owner:              owner,
+		Creator:            creator,
+	}
+	
+	// 启动监控
+	b.profitMonitor.StartMonitoring(task)
 }
 
 // NewCoin creates a new Coin instance with the provided parameters
