@@ -228,7 +228,7 @@ const translations = {
         'nav.blacklist': 'Blacklist Management',
         'nav.logout': 'Logout',
         'nav.language': 'Language',
-        'nav.restart': 'Restart Service',
+        'nav.restart': 'Restart',
         
         // Common Actions
         'app.export': 'Export',
