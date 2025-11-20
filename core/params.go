@@ -10,6 +10,7 @@ import (
 
 // TradeAccounts 定义交易所需的账户
 type TradeAccounts struct {
+	Version                 string
 	Mint                    solana.PublicKey
 	User                    solana.PublicKey
 	BondingCurve            solana.PublicKey

@@ -65,6 +65,7 @@ func (c *ConfigController) handleGetConfig(ctx *gin.Context) {
 		SellIntervalLimit:      config.SellIntervalLimit,
 		DevSell:                config.DevSell,
 		CapitalRecoveryPercent: config.CapitalRecoveryPercent,
+		BuyActivityMonitor:     config.BuyActivityMonitor,
 		// 注意：不包含 TradeWalletKey 和 GlobalBlockhash
 		NonceAccountAddress: config.NonceAccountAddress,
 
@@ -142,6 +143,30 @@ func (c *ConfigController) handleUpdateConfig(ctx *gin.Context) {
 			config.DevSell = boolVal
 		}
 	}
+
+	// 更新buy_activity_monitor
+	if buyActivityMonitor, ok := updates["buy_activity_monitor"]; ok {
+		if monitorMap, ok := buyActivityMonitor.(map[string]interface{}); ok {
+			if enable, ok := monitorMap["enable"].(bool); ok {
+				config.BuyActivityMonitor.Enable = enable
+			}
+			if generalized, ok := monitorMap["generalized"].(bool); ok {
+				config.BuyActivityMonitor.Generalized = generalized
+			}
+			if checkInterval, ok := monitorMap["check_interval"].(float64); ok {
+				config.BuyActivityMonitor.CheckInterval = int(checkInterval)
+			}
+			if timeout, ok := monitorMap["timeout"].(float64); ok {
+				config.BuyActivityMonitor.Timeout = int(timeout)
+			}
+			if sellPercent, ok := monitorMap["sell_percent"].(float64); ok {
+				config.BuyActivityMonitor.SellPercent = int(sellPercent)
+			}
+			if minBuyAmount, ok := monitorMap["min_buy_amount"].(float64); ok {
+				config.BuyActivityMonitor.MinBuyAmount = minBuyAmount
+			}
+		}
+	}
 	// 保留其他配置不变
 
 	// 保存配置
@@ -170,6 +195,7 @@ func (c *ConfigController) handleUpdateConfig(ctx *gin.Context) {
 		SellIntervalLimit:      updatedConfig.SellIntervalLimit,
 		DevSell:                updatedConfig.DevSell,
 		CapitalRecoveryPercent: updatedConfig.CapitalRecoveryPercent,
+		BuyActivityMonitor:     updatedConfig.BuyActivityMonitor,
 		NonceAccountAddress:    updatedConfig.NonceAccountAddress,
 
 		// 交易触发和池子大小参数

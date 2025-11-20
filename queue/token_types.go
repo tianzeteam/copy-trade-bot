@@ -12,6 +12,7 @@ import (
 // TokenInfo 代币信息结构体
 // 用于在通道中传递代币信息
 type TokenInfo struct {
+	PumpVersion            string
 	Pool                   solana.PublicKey // 代币池地址
 	PoolBaseTokenAccount   solana.PublicKey // 代币池基础代币账户
 	PoolQuoteTokenAccount  solana.PublicKey // 代币池报价代币账户
@@ -37,8 +38,9 @@ var (
 
 // sendTokenToSellChannel 创建 TokenInfo 并将其发送到 WaitingSellChan
 // 它还记录了尝试发送和结果。
-func SendTokenToSellChannel(delayTime int, assetInfo *global.MyBuyMap, orderAmount uint64, currentPrice float64, platform, strategyName string, reason string) {
+func SendTokenToSellChannel(delayTime int, assetInfo *global.MyBuyMap, orderAmount uint64, currentPrice float64, pumpVersion string, platform, strategyName string, reason string) {
 	tokenInfo := TokenInfo{
+		PumpVersion:  pumpVersion,
 		Mint:         solana.MustPublicKeyFromBase58(assetInfo.MintAddress),
 		Owner:        solana.MustPublicKeyFromBase58(assetInfo.UserAddress),
 		Amount:       orderAmount,

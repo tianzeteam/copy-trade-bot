@@ -6,11 +6,13 @@ import (
 	//"copytrade/calculator"
 	//"copytrade/core"
 	"copytrade/calculator"
+	"copytrade/constants"
 	"copytrade/global"
 
 	"copytrade/logger"
 	"copytrade/pump"
-	"copytrade/pumpamm"
+	pumpV2 "copytrade/pumpV2"
+	"copytrade/pumpammV2"
 	"copytrade/raydium"
 	"copytrade/raydium_cp_swap"
 
@@ -87,15 +89,37 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 	// 添加优先级费用指令
 	instructions = append(instructions, createSetComputeUnitPriceInstruction(params.TradeParams.FeeConfig.PriorityFee))
 
+	// 根据 Version 确定 token program
+	var tokenProgram solana.PublicKey
+	if params.TradeParams.Accounts.Version == "v2" {
+		// V2 使用 Token-2022 Program
+		tokenProgram = solana.Token2022ProgramID
+		logger.Infof("使用 Pump V2 (Token-2022 Program)")
+	} else {
+		// V1 使用标准 Token Program
+		tokenProgram = solana.TokenProgramID
+		logger.Infof("使用 Pump V1 (Token Program)")
+	}
+
+	// 创建 ATA 指令
 	if t.Config.SkipATACheck {
 		// 快速模式：直接添加创建ATA指令
-
 		logger.Infof("快速模式：跳过ATA检查，直接创建ATA账户")
-		createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
+		ataBuilder := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
 			SetPayer(botWallet.PublicKey()).
 			SetWallet(botWallet.PublicKey()).
-			SetMint(params.TradeParams.Accounts.Mint).
-			Build()
+			SetMint(params.TradeParams.Accounts.Mint)
+
+		var createATAIx *associatedtokenaccount.Instruction
+		if params.TradeParams.Accounts.Version == constants.PumpVersionV2 {
+			// V2: 使用 BuildV2() 创建 Token-2022 ATA
+			createATAIx = ataBuilder.BuildV2()
+			logger.Infof("使用 BuildV2() 创建 Token-2022 ATA")
+		} else {
+			// V1: 使用标准 Build() 创建 Token ATA
+			createATAIx = ataBuilder.Build()
+			logger.Infof("使用 Build() 创建标准 Token ATA")
+		}
 
 		instructions = append(instructions, createATAIx)
 	} else {
@@ -103,40 +127,82 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		account, err := t.Client.GetAccountInfo(ctx, params.TradeParams.Accounts.AssociatedTokenAccount)
 		if err != nil || account.Value == nil {
 			logger.Infof("ATA账户不存在，创建新账户...")
-			createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
+			ataBuilder := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
 				SetPayer(botWallet.PublicKey()).
 				SetWallet(botWallet.PublicKey()).
-				SetMint(params.TradeParams.Accounts.Mint).
-				Build()
+				SetMint(params.TradeParams.Accounts.Mint)
+
+			var createATAIx *associatedtokenaccount.Instruction
+			if params.TradeParams.Accounts.Version == constants.PumpVersionV2 {
+				// V2: 使用 BuildV2() 创建 Token-2022 ATA
+				createATAIx = ataBuilder.BuildV2()
+				logger.Infof("使用 BuildV2() 创建 Token-2022 ATA")
+			} else {
+				// V1: 使用标准 Build() 创建 Token ATA
+				createATAIx = ataBuilder.Build()
+				logger.Infof("使用 Build() 创建标准 Token ATA")
+			}
+
 			instructions = append(instructions, createATAIx)
 		}
 	}
 
-	// 构建Buy指令
+	// 根据 Version 构建不同的 Buy 指令
+	var buildInstruction solana.Instruction
+	var err error
 
-	buyInstruction := pump.NewBuyInstructionBuilder().
-		SetGlobalAccount(GLOBAL_ACCOUNT).
-		SetFeeRecipientAccount(FEE_RECIPIENT).
-		SetMintAccount(params.TradeParams.Accounts.Mint).
-		SetBondingCurveAccount(params.TradeParams.Accounts.BondingCurve).
-		SetAssociatedBondingCurveAccount(params.TradeParams.Accounts.AssociatedBondingCurve).
-		SetAssociatedUserAccount(params.TradeParams.Accounts.AssociatedTokenAccount).
-		SetUserAccount(params.TradeParams.Accounts.User).
-		SetSystemProgramAccount(solana.SystemProgramID).
-		SetTokenProgramAccount(solana.TokenProgramID).
-		SetCreatorVaultAccount(params.TradeParams.Accounts.CreatorVault).
-		SetEventAuthorityAccount(EVENT_AUTHORITY).
-		SetProgramAccount(PUMP_PROGRAM_ID).
-		SetGlobalVolumeAccumulatorAccount(params.TradeParams.Accounts.GlobalVolumeAccumulator).
-		SetUserVolumeAccumulatorAccount(params.TradeParams.Accounts.UserVolumeAccumulator).
-		SetFeeConfigAccount(solana.MustPublicKeyFromBase58("8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt")).
-		SetFeeProgramAccount(solana.MustPublicKeyFromBase58("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ")).
-		SetAmount(params.TradeParams.Amount).
-		SetMaxSolCost(params.TradeParams.Cost)
-	buildInstruction, err := buyInstruction.ValidateAndBuild()
-	if err != nil {
-		logger.Errorf("构建Buy指令失败: %v", err)
-		return "", err
+	if params.TradeParams.Accounts.Version == constants.PumpVersionV2 {
+		// V2 版本：使用 pumpV2 的函数式 API
+		buildInstruction, err = pumpV2.NewBuyInstruction(
+			params.TradeParams.Amount,
+			params.TradeParams.Cost,
+			GLOBAL_ACCOUNT,
+			FEE_RECIPIENT,
+			params.TradeParams.Accounts.Mint,
+			params.TradeParams.Accounts.BondingCurve,
+			params.TradeParams.Accounts.AssociatedBondingCurve,
+			params.TradeParams.Accounts.AssociatedTokenAccount,
+			params.TradeParams.Accounts.User,
+			solana.SystemProgramID,
+			tokenProgram, // Token-2022 Program
+			params.TradeParams.Accounts.CreatorVault,
+			EVENT_AUTHORITY,
+			PUMP_PROGRAM_ID,
+			params.TradeParams.Accounts.GlobalVolumeAccumulator,
+			params.TradeParams.Accounts.UserVolumeAccumulator,
+			solana.MustPublicKeyFromBase58("8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt"),
+			solana.MustPublicKeyFromBase58("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ"),
+		)
+		if err != nil {
+			logger.Errorf("构建 Pump V2 Buy 指令失败: %v", err)
+			return "", err
+		}
+	} else {
+		// V1 版本：使用 pump 的 Builder API
+		buyInstruction := pump.NewBuyInstructionBuilder().
+			SetGlobalAccount(GLOBAL_ACCOUNT).
+			SetFeeRecipientAccount(FEE_RECIPIENT).
+			SetMintAccount(params.TradeParams.Accounts.Mint).
+			SetBondingCurveAccount(params.TradeParams.Accounts.BondingCurve).
+			SetAssociatedBondingCurveAccount(params.TradeParams.Accounts.AssociatedBondingCurve).
+			SetAssociatedUserAccount(params.TradeParams.Accounts.AssociatedTokenAccount).
+			SetUserAccount(params.TradeParams.Accounts.User).
+			SetSystemProgramAccount(solana.SystemProgramID).
+			SetTokenProgramAccount(tokenProgram). // 标准 Token Program
+			SetCreatorVaultAccount(params.TradeParams.Accounts.CreatorVault).
+			SetEventAuthorityAccount(EVENT_AUTHORITY).
+			SetProgramAccount(PUMP_PROGRAM_ID).
+			SetGlobalVolumeAccumulatorAccount(params.TradeParams.Accounts.GlobalVolumeAccumulator).
+			SetUserVolumeAccumulatorAccount(params.TradeParams.Accounts.UserVolumeAccumulator).
+			SetFeeConfigAccount(solana.MustPublicKeyFromBase58("8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt")).
+			SetFeeProgramAccount(solana.MustPublicKeyFromBase58("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ")).
+			SetAmount(params.TradeParams.Amount).
+			SetMaxSolCost(params.TradeParams.Cost)
+		buildInstruction, err = buyInstruction.ValidateAndBuild()
+		if err != nil {
+			logger.Errorf("构建 Pump V1 Buy 指令失败: %v", err)
+			return "", err
+		}
 	}
 
 	instructions = append(instructions, buildInstruction)
@@ -365,25 +431,54 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 
 	// 添加优先级费用指令
 	instructions = append(instructions, createSetComputeUnitPriceInstruction(params.TradeParams.FeeConfig.PriorityFee))
+
+	// 创建 ATA 指令（参考 Buy 方法，支持 V2 Token-2022）
+	var baseTokenProgramID = solana.TokenProgramID
 	if t.Config.SkipATACheck {
 		// 快速模式：直接添加创建ATA指令
 		logger.Infof("快速模式：跳过ATA检查，直接创建ATA账户")
-		createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
+		ataBuilder := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
 			SetPayer(botWallet.PublicKey()).
 			SetWallet(botWallet.PublicKey()).
-			SetMint(params.TradeParams.Accounts.Mint).
-			Build()
+			SetMint(params.TradeParams.Accounts.Mint)
+
+		var createATAIx *associatedtokenaccount.Instruction
+
+		if params.TradeParams.Accounts.Version == constants.PumpVersionV2 {
+			// V2: 使用 BuildV2() 创建 Token-2022 ATA
+			baseTokenProgramID = solana.Token2022ProgramID
+			createATAIx = ataBuilder.BuildV2()
+			logger.Infof("使用 BuildV2() 创建 Token-2022 ATA")
+		} else {
+			// V1: 使用标准 Build() 创建 Token ATA
+
+			createATAIx = ataBuilder.Build()
+			logger.Infof("使用 Build() 创建标准 Token ATA")
+		}
+
 		instructions = append(instructions, createATAIx)
 	} else {
 		// 安全模式：先检查再创建
 		account, err := t.Client.GetAccountInfo(ctx, params.TradeParams.Accounts.AssociatedTokenAccount)
 		if err != nil || account.Value == nil {
 			logger.Infof("ATA账户不存在，创建新账户...")
-			createATAIx := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
+			ataBuilder := associatedtokenaccount.NewCreateIdempotentInstructionBuilder().
 				SetPayer(botWallet.PublicKey()).
 				SetWallet(botWallet.PublicKey()).
-				SetMint(params.TradeParams.Accounts.Mint).
-				Build()
+				SetMint(params.TradeParams.Accounts.Mint)
+
+			var createATAIx *associatedtokenaccount.Instruction
+			if params.TradeParams.Accounts.Version == constants.PumpVersionV2 {
+				// V2: 使用 BuildV2() 创建 Token-2022 ATA
+				baseTokenProgramID = solana.Token2022ProgramID
+				createATAIx = ataBuilder.BuildV2()
+				logger.Infof("使用 BuildV2() 创建 Token-2022 ATA")
+			} else {
+				// V1: 使用标准 Build() 创建 Token ATA
+				createATAIx = ataBuilder.Build()
+				logger.Infof("使用 Build() 创建标准 Token ATA")
+			}
+
 			instructions = append(instructions, createATAIx)
 		}
 	}
@@ -411,33 +506,40 @@ func (t *TraderImpl) PumpAmmBuy(ctx context.Context, params types.OrderParams) (
 	).Build()
 	instructions = append(instructions, syncNativeIx)
 
-	buyInstruction := pumpamm.NewBuyInstructionBuilder().
-		SetPoolAccount(params.TradeParams.Accounts.Pool).
-		SetUserAccount(params.TradeParams.Accounts.User).
-		SetGlobalConfigAccount(GLOBAL_CONFIG_ACCOUNT).
-		SetBaseMintAccount(params.TradeParams.Accounts.BaseMint).
-		SetQuoteMintAccount(params.TradeParams.Accounts.QuoteMint).
-		SetUserBaseTokenAccountAccount(params.TradeParams.Accounts.UserBaseTokenAccount).
-		SetUserQuoteTokenAccountAccount(params.TradeParams.Accounts.UserQuoteTokenAccount).
-		SetPoolBaseTokenAccountAccount(params.TradeParams.Accounts.PoolBaseTokenAccount).
-		SetPoolQuoteTokenAccountAccount(params.TradeParams.Accounts.PoolQuoteTokenAccount).
-		SetProtocolFeeRecipientAccount(PROTOCOL_FEE_RECIPIENT).
-		SetProtocolFeeRecipientTokenAccountAccount(PROTOCOL_FEE_RECIPIENT_TOKEN_ACCOUNT).
-		SetBaseTokenProgramAccount(solana.TokenProgramID).
-		SetQuoteTokenProgramAccount(solana.TokenProgramID).
-		SetSystemProgramAccount(solana.SystemProgramID).
-		SetCoinCreatorVaultAtaAccount(params.TradeParams.Accounts.CreatorVault).
-		SetCoinCreatorVaultAuthorityAccount(params.TradeParams.Accounts.CoinCreatorVaultAuthority).
-		SetEventAuthorityAccount(AMM_EVENT_AUTHORITY).
-		SetProgramAccount(pumpamm.ProgramID).
-		SetGlobalVolumeAccumulatorAccount(params.TradeParams.Accounts.GlobalVolumeAccumulator).
-		SetUserVolumeAccumulatorAccount(params.TradeParams.Accounts.UserVolumeAccumulator).
-		SetFeeConfigAccount(solana.MustPublicKeyFromBase58("5PHirr8joyTMp9JMm6nW7hNDVyEYdkzDqazxPD7RaTjx")).
-		SetFeeProgramAccount(solana.MustPublicKeyFromBase58("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ")).
-		SetBaseAmountOut(params.TradeParams.Amount).
-		SetMaxQuoteAmountIn(params.TradeParams.Cost)
+	// 使用 pumpammV2 模块创建买入指令
+	buyInstruction, err := pumpammV2.NewBuyInstruction(
+		params.TradeParams.Amount,                                                      // baseAmountOut
+		params.TradeParams.Cost,                                                        // maxQuoteAmountIn
+		params.TradeParams.Accounts.Pool,                                               // pool
+		params.TradeParams.Accounts.User,                                               // user
+		GLOBAL_CONFIG_ACCOUNT,                                                          // globalConfig
+		params.TradeParams.Accounts.BaseMint,                                           // baseMint
+		params.TradeParams.Accounts.QuoteMint,                                          // quoteMint
+		params.TradeParams.Accounts.UserBaseTokenAccount,                               // userBaseTokenAccount
+		params.TradeParams.Accounts.UserQuoteTokenAccount,                              // userQuoteTokenAccount
+		params.TradeParams.Accounts.PoolBaseTokenAccount,                               // poolBaseTokenAccount
+		params.TradeParams.Accounts.PoolQuoteTokenAccount,                              // poolQuoteTokenAccount
+		PROTOCOL_FEE_RECIPIENT,                                                         // protocolFeeRecipient
+		PROTOCOL_FEE_RECIPIENT_TOKEN_ACCOUNT,                                           // protocolFeeRecipientTokenAccount
+		baseTokenProgramID,                                                             // baseTokenProgram
+		solana.TokenProgramID,                                                          // quoteTokenProgram
+		solana.SystemProgramID,                                                         // systemProgram
+		solana.SPLAssociatedTokenAccountProgramID,                                      // associatedTokenProgram
+		AMM_EVENT_AUTHORITY,                                                            // eventAuthority
+		pumpammV2.ProgramID,                                                            // program
+		params.TradeParams.Accounts.CreatorVault,                                       // coinCreatorVaultAta
+		params.TradeParams.Accounts.CoinCreatorVaultAuthority,                          // coinCreatorVaultAuthority
+		params.TradeParams.Accounts.GlobalVolumeAccumulator,                            // globalVolumeAccumulator
+		params.TradeParams.Accounts.UserVolumeAccumulator,                              // userVolumeAccumulator
+		solana.MustPublicKeyFromBase58("5PHirr8joyTMp9JMm6nW7hNDVyEYdkzDqazxPD7RaTjx"), // feeConfig
+		solana.MustPublicKeyFromBase58("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ"),  // feeProgram
+	)
+	if err != nil {
+		logger.Errorf("创建买入指令失败: %v", err)
+		return "", fmt.Errorf("创建买入指令失败: %w", err)
+	}
 
-	instructions = append(instructions, buyInstruction.Build())
+	instructions = append(instructions, buyInstruction)
 
 	// 关闭WSOL账户
 	closeWsolAccountInstruction := token.NewCloseAccountInstruction(
@@ -1502,32 +1604,73 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 	// 添加优先级费用指令
 	instructions = append(instructions, createSetComputeUnitPriceInstruction(params.TradeParams.FeeConfig.PriorityFee))
 
-	// 构建Sell指令
-	sellInstruction := pump.NewSellInstructionBuilder().
-		SetGlobalAccount(GLOBAL_ACCOUNT).
-		SetFeeRecipientAccount(FEE_RECIPIENT).
-		SetMintAccount(params.TradeParams.Accounts.Mint).
-		SetBondingCurveAccount(params.TradeParams.Accounts.BondingCurve).
-		SetAssociatedBondingCurveAccount(params.TradeParams.Accounts.AssociatedBondingCurve).
-		SetAssociatedUserAccount(params.TradeParams.Accounts.AssociatedTokenAccount).
-		SetUserAccount(params.TradeParams.Accounts.User).
-		SetSystemProgramAccount(solana.SystemProgramID).
-		SetCreatorVaultAccount(params.TradeParams.Accounts.CreatorVault).
-		SetTokenProgramAccount(solana.TokenProgramID).
-		SetEventAuthorityAccount(EVENT_AUTHORITY).
-		SetProgramAccount(PUMP_PROGRAM_ID).
-		SetFeeConfigAccount(solana.MustPublicKeyFromBase58("8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt")).
-		SetFeeProgramAccount(solana.MustPublicKeyFromBase58("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ")).
-		SetAmount(params.TradeParams.Amount).
-		SetMinSolOutput(params.TradeParams.Cost)
-
-	ix, err := sellInstruction.ValidateAndBuild()
-	if err != nil {
-		logger.Errorf("构建Sell指令失败: %v", err)
-		return "", fmt.Errorf("构建Sell指令失败: %w", err)
+	// 根据 Version 确定 token program
+	var tokenProgram solana.PublicKey
+	if params.TradeParams.Accounts.Version == constants.PumpVersionV2 {
+		// V2 使用 Token-2022 Program
+		tokenProgram = solana.Token2022ProgramID
+		logger.Infof("使用 Pump V2 (Token-2022 Program) 卖出")
+	} else {
+		// V1 使用标准 Token Program
+		tokenProgram = solana.TokenProgramID
+		logger.Infof("使用 Pump V1 (Token Program) 卖出")
 	}
 
-	instructions = append(instructions, ix)
+	// 根据 Version 构建不同的 Sell 指令
+	var buildInstruction solana.Instruction
+	var err error
+
+	if params.TradeParams.Accounts.Version == constants.PumpVersionV2 {
+		// V2 版本：使用 pumpV2 的函数式 API
+		buildInstruction, err = pumpV2.NewSellInstruction(
+			params.TradeParams.Amount,
+			params.TradeParams.Cost,
+			GLOBAL_ACCOUNT,
+			FEE_RECIPIENT,
+			params.TradeParams.Accounts.Mint,
+			params.TradeParams.Accounts.BondingCurve,
+			params.TradeParams.Accounts.AssociatedBondingCurve,
+			params.TradeParams.Accounts.AssociatedTokenAccount,
+			params.TradeParams.Accounts.User,
+			solana.SystemProgramID,
+			params.TradeParams.Accounts.CreatorVault, // Account 8: creator_vault
+			tokenProgram,                             // Account 9: token_program (Token-2022)
+			EVENT_AUTHORITY,
+			PUMP_PROGRAM_ID,
+			solana.MustPublicKeyFromBase58("8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt"),
+			solana.MustPublicKeyFromBase58("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ"),
+		)
+		if err != nil {
+			logger.Errorf("构建 Pump V2 Sell 指令失败: %v", err)
+			return "", err
+		}
+	} else {
+		// V1 版本：使用 pump 的 Builder API
+		sellInstruction := pump.NewSellInstructionBuilder().
+			SetGlobalAccount(GLOBAL_ACCOUNT).
+			SetFeeRecipientAccount(FEE_RECIPIENT).
+			SetMintAccount(params.TradeParams.Accounts.Mint).
+			SetBondingCurveAccount(params.TradeParams.Accounts.BondingCurve).
+			SetAssociatedBondingCurveAccount(params.TradeParams.Accounts.AssociatedBondingCurve).
+			SetAssociatedUserAccount(params.TradeParams.Accounts.AssociatedTokenAccount).
+			SetUserAccount(params.TradeParams.Accounts.User).
+			SetSystemProgramAccount(solana.SystemProgramID).
+			SetTokenProgramAccount(tokenProgram). // 标准 Token Program
+			SetCreatorVaultAccount(params.TradeParams.Accounts.CreatorVault).
+			SetEventAuthorityAccount(EVENT_AUTHORITY).
+			SetProgramAccount(PUMP_PROGRAM_ID).
+			SetFeeConfigAccount(solana.MustPublicKeyFromBase58("8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt")).
+			SetFeeProgramAccount(solana.MustPublicKeyFromBase58("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ")).
+			SetAmount(params.TradeParams.Amount).
+			SetMinSolOutput(params.TradeParams.Cost)
+		buildInstruction, err = sellInstruction.ValidateAndBuild()
+		if err != nil {
+			logger.Errorf("构建 Pump V1 Sell 指令失败: %v", err)
+			return "", err
+		}
+	}
+
+	instructions = append(instructions, buildInstruction)
 
 	// 创建通道
 	resultChan := make(chan string, 4)
@@ -1750,7 +1893,7 @@ func createSetComputeUnitLimitInstruction(units uint32) solana.Instruction {
 	)
 }
 
-// AmmSell 实现卖出交易
+// PumpAmmSell 实现卖出交易
 func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, balanceNeeded uint64) (string, error) {
 	logger.Infof("开始执行 AMM 卖出交易...")
 
@@ -1792,38 +1935,47 @@ func (t *TraderImpl) AmmSell(ctx context.Context, params types.OrderParams, bala
 
 	instructions = append(instructions, createWsolAccountInstruction)
 
-	sellInstruction := pumpamm.NewSellInstructionBuilder().
-		SetGlobalConfigAccount(GLOBAL_CONFIG_ACCOUNT).
-		SetProtocolFeeRecipientAccount(PROTOCOL_FEE_RECIPIENT).
-		SetProtocolFeeRecipientTokenAccountAccount(PROTOCOL_FEE_RECIPIENT_TOKEN_ACCOUNT).
-		SetBaseMintAccount(params.TradeParams.Accounts.Mint).
-		SetQuoteMintAccount(params.TradeParams.Accounts.QuoteMint).
-		SetPoolAccount(params.TradeParams.Accounts.Pool).
-		SetPoolBaseTokenAccountAccount(params.TradeParams.Accounts.PoolBaseTokenAccount).
-		SetPoolQuoteTokenAccountAccount(params.TradeParams.Accounts.PoolQuoteTokenAccount).
-		SetAssociatedTokenProgramAccount(associatedtokenaccount.ProgramID).
-		SetUserAccount(params.TradeParams.Accounts.User).
-		SetUserBaseTokenAccountAccount(params.TradeParams.Accounts.UserBaseTokenAccount).
-		SetUserQuoteTokenAccountAccount(userQuoteTokenAccount).
-		SetBaseTokenProgramAccount(solana.TokenProgramID).
-		SetQuoteTokenProgramAccount(solana.TokenProgramID).
-		SetSystemProgramAccount(solana.SystemProgramID).
-		SetEventAuthorityAccount(AMM_EVENT_AUTHORITY).
-		SetProgramAccount(AMM_PROGRAM_ID).
-		SetCoinCreatorVaultAtaAccount(params.TradeParams.Accounts.CreatorVault).
-		SetCoinCreatorVaultAuthorityAccount(params.TradeParams.Accounts.CoinCreatorVaultAuthority).
-		SetFeeConfigAccount(solana.MustPublicKeyFromBase58("5PHirr8joyTMp9JMm6nW7hNDVyEYdkzDqazxPD7RaTjx")).
-		SetFeeProgramAccount(solana.MustPublicKeyFromBase58("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ")).
-		SetBaseAmountIn(params.TradeParams.Amount).
-		SetMinQuoteAmountOut(params.TradeParams.Cost)
+	// 根据代币版本确定 Token Program
+	var baseTokenProgramID = solana.TokenProgramID
+	if params.TradeParams.Accounts.Version == constants.PumpVersionV2 {
+		baseTokenProgramID = solana.Token2022ProgramID
+		logger.Infof("卖出使用 Token-2022 Program")
+	} else {
+		logger.Infof("卖出使用标准 Token Program")
+	}
 
-	ix, err := sellInstruction.ValidateAndBuild()
+	// 使用 pumpammV2 模块创建卖出指令
+	sellInstruction, err := pumpammV2.NewSellInstruction(
+		params.TradeParams.Amount,                             // baseAmountIn
+		params.TradeParams.Cost,                               // minQuoteAmountOut
+		params.TradeParams.Accounts.Pool,                      // pool
+		params.TradeParams.Accounts.User,                      // user
+		GLOBAL_CONFIG_ACCOUNT,                                 // globalConfig
+		params.TradeParams.Accounts.Mint,                      // baseMint
+		params.TradeParams.Accounts.QuoteMint,                 // quoteMint
+		params.TradeParams.Accounts.UserBaseTokenAccount,      // userBaseTokenAccount
+		userQuoteTokenAccount,                                 // userQuoteTokenAccount
+		params.TradeParams.Accounts.PoolBaseTokenAccount,      // poolBaseTokenAccount
+		params.TradeParams.Accounts.PoolQuoteTokenAccount,     // poolQuoteTokenAccount
+		PROTOCOL_FEE_RECIPIENT,                                // protocolFeeRecipient
+		PROTOCOL_FEE_RECIPIENT_TOKEN_ACCOUNT,                  // protocolFeeRecipientTokenAccount
+		baseTokenProgramID,                                    // baseTokenProgram
+		solana.TokenProgramID,                                 // quoteTokenProgram
+		solana.SystemProgramID,                                // systemProgram
+		solana.SPLAssociatedTokenAccountProgramID,             // associatedTokenProgram
+		AMM_EVENT_AUTHORITY,                                   // eventAuthority
+		pumpammV2.ProgramID,                                   // program
+		params.TradeParams.Accounts.CreatorVault,              // coinCreatorVaultAta
+		params.TradeParams.Accounts.CoinCreatorVaultAuthority, // coinCreatorVaultAuthority
+		solana.MustPublicKeyFromBase58("5PHirr8joyTMp9JMm6nW7hNDVyEYdkzDqazxPD7RaTjx"), // feeConfig
+		solana.MustPublicKeyFromBase58("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ"),  // feeProgram
+	)
 	if err != nil {
 		logger.Errorf("AmmSell构建指令失败: %v", err)
 		return "", fmt.Errorf("AmmSell构建指令失败: %w", err)
 	}
 
-	instructions = append(instructions, ix)
+	instructions = append(instructions, sellInstruction)
 	// 关闭WSOL账户
 	closeWsolAccountInstruction := token.NewCloseAccountInstruction(
 		userQuoteTokenAccount, // 要关闭的账户

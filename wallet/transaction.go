@@ -3,6 +3,7 @@ package wallet
 import (
 	"context"
 	"copytrade/asset"
+	"copytrade/constants"
 	"copytrade/core"
 
 	"copytrade/global"
@@ -104,6 +105,10 @@ func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo
 
 	// 执行跟单交易
 	_blockHash := m.NonceManager.GetGlobalBlockhash()
+	if _blockHash == nil {
+		logger.Errorf("获取 blockhash 失败，跳过跟单交易: 代币=%s", tradeInfo.MintAddress)
+		return
+	}
 	m.executeCopyTrade(tradeInfo, copyAddress, specialScheme, *_blockHash)
 }
 
@@ -178,7 +183,7 @@ func (m *TransactionMonitor) ProcessSellTransaction(tradeInfo *global.TradeEvent
 		assetInfo.MintAddress, assetInfo.Amount, amountToSell, sellRatio*100)
 
 	// 执行跟单卖出
-	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, "pumpfun", walletSettings.Name, "follow_sell")
+	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, tradeInfo.PumpVersion, "pumpfun", walletSettings.Name, "follow_sell")
 
 }
 
@@ -221,6 +226,10 @@ func (m *TransactionMonitor) ProcessRaydiumV4Transaction(tradeInfo *types.AmmRay
 	holdingsManager.RecordTokenTransaction(copyAddress.String(), tradeInfo.MintAddress.String(), tradeInfo.IsBuy, tradeInfo.TokenAmount, tradeInfo.CurrentPrice)
 
 	_blockHash := m.NonceManager.GetGlobalBlockhash()
+	if _blockHash == nil {
+		logger.Errorf("获取 blockhash 失败，跳过跟单交易: 代币=%s", tradeInfo.MintAddress)
+		return
+	}
 	m.executeRaydiumV4CopyTrade(tradeInfo, marketLayout, poolLayout, copyAddress, tradeInfo.TokenAmount, specialScheme, *_blockHash)
 }
 func (m *TransactionMonitor) ProcessRaydiumV4SellTransaction(tradeInfo *types.AmmRaydiumV4TradeInfo, marketLayout *types.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4) {
@@ -296,7 +305,7 @@ func (m *TransactionMonitor) ProcessRaydiumV4SellTransaction(tradeInfo *types.Am
 	// 由于我们直接使用 SendTokenToSellChannel，不需要获取参数模板
 
 	// 调用卖出方法，使用计算出的卖出数量
-	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, "raydiumV4", walletSettings.Name, "follow_sell")
+	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, constants.UniversalVersionV0, "raydiumV4", walletSettings.Name, "follow_sell")
 }
 
 // ProcessAmmTransaction 处理AMM交易事件
@@ -335,6 +344,10 @@ func (m *TransactionMonitor) ProcessAmmTransaction(tradeInfo *global.AmmTradeEve
 
 	// 执行跟单交易
 	_blockHash := m.NonceManager.GetGlobalBlockhash()
+	if _blockHash == nil {
+		logger.Errorf("获取 blockhash 失败，跳过跟单交易: 代币=%s", tradeInfo.MintAddress)
+		return
+	}
 	m.executeAmmCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount, specialScheme, *_blockHash)
 }
 
@@ -407,7 +420,7 @@ func (m *TransactionMonitor) ProcessAmmSellTransaction(tradeInfo *global.AmmTrad
 		mintAddressStr, assetInfo.Amount, amountToSell, sellRatio*100)
 
 	// 执行跟单卖出
-	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, "pumpamm", walletSettings.Name, "follow_sell")
+	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, tradeInfo.PumpVersion, "pumpamm", walletSettings.Name, "follow_sell")
 }
 
 // TODO executeCopyTrade 执行跟单交易
@@ -437,19 +450,40 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 		return
 	}
 	creator := tradeInfo.Creator
-	pumpAccounts, err := m.TradeBot.Trader.AccountsCalc.CalculatePumpAccounts(
-		ctx,
-		creator,
-		mintAddr,
-		botWallet,
-	)
+
+	// 根据 PumpVersion 选择不同的账户计算方法
+	var pumpAccounts *types.PumpAccounts
+
+	if tradeInfo.PumpVersion == constants.PumpVersionV2 {
+		// V2 版本：使用 Token-2022 Program
+		tokenProgram := solana.Token2022ProgramID
+		pumpAccounts, err = m.TradeBot.Trader.AccountsCalc.CalculatePumpV2Accounts(
+			ctx,
+			creator,
+			mintAddr,
+			botWallet,
+			tokenProgram,
+		)
+		logger.Infof("使用 Pump V2 账户计算 (Token-2022): mint=%s", mintAddr.String())
+	} else {
+		// V1 版本：使用标准 Token Program
+		pumpAccounts, err = m.TradeBot.Trader.AccountsCalc.CalculatePumpAccounts(
+			ctx,
+			creator,
+			mintAddr,
+			botWallet,
+		)
+		logger.Debugf("使用 Pump V1 账户计算 (Token Program): mint=%s", mintAddr.String())
+	}
+
 	if err != nil {
-		logger.Errorf("Failed to calculate accounts: %v", err)
+		logger.Errorf("Failed to calculate pump accounts (version=%s): %v", tradeInfo.PumpVersion, err)
 		return
 	}
 
 	// Prepare transaction parameters
 	accounts := core.TradeAccounts{
+		Version:                 tradeInfo.PumpVersion,
 		Mint:                    mintAddr,
 		User:                    botWallet,
 		BondingCurve:            pumpAccounts.BondingCurve,
@@ -489,6 +523,7 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 	// Build transaction parameters
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
+			Version:                 accounts.Version,
 			User:                    accounts.User,
 			Mint:                    accounts.Mint,
 			BondingCurve:            accounts.BondingCurve,
@@ -542,6 +577,7 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 		tradeInfo.MintAddress,
 		m.BotWallet,
 		tradeInfo.CoinCreator,
+		tradeInfo.PumpVersion,
 	)
 	if err != nil {
 		logger.Errorf("Failed to calculate accounts: %v", err)
@@ -564,6 +600,7 @@ func (m *TransactionMonitor) executeAmmCopyTrade(tradeInfo *global.AmmTradeEvent
 
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
+			Version:                   tradeInfo.PumpVersion, // 设置 Version 字段，用于判断 Token Program
 			Pool:                      tradeInfo.AmmPool,
 			User:                      m.BotWallet,
 			Mint:                      pumpAccounts.Mint,
@@ -699,7 +736,10 @@ func (m *TransactionMonitor) ProcessLaunchpadTransaction(tradeInfo *global.Launc
 
 	// 执行跟单交易
 	_blockHash := m.NonceManager.GetGlobalBlockhash()
-
+	if _blockHash == nil {
+		logger.Errorf("获取 blockhash 失败，跳过跟单交易: 代币=%s", tradeInfo.MintAddress)
+		return
+	}
 	m.executeLaunchpadCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount, specialScheme, *_blockHash)
 }
 func (m *TransactionMonitor) ProcessLaunchpadSellTransaction(tradeInfo *global.LaunchpadTradeEventInfo) {
@@ -770,7 +810,7 @@ func (m *TransactionMonitor) ProcessLaunchpadSellTransaction(tradeInfo *global.L
 		mintAddressStr, assetInfo.Amount, amountToSell, sellRatio*100)
 
 	// 执行跟单卖出
-	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, "launchpad", walletSettings.Name, "follow_sell")
+	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, constants.UniversalVersionV0, "launchpad", walletSettings.Name, "follow_sell")
 }
 
 // executeLaunchpadCopyTrade
@@ -879,7 +919,10 @@ func (m *TransactionMonitor) ProcessCpmmTransaction(tradeInfo *global.CPMMTradeE
 
 	// 执行跟单交易
 	_blockHash := m.NonceManager.GetGlobalBlockhash()
-
+	if _blockHash == nil {
+		logger.Errorf("获取 blockhash 失败，跳过跟单交易: 代币=%s", tradeInfo.MintAddress)
+		return
+	}
 	m.executeCpmmCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount, specialScheme, *_blockHash)
 }
 func (m *TransactionMonitor) ProcessCpmmSellTransaction(tradeInfo *global.CPMMTradeEventInfo) {
@@ -951,7 +994,7 @@ func (m *TransactionMonitor) ProcessCpmmSellTransaction(tradeInfo *global.CPMMTr
 		mintAddressStr, assetInfo.Amount, amountToSell, sellRatio*100)
 
 	// 执行跟单卖出
-	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, "cpmm", walletSettings.Name, "follow_sell")
+	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, constants.UniversalVersionV0, "cpmm", walletSettings.Name, "follow_sell")
 }
 
 // ProcessDbcTransaction 处理DBC交易事件
@@ -990,7 +1033,10 @@ func (m *TransactionMonitor) ProcessDbcTransaction(tradeInfo *global.DbcTradeEve
 
 	// 执行跟单交易
 	_blockHash := m.NonceManager.GetGlobalBlockhash()
-
+	if _blockHash == nil {
+		logger.Errorf("获取 blockhash 失败，跳过跟单交易: 代币=%s", tradeInfo.MintAddress)
+		return
+	}
 	m.executeDbcCopyTrade(tradeInfo, copyAddress, tradeInfo.TokenAmount, specialScheme, *_blockHash)
 }
 
@@ -1061,6 +1107,10 @@ func (m *TransactionMonitor) ProcessDbcSellTransaction(tradeInfo *global.DbcTrad
 
 	// 执行卖出交易
 	_blockHash := m.NonceManager.GetGlobalBlockhash()
+	if _blockHash == nil {
+		logger.Errorf("获取 blockhash 失败，跳过卖出交易: 代币=%s", mintAddressStr)
+		return
+	}
 	m.executeDbcSellTrade(tradeInfo, copyAddress, amountToSell, *_blockHash)
 }
 
@@ -1197,10 +1247,10 @@ func (m *TransactionMonitor) executeDbcCopyTrade(tradeInfo *global.DbcTradeEvent
 
 	// 4. 构建完整的订单参数
 	orderParams := core.BuildOrderParams(tradeParams, m.TradeBot.Config, specialScheme.BuyTipFee)
-	
+
 	// 5. 调用 Meteora DBC 买入方法
 	go m.TradeBot.Trader.MeteoraDbcBuy(context.Background(), *orderParams)
-	
+
 	// 记录机器人的跟单交易
 	m.WalletMonitor.RecordBotTrade(tradeInfo.MintAddress.String(), originalWallet, m.BotWallet, tradeInfo.CurrentPrice)
 }
@@ -1218,7 +1268,7 @@ func (m *TransactionMonitor) executeDbcSellTrade(tradeInfo *global.DbcTradeEvent
 	}
 
 	// 通过卖出队列执行卖出
-	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, "meteora-dbc", originalWallet.String(), "follow_sell")
+	go queue.SendTokenToSellChannel(0, assetInfo, amountToSell, tradeInfo.CurrentPrice, constants.UniversalVersionV0, "meteora-dbc", originalWallet.String(), "follow_sell")
 
 	logger.Infof("DBC 跟单卖出已加入队列: 代币=%s, 数量=%d", mintAddressStr, amountToSell)
 }

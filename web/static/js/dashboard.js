@@ -1919,6 +1919,16 @@ function loadGlobalSellSettings() {
         // 填充全局卖出设置表单
         document.getElementById('capitalRecoveryPercent').value = data.capital_recovery_percent || 0;
         document.getElementById('devSellEnable').checked = data.dev_sell || false;
+        
+        // 填充买单活跃度监控设置
+        if (data.buy_activity_monitor) {
+            document.getElementById('buyActivityMonitorEnable').checked = data.buy_activity_monitor.enable || false;
+            document.getElementById('buyActivityMonitorGeneralized').checked = data.buy_activity_monitor.generalized !== undefined ? data.buy_activity_monitor.generalized : true;
+            document.getElementById('buyActivityCheckInterval').value = data.buy_activity_monitor.check_interval || 500;
+            document.getElementById('buyActivityTimeout').value = data.buy_activity_monitor.timeout || 3;
+            document.getElementById('buyActivitySellPercent').value = data.buy_activity_monitor.sell_percent || 50;
+            document.getElementById('buyActivityMinBuyAmount').value = data.buy_activity_monitor.min_buy_amount || 0.1;
+        }
     })
     .catch(error => {
         console.error('加载全局卖出设置失败:', error);
@@ -1937,9 +1947,43 @@ function saveGlobalSellSettings() {
         return;
     }
     
+    // 获取买单活跃度监控设置
+    const buyActivityMonitorEnable = document.getElementById('buyActivityMonitorEnable').checked;
+    const buyActivityMonitorGeneralized = document.getElementById('buyActivityMonitorGeneralized').checked;
+    const buyActivityCheckInterval = parseInt(document.getElementById('buyActivityCheckInterval').value) || 500;
+    const buyActivityTimeout = parseInt(document.getElementById('buyActivityTimeout').value) || 3;
+    const buyActivitySellPercent = parseInt(document.getElementById('buyActivitySellPercent').value) || 50;
+    const buyActivityMinBuyAmount = parseFloat(document.getElementById('buyActivityMinBuyAmount').value) || 0.1;
+    
+    // 验证买单活跃度监控输入
+    if (buyActivityCheckInterval < 100 || buyActivityCheckInterval > 10000) {
+        showToast('检查间隔必须在100-10000毫秒之间', 'error');
+        return;
+    }
+    if (buyActivityTimeout < 1 || buyActivityTimeout > 60) {
+        showToast('超时时间必须在1-60秒之间', 'error');
+        return;
+    }
+    if (buyActivitySellPercent < 1 || buyActivitySellPercent > 100) {
+        showToast('卖出百分比必须在1-100%之间', 'error');
+        return;
+    }
+    if (buyActivityMinBuyAmount < 0 || buyActivityMinBuyAmount > 10) {
+        showToast('最小买单金额必须在0-10 SOL之间', 'error');
+        return;
+    }
+    
     const updates = {
         capital_recovery_percent: capitalRecoveryPercent,
-        dev_sell: devSell
+        dev_sell: devSell,
+        buy_activity_monitor: {
+            enable: buyActivityMonitorEnable,
+            generalized: buyActivityMonitorGeneralized,
+            check_interval: buyActivityCheckInterval,
+            timeout: buyActivityTimeout,
+            sell_percent: buyActivitySellPercent,
+            min_buy_amount: buyActivityMinBuyAmount
+        }
     };
     
     fetch('/api/redis-config', {

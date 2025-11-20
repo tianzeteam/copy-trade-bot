@@ -1,4 +1,4 @@
-skip_create_nonce_account: true
+skip_create_nonce_account: false
 nonce_account_pubkey: CeyfxPbWP81zny2j79rTWeYvi4GGNSnnmQ1UzMkZgv3V
 simulate_mode: false
 private_key: QhdErk44YuyJpp3hN1P2zNYbEhgvQ4NoJ5nFDpLSUkabiav3VYXAT5AQd5bjx7jTpCjD8dDqjZCivk6emMtu6J7
@@ -10,7 +10,7 @@ trade_channel: flashtrade:trade
 web_port: 3000
 buy_sol_amount: 0
 dev_sell: false
-capital_recovery_percent: 111
+capital_recovery_percent: 50
 sell_interval_limit: 3
 sell_mode: delay_sell
 sell_delay_time: 0
@@ -28,14 +28,21 @@ batch_sell_config:
     thresholds: []
 profit_target_monitor:
     enable: false
-    check_interval: 10
+    check_interval: 500
     timeout: 60
     target_profit_percent: 20
     partial_sell_percent: 50
     full_exit_on_timeout: true
+buy_activity_monitor:
+    enable: false
+    generalized: true
+    check_interval: 300
+    timeout: 3
+    sell_percent: 50
+    min_buy_amount: 0.15
 skip_ata_check: true
 pump_trade_enable: false
-pump_amm_trade_enable: false
+pump_amm_trade_enable: true
 raydium_trade_enable: false
 launchpad_trade_enable: false
 meteora_dbc_trade_enable: false

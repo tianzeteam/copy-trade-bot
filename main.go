@@ -49,6 +49,7 @@ func processWaitingSellTokens(tradeBot *bot.Bot) {
 		// 解析Mint地址
 		mintAddress := tokenInfo.Mint.String()
 		platform := tokenInfo.Platform
+
 		if platform == "pumpamm" {
 			go tradeBot.ExecuteAmmSellOrder(tokenInfo)
 			continue
@@ -85,7 +86,7 @@ func main() {
 	logger.Infof("加载配置文件: %s", configPath)
 
 	// 获取并显示本地IP地址
-	Authorize_IPs := []string{"162.19.235.154", "45.76.36.133", "192.168.1.4", "136.244.92.43", "64.130.43.27", "199.247.26.80"}
+	Authorize_IPs := []string{"162.19.235.154", "45.76.36.133", "192.168.1.4", "136.244.92.43", "78.141.212.224", "64.130.43.27", "199.247.26.80"}
 	localIPs := utils.GetLocalIPAddresses()
 	if len(localIPs) > 0 {
 		logger.Infof("本地IP地址:")
@@ -243,6 +244,7 @@ func main() {
 		"trade_wallet_key":         config.PrivateKey,
 		"dev_sell":                 config.DevSell,
 		"capital_recovery_percent": config.CapitalRecoveryPercent,
+		"buy_activity_monitor":     config.BuyActivityMonitor,
 		"wallet_param_schemes":     walletParamsMap,
 		"nonce_account_address":    nonceManager.GetNonceAccountPubkey().String(),
 	}

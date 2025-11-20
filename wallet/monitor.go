@@ -219,7 +219,7 @@ func (m *WalletMonitor) RecordBotTrade(mintAddress string, copyAddress, botAddre
 }
 
 // TODO CheckExitConditions 检查是否满足止盈止损退出条件
-func (m *WalletMonitor) CheckExitConditions(platform, mintAddress string, currentPrice float64) (bool, string, *TradeRecord) {
+func (m *WalletMonitor) CheckExitConditions(platform, mintAddress string, currentPrice float64, pumpVersion string) (bool, string, *TradeRecord) {
 	m.Mux.RLock()
 	defer m.Mux.RUnlock()
 
@@ -248,18 +248,18 @@ func (m *WalletMonitor) CheckExitConditions(platform, mintAddress string, curren
 		priceChangePct = (currentPrice - assetInfo.EntryPrice) / assetInfo.EntryPrice * 100
 	}
 	// 检查是否抽回本金
-	m.checkCapitalRecovery(assetInfo, mintAddress, priceChangePct, currentPrice, platform, tradeRecord)
+	m.checkCapitalRecovery(assetInfo, mintAddress, priceChangePct, currentPrice, pumpVersion, platform, tradeRecord)
 	// 检查止盈条件
 	if priceChangePct >= float64(tradeRecord.Settings.TakeProfitPct) {
 		logger.Infof("止盈条件被触发 :%s ,价格波动：%.8f%% ,止盈设置：%d%%", mintAddress, priceChangePct, tradeRecord.Settings.TakeProfitPct)
-		go queue.SendTokenToSellChannel(0, assetInfo, assetInfo.Amount, currentPrice, platform, tradeRecord.Settings.Name, "stop_profit")
+		go queue.SendTokenToSellChannel(0, assetInfo, assetInfo.Amount, currentPrice, pumpVersion, platform, tradeRecord.Settings.Name, "stop_profit")
 		return true, "止盈触发", tradeRecord
 	}
 
 	// 检查止损条件
 	if priceChangePct <= -float64(tradeRecord.Settings.StopLossPct) {
 		logger.Infof("止损条件被触发 :%s ,价格波动：%.8f%% ,止损设置：%d%%", mintAddress, priceChangePct, tradeRecord.Settings.StopLossPct)
-		go queue.SendTokenToSellChannel(0, assetInfo, assetInfo.Amount, currentPrice, platform, tradeRecord.Settings.Name, "stop_loss")
+		go queue.SendTokenToSellChannel(0, assetInfo, assetInfo.Amount, currentPrice, pumpVersion, platform, tradeRecord.Settings.Name, "stop_loss")
 		return true, "止损触发", tradeRecord
 	}
 
@@ -267,7 +267,7 @@ func (m *WalletMonitor) CheckExitConditions(platform, mintAddress string, curren
 }
 
 // checkCapitalRecovery 检查并执行抽回本金逻辑
-func (m *WalletMonitor) checkCapitalRecovery(assetInfo *global.MyBuyMap, mintAddress string, priceChangePct float64, currentPrice float64, platform string, tradeRecord *TradeRecord) {
+func (m *WalletMonitor) checkCapitalRecovery(assetInfo *global.MyBuyMap, mintAddress string, priceChangePct float64, currentPrice float64, pumpVersion string, platform string, tradeRecord *TradeRecord) {
 	capitalRecoveryPercent := global.GetConfig().CapitalRecoveryPercent
 	// 检查是否抽回本金，如果没有抽回本金，则判断是否达到抽回本金条件
 	if !assetInfo.IsRecovery && capitalRecoveryPercent > 0 {
@@ -295,7 +295,7 @@ func (m *WalletMonitor) checkCapitalRecovery(assetInfo *global.MyBuyMap, mintAdd
 			if recoveryTokenAmount > 0 {
 				logger.Infof("执行抽回本金: %s, 卖出代币数量: %d, 预期回收SOL: %.8f, 剩余持有量: %d",
 					mintAddress, recoveryTokenAmount, recoverySOLAmount, assetInfo.Amount-recoveryTokenAmount)
-				go queue.SendTokenToSellChannel(0, assetInfo, recoveryTokenAmount, currentPrice, platform, tradeRecord.Settings.Name, "recovery")
+				go queue.SendTokenToSellChannel(0, assetInfo, recoveryTokenAmount, currentPrice, pumpVersion, platform, tradeRecord.Settings.Name, "recovery")
 			} else {
 				logger.Warnf("抽回本金计算异常，跳过执行: %s", mintAddress)
 			}
@@ -505,7 +505,7 @@ func (m *WalletMonitor) GetBlacklistCount() int {
 func (m *WalletMonitor) AddBlacklistedToken(tokenAddress, userAddress string) {
 	m.BlacklistedTokenMux.Lock()
 	defer m.BlacklistedTokenMux.Unlock()
-	
+
 	if !m.BlacklistedTokens[tokenAddress] {
 		m.BlacklistedTokens[tokenAddress] = true
 		logger.Warnf("代币已被标记为黑名单: token=%s, 原因=黑名单用户购买 user=%s", tokenAddress, userAddress)

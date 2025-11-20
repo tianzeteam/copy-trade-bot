@@ -10,7 +10,6 @@ import (
 	"copytrade/types"
 	"fmt"
 
-	"copytrade/pumpamm"
 	"copytrade/raydium/layouts"
 	"copytrade/raydium/utils"
 
@@ -48,7 +47,7 @@ func NewAccountsCalculator(endpoint string) *AccountsCalculator {
 	}
 }
 
-// CalculatePumpAccounts 计算Pump所需的所有账户
+// CalculatePumpAccounts 计算Pump V1所需的所有账户（使用标准 Token Program）
 func (c *AccountsCalculator) CalculatePumpAccounts(ctx context.Context, creator, mint, user solana.PublicKey) (*types.PumpAccounts, error) {
 	// 计算bonding curve地址
 	bondingCurve, _, err := solana.FindProgramAddress(
@@ -102,6 +101,97 @@ func (c *AccountsCalculator) CalculatePumpAccounts(ctx context.Context, creator,
 		return nil, fmt.Errorf("计算global volume accumulator失败: %w", err)
 	}
 	// 计算user_volume_accumulator (用户成交量累加器地址)
+	userVolumeAccumulator, _, err := solana.FindProgramAddress(
+		[][]byte{
+			[]byte("user_volume_accumulator"),
+			user.Bytes(),
+		},
+		PUMP_PROGRAM_ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("计算user volume accumulator失败: %w", err)
+	}
+
+	return &types.PumpAccounts{
+		BondingCurve:            bondingCurve,
+		AssociatedBondingCurve:  associatedBondingCurve,
+		AssociatedTokenAccount:  associatedTokenAccount,
+		CreatorVaultPda:         creatorVaultPda,
+		GlobalVolumeAccumulator: globalVolumeAccumulator,
+		UserVolumeAccumulator:   userVolumeAccumulator,
+	}, nil
+}
+
+// CalculatePumpV2Accounts 计算Pump V2所需的所有账户（支持 Token2022）
+// tokenProgram: 可以是 TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA (Token Program)
+//
+//	或 TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb (Token-2022 Program)
+func (c *AccountsCalculator) CalculatePumpV2Accounts(ctx context.Context, creator, mint, user, tokenProgram solana.PublicKey) (*types.PumpAccounts, error) {
+	// 计算bonding curve地址 - seeds: ["bonding-curve", mint]
+	bondingCurve, _, err := solana.FindProgramAddress(
+		[][]byte{
+			[]byte("bonding-curve"),
+			mint.Bytes(),
+		},
+		PUMP_PROGRAM_ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("计算bonding curve失败: %w", err)
+	}
+
+	// 计算associated bonding curve地址
+	// V2 使用 ATA Program 派生，seeds: [bonding_curve, token_program, mint]
+	// program: ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL
+	associatedBondingCurve, _, err := solana.FindProgramAddress(
+		[][]byte{
+			bondingCurve.Bytes(),
+			tokenProgram.Bytes(),
+			mint.Bytes(),
+		},
+		solana.SPLAssociatedTokenAccountProgramID, // ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL
+	)
+	if err != nil {
+		return nil, fmt.Errorf("计算associated bonding curve失败: %w", err)
+	}
+
+	// 计算用户的associated token account (associated_user)
+	// V2 也使用 ATA Program 派生
+	associatedTokenAccount, _, err := solana.FindProgramAddress(
+		[][]byte{
+			user.Bytes(),
+			tokenProgram.Bytes(),
+			mint.Bytes(),
+		},
+		solana.SPLAssociatedTokenAccountProgramID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("计算associated token account失败: %w", err)
+	}
+
+	// 计算creator vault PDA地址 - seeds: ["creator-vault", creator]
+	creatorVaultPda, _, err := solana.FindProgramAddress(
+		[][]byte{
+			[]byte("creator-vault"),
+			creator.Bytes(),
+		},
+		PUMP_PROGRAM_ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("计算creator vault PDA失败: %w", err)
+	}
+
+	// 计算global_volume_accumulator - seeds: ["global_volume_accumulator"]
+	globalVolumeAccumulator, _, err := solana.FindProgramAddress(
+		[][]byte{
+			[]byte("global_volume_accumulator"),
+		},
+		PUMP_PROGRAM_ID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("计算global volume accumulator失败: %w", err)
+	}
+
+	// 计算user_volume_accumulator - seeds: ["user_volume_accumulator", user]
 	userVolumeAccumulator, _, err := solana.FindProgramAddress(
 		[][]byte{
 			[]byte("user_volume_accumulator"),
@@ -179,8 +269,8 @@ func (c *AccountsCalculator) CalculateV4Accounts(user solana.PublicKey, tradeInf
 
 }
 
-// CalculateAmmAccounts 计算AMM所需的所有账户
-func (c *AccountsCalculator) CalculateAmmAccounts(pool, baseMint, user solana.PublicKey, coinCreator solana.PublicKey) (*types.AmmAccounts, error) {
+// CalculateAmmAccounts 计算 PumpAMM V2 所需的所有账户
+func (c *AccountsCalculator) CalculateAmmAccounts(pool, baseMint, user solana.PublicKey, coinCreator solana.PublicKey, pumpVersion string) (*types.AmmAccounts, error) {
 
 	// 创建WSOL账户
 	wsolTokenAccount, _, err := solana.FindAssociatedTokenAddress(
@@ -192,41 +282,58 @@ func (c *AccountsCalculator) CalculateAmmAccounts(pool, baseMint, user solana.Pu
 		return nil, fmt.Errorf("failed to create WSOL account with seed: %v", err)
 	}
 
-	// 假设我们使用SOL作为报价代币
+	// Quote mint 固定为 SOL
 	quoteMint := solana.SolMint
 
-	// 计算pool_base_token_account (池中基础代币账户)
-	// 根据IDL，seeds是 [pool, base_token_program, base_mint]
+	// 根据 pumpVersion 判断 Token Program
+	// PumpAMM V1: 使用标准 Token Program
+	// PumpAMM V2: 使用 Token2022 Program
+	var baseTokenProgram solana.PublicKey
+	if pumpVersion == "v2" {
+		baseTokenProgram = solana.Token2022ProgramID
+	} else {
+		// v1 或其他版本使用标准 Token Program
+		baseTokenProgram = solana.TokenProgramID
+	}
+	quoteTokenProgram := solana.TokenProgramID // SOL 使用标准 Token Program
+
+	// 计算 pool_base_token_account (池中基础代币账户)
+	// 根据 IDL: PDA with seeds [pool, base_token_program, base_mint], program = ATA Program
 	poolBaseTokenAccount, _, err := solana.FindProgramAddress(
 		[][]byte{
 			pool.Bytes(),
-			solana.TokenProgramID.Bytes(), // 假设使用标准Token程序
+			baseTokenProgram.Bytes(),
 			baseMint.Bytes(),
 		},
-		solana.SPLAssociatedTokenAccountProgramID, // 使用Associated Token Account程序
+		solana.SPLAssociatedTokenAccountProgramID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find pool base token account: %w", err)
 	}
 
-	// 计算pool_quote_token_account (池中报价代币账户)
-	// 根据IDL，seeds是 [pool, quote_token_program, quote_mint]
+	// 计算 pool_quote_token_account (池中报价代币账户)
+	// 根据 IDL: PDA with seeds [pool, quote_token_program, quote_mint], program = ATA Program
 	poolQuoteTokenAccount, _, err := solana.FindProgramAddress(
 		[][]byte{
 			pool.Bytes(),
-			solana.TokenProgramID.Bytes(), // 假设使用标准Token程序
+			quoteTokenProgram.Bytes(),
 			quoteMint.Bytes(),
 		},
-		solana.SPLAssociatedTokenAccountProgramID, // 使用Associated Token Account程序
+		solana.SPLAssociatedTokenAccountProgramID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find pool quote token account: %w", err)
 	}
 
 	// 计算用户的基础代币associated token account
-	userBaseTokenAccount, _, err := solana.FindAssociatedTokenAddress(
-		user,
-		baseMint,
+	// 对于 Token2022 代币，需要使用 Token2022ProgramID
+	userBaseTokenAccount, _, err := solana.FindProgramAddress(
+		[][]byte{
+			user.Bytes(),
+			baseTokenProgram.Bytes(),
+			baseMint.Bytes(),
+		},
+		solana.SPLAssociatedTokenAccountProgramID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find user base token account: %w", err)
@@ -245,53 +352,113 @@ func (c *AccountsCalculator) CalculateAmmAccounts(pool, baseMint, user solana.Pu
 		}
 	}
 
-	// 计算coin_creator_vault_authority (代币创建者金库授权地址)
-	// 根据IDL，seeds是 ["creator_vault", coin_creator]
+	// 计算 coin_creator_vault_authority (代币创建者金库授权地址)
+	// 根据 IDL: PDA with seeds ["creator_vault", coin_creator], program = PumpAMM Program
 	coinCreatorVaultAuthority, _, err := solana.FindProgramAddress(
 		[][]byte{
 			[]byte("creator_vault"),
 			coinCreator.Bytes(),
 		},
-		pumpamm.ProgramID,
+		PumpAMMProgramID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find coin creator vault authority: %w", err)
 	}
 
-	// 计算coin_creator_vault_ata (代币创建者金库ATA地址)
-	var seeds [][]byte
-	// path: coinCreatorVaultAuthority
-	seeds = append(seeds, coinCreatorVaultAuthority.Bytes())
-	// path: quoteTokenProgram
-	seeds = append(seeds, solana.TokenProgramID.Bytes())
-	// path: quoteMint
-	seeds = append(seeds, quoteMint.Bytes())
+	// 计算 coin_creator_vault_ata (代币创建者金库ATA地址)
+	// 根据 IDL: PDA with seeds [coin_creator_vault_authority, quote_token_program, quote_mint], program = ATA Program
 	coinCreatorVaultAta, _, err := solana.FindProgramAddress(
-		seeds,
+		[][]byte{
+			coinCreatorVaultAuthority.Bytes(),
+			quoteTokenProgram.Bytes(),
+			quoteMint.Bytes(),
+		},
 		solana.SPLAssociatedTokenAccountProgramID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find coin creator vault ata: %w", err)
 	}
 
-	// 计算global_volume_accumulator (全局成交量累加器地址)
+	// 计算 global_config (全局配置地址)
+	// 根据 IDL: PDA with seeds ["global_config"], program = PumpAMM Program
+	globalConfig, _, err := solana.FindProgramAddress(
+		[][]byte{
+			[]byte("global_config"),
+		},
+		PumpAMMProgramID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find global config: %w", err)
+	}
+
+	// 计算 protocol_fee_recipient (协议费用接收者地址)
+	// 这是从 global_config 中读取的真实链上数据
+	// Pump.fun AMM: Protocol Fee 4
+	protocolFeeRecipient := solana.MustPublicKeyFromBase58("9rPYyANsfQZw3DnDmKE3YCQF5E8oD89UXoHn9JFEhJUz")
+
+	// 计算 protocol_fee_recipient_token_account (协议费用接收者代币账户)
+	// 根据 IDL: PDA with seeds [protocol_fee_recipient, quote_token_program, quote_mint], program = ATA Program
+	protocolFeeRecipientTokenAccount, _, err := solana.FindProgramAddress(
+		[][]byte{
+			protocolFeeRecipient.Bytes(),
+			quoteTokenProgram.Bytes(),
+			quoteMint.Bytes(),
+		},
+		solana.SPLAssociatedTokenAccountProgramID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find protocol fee recipient token account: %w", err)
+	}
+
+	// 计算 event_authority (事件授权地址)
+	// 根据 IDL: PDA with seeds ["__event_authority"], program = PumpAMM Program
+	eventAuthority, _, err := solana.FindProgramAddress(
+		[][]byte{
+			[]byte("__event_authority"),
+		},
+		PumpAMMProgramID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find event authority: %w", err)
+	}
+
+	// fee_program 地址（固定）
+	feeProgram := solana.MustPublicKeyFromBase58("pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ")
+
+	// 计算 fee_config (费用配置地址)
+	// 根据 IDL: PDA with seeds ["fee_config", specific_pubkey], program = fee_program
+	specificPubkey := []byte{12, 20, 222, 252, 130, 94, 198, 118, 148, 37, 8, 24, 187, 101, 64, 101, 244, 41, 141, 49, 86, 213, 113, 180, 212, 248, 9, 12, 24, 233, 168, 99}
+	feeConfig, _, err := solana.FindProgramAddress(
+		[][]byte{
+			[]byte("fee_config"),
+			specificPubkey,
+		},
+		feeProgram,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find fee config: %w", err)
+	}
+
+	// 计算 global_volume_accumulator (全局成交量累加器地址)
+	// 根据 IDL: PDA with seeds ["global_volume_accumulator"], program = PumpAMM Program
 	globalVolumeAccumulator, _, err := solana.FindProgramAddress(
 		[][]byte{
 			[]byte("global_volume_accumulator"),
 		},
-		pumpamm.ProgramID,
+		PumpAMMProgramID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find global volume accumulator: %w", err)
 	}
 
-	// 计算user_volume_accumulator (用户成交量累加器地址)
+	// 计算 user_volume_accumulator (用户成交量累加器地址)
+	// 根据 IDL: PDA with seeds ["user_volume_accumulator", user], program = PumpAMM Program
 	userVolumeAccumulator, _, err := solana.FindProgramAddress(
 		[][]byte{
 			[]byte("user_volume_accumulator"),
 			user.Bytes(),
 		},
-		pumpamm.ProgramID,
+		PumpAMMProgramID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find user volume accumulator: %w", err)
@@ -299,20 +466,28 @@ func (c *AccountsCalculator) CalculateAmmAccounts(pool, baseMint, user solana.Pu
 
 	// 返回所有计算出的账户地址
 	ammAccounts := &types.AmmAccounts{
-		Pool:                      pool,
-		Mint:                      baseMint,
-		BaseMint:                  baseMint,
-		QuoteMint:                 quoteMint,
-		PoolBaseTokenAccount:      poolBaseTokenAccount,
-		PoolQuoteTokenAccount:     poolQuoteTokenAccount,
-		UserBaseTokenAccount:      userBaseTokenAccount,
-		UserQuoteTokenAccount:     userQuoteTokenAccount,
-		WsolTokenAccount:          wsolTokenAccount,
-		CoinCreator:               coinCreator,
-		CoinCreatorVaultAuthority: coinCreatorVaultAuthority,
-		CoinCreatorVaultAta:       coinCreatorVaultAta,
-		GlobalVolumeAccumulator:   globalVolumeAccumulator,
-		UserVolumeAccumulator:     userVolumeAccumulator,
+		Pool:                             pool,
+		Mint:                             baseMint,
+		BaseMint:                         baseMint,
+		QuoteMint:                        quoteMint,
+		PoolBaseTokenAccount:             poolBaseTokenAccount,
+		PoolQuoteTokenAccount:            poolQuoteTokenAccount,
+		UserBaseTokenAccount:             userBaseTokenAccount,
+		UserQuoteTokenAccount:            userQuoteTokenAccount,
+		WsolTokenAccount:                 wsolTokenAccount,
+		CoinCreator:                      coinCreator,
+		CoinCreatorVaultAuthority:        coinCreatorVaultAuthority,
+		CoinCreatorVaultAta:              coinCreatorVaultAta,
+		GlobalVolumeAccumulator:          globalVolumeAccumulator,
+		UserVolumeAccumulator:            userVolumeAccumulator,
+		GlobalConfig:                     globalConfig,
+		ProtocolFeeRecipient:             protocolFeeRecipient,
+		ProtocolFeeRecipientTokenAccount: protocolFeeRecipientTokenAccount,
+		EventAuthority:                   eventAuthority,
+		FeeConfig:                        feeConfig,
+		FeeProgram:                       feeProgram,
+		BaseTokenProgram:                 baseTokenProgram,
+		QuoteTokenProgram:                quoteTokenProgram,
 	}
 
 	// 调试输出所有账户地址

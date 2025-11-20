@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"copytrade/constants"
 	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/queue"
@@ -132,28 +133,28 @@ func (s *RedisPubSubService) handleDelaySellMessage(message types.ClosePositionM
 			logger.Errorf("未找到代币%s的交易信息，无法执行买入操作", mintAddress.String())
 			return
 		}
-		queue.SendTokenToSellChannel(0, assetInfo, sellAmount, assetInfo.EntryPrice, message.Platform, "延迟卖出策略", "延迟卖出")
+		queue.SendTokenToSellChannel(0, assetInfo, sellAmount, assetInfo.EntryPrice, tradeInfo.PumpVersion, message.Platform, "延迟卖出策略", "延迟卖出")
 	case "pumpamm":
 		tradeInfo := global.GetAmmTradeInfo(mintAddress.String())
 		if tradeInfo == nil {
 			logger.Errorf("未找到代币%s的交易信息，无法执行买入操作", mintAddress.String())
 			return
 		}
-		queue.SendTokenToSellChannel(0, assetInfo, sellAmount, assetInfo.EntryPrice, message.Platform, "延迟卖出策略", "延迟卖出")
+		queue.SendTokenToSellChannel(0, assetInfo, sellAmount, assetInfo.EntryPrice, tradeInfo.PumpVersion, message.Platform, "延迟卖出策略", "延迟卖出")
 	case "cpmm":
 		tradeInfo := global.GetCpmmTradeInfo(mintAddress.String())
 		if tradeInfo == nil {
 			logger.Errorf("未找到代币%s的交易信息，无法执行买入操作", mintAddress.String())
 			return
 		}
-		queue.SendTokenToSellChannel(0, assetInfo, sellAmount, assetInfo.EntryPrice, message.Platform, "延迟卖出策略", "延迟卖出")
+		queue.SendTokenToSellChannel(0, assetInfo, sellAmount, assetInfo.EntryPrice, constants.UniversalVersionV0, message.Platform, "延迟卖出策略", "延迟卖出")
 	case "launchpad":
 		tradeInfo := global.GetLaunchpadTradeInfo(mintAddress.String())
 		if tradeInfo == nil {
 			logger.Errorf("未找到代币%s的交易信息，无法执行买入操作", mintAddress.String())
 			return
 		}
-		queue.SendTokenToSellChannel(0, assetInfo, sellAmount, assetInfo.EntryPrice, message.Platform, "延迟卖出策略", "延迟卖出")
+		queue.SendTokenToSellChannel(0, assetInfo, sellAmount, assetInfo.EntryPrice, constants.UniversalVersionV0, message.Platform, "延迟卖出策略", "延迟卖出")
 
 	case "raydiumV4":
 		tradeInfo := global.GetAmmRaydiuV4TradeInfo(mintAddress.String())
@@ -161,7 +162,7 @@ func (s *RedisPubSubService) handleDelaySellMessage(message types.ClosePositionM
 			logger.Errorf("未找到代币%s的交易信息，无法执行买入操作", mintAddress.String())
 			return
 		}
-		queue.SendTokenToSellChannel(0, assetInfo, sellAmount, assetInfo.EntryPrice, message.Platform, "延迟卖出策略", "延迟卖出")
+		queue.SendTokenToSellChannel(0, assetInfo, sellAmount, assetInfo.EntryPrice, constants.UniversalVersionV0, message.Platform, "延迟卖出策略", "延迟卖出")
 	}
 
 }

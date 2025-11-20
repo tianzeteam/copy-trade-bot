@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"copytrade/bot"
+	"copytrade/constants"
 	"copytrade/core"
 	"copytrade/global"
 	"copytrade/logger"
@@ -720,21 +721,20 @@ func (sm *StreamManager) processTransactionUpdate(out *yellowstone_geyser_pb.Sub
 			return
 		}
 
-		var tradeInfo *global.TradeEventInfo
-		if innerProgramID == core.PUMP_PROGRAM_ID.String() {
-			tradeInfo = sm.tradeBot.PhotonRouterPumpParse(out, currentInstruction, ctx)
-		} else {
-			tradeInfo = sm.tradeBot.PumpParse(out, ctx)
-		}
+		signature := base58.Encode(out.GetTransaction().Transaction.Signature)
+		tradeInfo := sm.tradeBot.UniversalRouterPumpParse(out, ctx, signature)
 
 		if tradeInfo != nil && sm.transactionMonitor != nil {
+
+			//logger.Infof("tx signature: %s, pumpversion: %s", signature, tradeInfo.PumpVersion)
 			tokenAddress := tradeInfo.MintAddress
 			userAddress := tradeInfo.UserAddress
 
 			if tradeInfo.IsBuy {
+
 				// 首先检查代币是否已经在黑名单中
 				if sm.walletMonitor.IsTokenBlacklisted(tokenAddress) {
-					logger.Debugf("跳过黑名单代币的交易: token=%s, user=%s", tokenAddress, userAddress)
+					logger.Infof("跳过黑名单代币的交易: token=%s, user=%s", tokenAddress, userAddress)
 					return
 				}
 
@@ -745,11 +745,12 @@ func (sm *StreamManager) processTransactionUpdate(out *yellowstone_geyser_pb.Sub
 					sm.walletMonitor.AddBlacklistedToken(tokenAddress, userAddress)
 					return
 				}
+
 				go sm.transactionMonitor.ProcessTransaction(tradeInfo)
 			} else {
 				go sm.transactionMonitor.ProcessSellTransaction(tradeInfo)
 			}
-			go sm.walletMonitor.CheckExitConditions("pumpfun", tradeInfo.MintAddress, tradeInfo.CurrentPrice)
+			go sm.walletMonitor.CheckExitConditions("pumpfun", tradeInfo.MintAddress, tradeInfo.CurrentPrice, tradeInfo.PumpVersion)
 		}
 		return
 	}
@@ -765,16 +766,22 @@ func (sm *StreamManager) processTransactionUpdate(out *yellowstone_geyser_pb.Sub
 		ammTradeInfo = sm.tradeBot.PumpAmmParse(out, ctx)
 
 		if ammTradeInfo == nil && innerProgramID == core.AMM_PROGRAM_ID.String() {
-			ammTradeInfo = sm.tradeBot.PhotonRouterAmmParse(out, currentInstruction, ctx)
+			ammTradeInfo = sm.tradeBot.UniversalRouterAmmParse(out, currentInstruction, ctx)
 		}
 
 		if ammTradeInfo != nil && sm.transactionMonitor != nil {
+			if slices.Contains(accountsAddress, solana.Token2022ProgramID.String()) {
+				ammTradeInfo.PumpVersion = constants.PumpVersionV2
+			} else {
+				ammTradeInfo.PumpVersion = constants.PumpVersionV1
+			}
+			//logger.Infof("ammTradeInfo : %+v", ammTradeInfo)
 			if ammTradeInfo.IsBuy {
 				go sm.transactionMonitor.ProcessAmmTransaction(ammTradeInfo)
 			} else {
 				go sm.transactionMonitor.ProcessAmmSellTransaction(ammTradeInfo)
 			}
-			go sm.walletMonitor.CheckExitConditions("pumpamm", ammTradeInfo.MintAddress.String(), ammTradeInfo.CurrentPrice)
+			go sm.walletMonitor.CheckExitConditions("pumpamm", ammTradeInfo.MintAddress.String(), ammTradeInfo.CurrentPrice, ammTradeInfo.PumpVersion)
 		}
 		return
 	}
@@ -806,7 +813,7 @@ func (sm *StreamManager) processTransactionUpdate(out *yellowstone_geyser_pb.Sub
 			} else {
 				go sm.transactionMonitor.ProcessRaydiumV4SellTransaction(raydiumV4TradeInfo, marketLayout, poolLayout)
 			}
-			go sm.walletMonitor.CheckExitConditions("raydiumV4", raydiumV4TradeInfo.MintAddress.String(), raydiumV4TradeInfo.CurrentPrice)
+			go sm.walletMonitor.CheckExitConditions("raydiumV4", raydiumV4TradeInfo.MintAddress.String(), raydiumV4TradeInfo.CurrentPrice, constants.UniversalVersionV0)
 		}
 		return
 	}
@@ -830,7 +837,7 @@ func (sm *StreamManager) processTransactionUpdate(out *yellowstone_geyser_pb.Sub
 			} else {
 				go sm.transactionMonitor.ProcessLaunchpadSellTransaction(launchpadTradeInfo)
 			}
-			go sm.walletMonitor.CheckExitConditions("launchpad", launchpadTradeInfo.MintAddress.String(), launchpadTradeInfo.CurrentPrice)
+			go sm.walletMonitor.CheckExitConditions("launchpad", launchpadTradeInfo.MintAddress.String(), launchpadTradeInfo.CurrentPrice, constants.UniversalVersionV0)
 		}
 		return
 	}
@@ -856,7 +863,7 @@ func (sm *StreamManager) processTransactionUpdate(out *yellowstone_geyser_pb.Sub
 			} else {
 				go sm.transactionMonitor.ProcessCpmmSellTransaction(cpmmTradeInfo)
 			}
-			go sm.walletMonitor.CheckExitConditions("cpmm", cpmmTradeInfo.MintAddress.String(), cpmmTradeInfo.CurrentPrice)
+			go sm.walletMonitor.CheckExitConditions("cpmm", cpmmTradeInfo.MintAddress.String(), cpmmTradeInfo.CurrentPrice, constants.UniversalVersionV0)
 		}
 		return
 	}
@@ -906,7 +913,7 @@ func (sm *StreamManager) processTransactionUpdate(out *yellowstone_geyser_pb.Sub
 			} else {
 				go sm.transactionMonitor.ProcessDbcSellTransaction(dbcTradeInfo)
 			}
-			go sm.walletMonitor.CheckExitConditions("meteora-dbc", mintAddress, dbcTradeInfo.CurrentPrice)
+			go sm.walletMonitor.CheckExitConditions("meteora-dbc", mintAddress, dbcTradeInfo.CurrentPrice, constants.UniversalVersionV0)
 		}
 		return
 	}
@@ -932,7 +939,7 @@ func (sm *StreamManager) processTransactionUpdate(out *yellowstone_geyser_pb.Sub
 			} else {
 				go sm.transactionMonitor.ProcessCpmmSellTransaction(cpmmTradeInfo)
 			}
-			go sm.walletMonitor.CheckExitConditions("cpmm", cpmmTradeInfo.MintAddress.String(), cpmmTradeInfo.CurrentPrice)
+			go sm.walletMonitor.CheckExitConditions("cpmm", cpmmTradeInfo.MintAddress.String(), cpmmTradeInfo.CurrentPrice, constants.UniversalVersionV0)
 		}
 	}
 }

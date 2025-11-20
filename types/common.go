@@ -101,22 +101,30 @@ type PumpAccounts struct {
 	UserVolumeAccumulator   solana.PublicKey // 用户成交量累加器地址
 }
 
-// AmmAccounts 存储AMM相关的账户地址
+// AmmAccounts 存储 PumpAMM V2 相关的账户地址
 type AmmAccounts struct {
-	Pool                      solana.PublicKey // AMM池地址
-	Mint                      solana.PublicKey // 基础代币地址
-	BaseMint                  solana.PublicKey // 基础代币地址
-	QuoteMint                 solana.PublicKey // 报价代币地址
-	PoolBaseTokenAccount      solana.PublicKey // 池中基础代币账户
-	PoolQuoteTokenAccount     solana.PublicKey // 池中报价代币账户
-	UserBaseTokenAccount      solana.PublicKey // 用户的基础代币账户
-	UserQuoteTokenAccount     solana.PublicKey // 用户的报价代币账户
-	WsolTokenAccount          solana.PublicKey // WSOL账户
-	CoinCreator               solana.PublicKey // 代币创建者地址
-	CoinCreatorVaultAuthority solana.PublicKey // 代币创建者金库授权地址
-	CoinCreatorVaultAta       solana.PublicKey // 代币创建者金库ATA地址
-	GlobalVolumeAccumulator   solana.PublicKey // 全局成交量累加器地址
-	UserVolumeAccumulator     solana.PublicKey // 用户成交量累加器地址
+	Pool                             solana.PublicKey // AMM池地址
+	Mint                             solana.PublicKey // 基础代币地址
+	BaseMint                         solana.PublicKey // 基础代币地址
+	QuoteMint                        solana.PublicKey // 报价代币地址（固定为 SOL）
+	PoolBaseTokenAccount             solana.PublicKey // 池中基础代币账户
+	PoolQuoteTokenAccount            solana.PublicKey // 池中报价代币账户
+	UserBaseTokenAccount             solana.PublicKey // 用户的基础代币账户
+	UserQuoteTokenAccount            solana.PublicKey // 用户的报价代币账户
+	WsolTokenAccount                 solana.PublicKey // WSOL账户
+	CoinCreator                      solana.PublicKey // 代币创建者地址
+	CoinCreatorVaultAuthority        solana.PublicKey // 代币创建者金库授权地址
+	CoinCreatorVaultAta              solana.PublicKey // 代币创建者金库ATA地址
+	GlobalVolumeAccumulator          solana.PublicKey // 全局成交量累加器地址
+	UserVolumeAccumulator            solana.PublicKey // 用户成交量累加器地址
+	GlobalConfig                     solana.PublicKey // 全局配置地址
+	ProtocolFeeRecipient             solana.PublicKey // 协议费用接收者地址
+	ProtocolFeeRecipientTokenAccount solana.PublicKey // 协议费用接收者代币账户
+	EventAuthority                   solana.PublicKey // 事件授权地址
+	FeeConfig                        solana.PublicKey // 费用配置地址
+	FeeProgram                       solana.PublicKey // 费用程序地址
+	BaseTokenProgram                 solana.PublicKey // 基础代币程序（Token2022）
+	QuoteTokenProgram                solana.PublicKey // 报价代币程序（Token）
 }
 
 type RaydiumV4Accounts struct {
@@ -176,6 +184,7 @@ type RaydiumLaunchpadAccounts struct {
 
 // TradeAccounts 定义交易所需的账户
 type TradeAccounts struct {
+	Version                   string
 	User                      solana.PublicKey
 	Mint                      solana.PublicKey
 	BaseMint                  solana.PublicKey

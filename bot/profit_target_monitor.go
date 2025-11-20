@@ -32,24 +32,22 @@ type ProfitTargetTask struct {
 // ProfitTargetMonitor 盈利目标监控器
 type ProfitTargetMonitor struct {
 	tasks  map[string]*ProfitTargetTask // key: mintAddress
-	config *utils.ProfitTargetMonitorConfig
-	bot    *Bot
+	config *utils.Config
 	mutex  sync.RWMutex
 }
 
 // NewProfitTargetMonitor 创建盈利目标监控器
-func NewProfitTargetMonitor(config *utils.ProfitTargetMonitorConfig, bot *Bot) *ProfitTargetMonitor {
+func NewProfitTargetMonitor(config *utils.Config) *ProfitTargetMonitor {
 	return &ProfitTargetMonitor{
 		tasks:  make(map[string]*ProfitTargetTask),
 		config: config,
-		bot:    bot,
 	}
 }
 
 // StartMonitoring 启动盈利目标监控
 func (pm *ProfitTargetMonitor) StartMonitoring(task *ProfitTargetTask) {
-	if !pm.config.Enable {
-		logger.Debugf("盈利目标监控未启用，跳过监控: %s", task.MintAddress)
+	if !pm.config.ProfitTargetMonitor.Enable {
+		logger.Infof("盈利目标监控未启用，跳过监控: %s", task.MintAddress)
 		return
 	}
 
@@ -72,7 +70,7 @@ func (pm *ProfitTargetMonitor) StartMonitoring(task *ProfitTargetTask) {
 
 // monitorTask 监控单个任务
 func (pm *ProfitTargetMonitor) monitorTask(task *ProfitTargetTask) {
-	checkInterval := time.Duration(pm.config.CheckInterval) * time.Second
+	checkInterval := time.Duration(pm.config.ProfitTargetMonitor.CheckInterval) * time.Millisecond
 	ticker := time.NewTicker(checkInterval)
 	defer ticker.Stop()
 

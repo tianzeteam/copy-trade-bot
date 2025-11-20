@@ -23,7 +23,7 @@ func TestCalculateAmmAccounts(t *testing.T) {
 	user := solana.MustPublicKeyFromBase58("FkyWzLirQxLRrNqGd1RtWNWDxymh9TftJSP8d8xeTtpB")     // User wallet address
 	creator := solana.MustPublicKeyFromBase58("FkyWzLirQxLRrNqGd1RtWNWDxymh9TftJSP8d8xeTtpB")
 	// Call the function
-	ammAccounts, err := accountsCalc.CalculateAmmAccounts(pool, baseMint, user, creator)
+	ammAccounts, err := accountsCalc.CalculateAmmAccounts(pool, baseMint, user, creator, "v2")
 
 	// Assertions
 	assert.NoError(t, err)

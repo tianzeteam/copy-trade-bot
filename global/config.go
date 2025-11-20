@@ -2,6 +2,7 @@ package global
 
 import (
 	"copytrade/types"
+	"copytrade/utils"
 	"strconv"
 	"sync"
 	"time"
@@ -9,22 +10,33 @@ import (
 	"github.com/gagliardetto/solana-go"
 )
 
+// BuyActivityMonitorConfig 买单活跃度监控配置
+type BuyActivityMonitorConfig struct {
+	Enable        bool    `json:"enable"`         // 是否启用买单活跃度监控
+	Generalized   bool    `json:"generalized"`    // 是否泛化监控：true=持续监控，false=首次超时内有新单则永久取消
+	CheckInterval int     `json:"check_interval"` // 检查间隔（毫秒）
+	Timeout       int     `json:"timeout"`        // 无新买单超时时间（秒）
+	SellPercent   int     `json:"sell_percent"`   // 超时后卖出百分比
+	MinBuyAmount  float64 `json:"min_buy_amount"` // 最小买单金额（SOL）
+}
+
 // GlobalConfig 全局配置结构体，存储在内存中
 type GlobalConfig struct {
 	// 交易平台启用状态
-	PumpTradeEnable        bool           `json:"pump_trade_enable"`        // PumpFun交易启用状态
-	PumpAmmTradeEnable     bool           `json:"pump_amm_trade_enable"`    // PumpAMM交易启用状态
-	RaydiumTradeEnable     bool           `json:"raydium_trade_enable"`     // Raydium交易启用状态
-	LaunchpadTradeEnable   bool           `json:"launchpad_trade_enable"`   // Launchpad交易启用状态
-	MeteoraDbcTradeEnable  bool           `json:"meteora_dbc_trade_enable"` // Meteora DBC交易启用状态
-	RepeatTradeEnable      bool           `json:"repeat_trade_enable"`      // 重复交易启用状态
-	SellDelayTime          int            `json:"sell_delay_time"`          // 延迟卖出时间（ms）
-	SellIntervalLimit      int            `json:"sell_interval_limit"`      // 卖出时间间隔限制（秒）
-	DevSell                bool           `json:"dev_sell"`                 // 开启ds卖出
-	CapitalRecoveryPercent float64        `json:"capital_recovery_percent"` // 抽回本金盈利百分比
-	TradeWalletKey         *solana.Wallet `json:"trade_wallet_key"`         // 交易钱包密钥
-	NonceAccountAddress    string         `json:"nonce_account_address"`    // nonce账户地址
-	GlobalBlockhash        *solana.Hash   `json:"global_blockhash"`         // 全局区块哈希
+	PumpTradeEnable        bool                     `json:"pump_trade_enable"`        // PumpFun交易启用状态
+	PumpAmmTradeEnable     bool                     `json:"pump_amm_trade_enable"`    // PumpAMM交易启用状态
+	RaydiumTradeEnable     bool                     `json:"raydium_trade_enable"`     // Raydium交易启用状态
+	LaunchpadTradeEnable   bool                     `json:"launchpad_trade_enable"`   // Launchpad交易启用状态
+	MeteoraDbcTradeEnable  bool                     `json:"meteora_dbc_trade_enable"` // Meteora DBC交易启用状态
+	RepeatTradeEnable      bool                     `json:"repeat_trade_enable"`      // 重复交易启用状态
+	SellDelayTime          int                      `json:"sell_delay_time"`          // 延迟卖出时间（ms）
+	SellIntervalLimit      int                      `json:"sell_interval_limit"`      // 卖出时间间隔限制（秒）
+	DevSell                bool                     `json:"dev_sell"`                 // 开启ds卖出
+	CapitalRecoveryPercent float64                  `json:"capital_recovery_percent"` // 抽回本金盈利百分比
+	BuyActivityMonitor     BuyActivityMonitorConfig `json:"buy_activity_monitor"`     // 买单活跃度监控配置
+	TradeWalletKey         *solana.Wallet           `json:"trade_wallet_key"`         // 交易钱包密钥
+	NonceAccountAddress    string                   `json:"nonce_account_address"`    // nonce账户地址
+	GlobalBlockhash        *solana.Hash             `json:"global_blockhash"`         // 全局区块哈希
 	// 交易触发和池子大小参数
 	MinFollowTriggerAmount float64 `json:"min_follow_trigger_amount"` // 最小触发买入数量 (SOL)
 	MaxFollowTriggerAmount float64 `json:"max_follow_trigger_amount"` // 最大触发买入数量 (SOL)
@@ -162,6 +174,41 @@ func UpdateConfigField(key string, value any) {
 		if val, ok := value.(string); ok {
 			Config.NonceAccountAddress = val
 		}
+	case "buy_activity_monitor":
+		// 尝试断言为 global.BuyActivityMonitorConfig 结构体
+		if val, ok := value.(BuyActivityMonitorConfig); ok {
+			Config.BuyActivityMonitor = val
+		} else if val, ok := value.(utils.BuyActivityMonitorConfig); ok {
+			// 从 utils.BuyActivityMonitorConfig 转换
+			Config.BuyActivityMonitor = BuyActivityMonitorConfig{
+				Enable:        val.Enable,
+				Generalized:   val.Generalized,
+				CheckInterval: val.CheckInterval,
+				Timeout:       val.Timeout,
+				SellPercent:   val.SellPercent,
+				MinBuyAmount:  val.MinBuyAmount,
+			}
+		} else if monitorMap, ok := value.(map[string]interface{}); ok {
+			// 从 map 解析（来自 JSON）
+			if enable, ok := monitorMap["enable"].(bool); ok {
+				Config.BuyActivityMonitor.Enable = enable
+			}
+			if generalized, ok := monitorMap["generalized"].(bool); ok {
+				Config.BuyActivityMonitor.Generalized = generalized
+			}
+			if checkInterval, ok := monitorMap["check_interval"].(float64); ok {
+				Config.BuyActivityMonitor.CheckInterval = int(checkInterval)
+			}
+			if timeout, ok := monitorMap["timeout"].(float64); ok {
+				Config.BuyActivityMonitor.Timeout = int(timeout)
+			}
+			if sellPercent, ok := monitorMap["sell_percent"].(float64); ok {
+				Config.BuyActivityMonitor.SellPercent = int(sellPercent)
+			}
+			if minBuyAmount, ok := monitorMap["min_buy_amount"].(float64); ok {
+				Config.BuyActivityMonitor.MinBuyAmount = minBuyAmount
+			}
+		}
 	}
 
 	Config.UpdatedAt = time.Now()
@@ -186,6 +233,7 @@ func InitConfig(config map[string]any) {
 		SellIntervalLimit:      getIntValue(config, "sell_interval_limit", 2),
 		DevSell:                getBoolValue(config, "dev_sell", false),
 		CapitalRecoveryPercent: getFloatValue(config, "capital_recovery_percent", 0),
+		BuyActivityMonitor:     getBuyActivityMonitorConfig(config),
 		TradeWalletKey:         &solana.Wallet{PrivateKey: privateKey}, //
 		// 钱包参数模板
 		WalletParamSchemes:  getWalletParamSchemes(config),
@@ -280,4 +328,57 @@ func getWalletParamSchemes(config map[string]any) map[string]*types.ParamScheme 
 
 	// 如果不存在或类型不匹配，返回空映射
 	return make(map[string]*types.ParamScheme)
+}
+func getBuyActivityMonitorConfig(config map[string]any) BuyActivityMonitorConfig {
+	defaultConfig := BuyActivityMonitorConfig{
+		Enable:        false,
+		Generalized:   true,
+		CheckInterval: 500,
+		Timeout:       3,
+		SellPercent:   50,
+		MinBuyAmount:  0.1,
+	}
+
+	if val, ok := config["buy_activity_monitor"]; ok {
+		// 尝试断言为 utils.BuyActivityMonitorConfig（从 main.go 的 utils.Config 传入的情况）
+		if utilsConfig, ok := val.(utils.BuyActivityMonitorConfig); ok {
+			return BuyActivityMonitorConfig{
+				Enable:        utilsConfig.Enable,
+				Generalized:   utilsConfig.Generalized,
+				CheckInterval: utilsConfig.CheckInterval,
+				Timeout:       utilsConfig.Timeout,
+				SellPercent:   utilsConfig.SellPercent,
+				MinBuyAmount:  utilsConfig.MinBuyAmount,
+			}
+		}
+		
+		// 尝试断言为 global.BuyActivityMonitorConfig（已经是目标类型）
+		if monitorConfig, ok := val.(BuyActivityMonitorConfig); ok {
+			return monitorConfig
+		}
+		
+		// 尝试断言为 map[string]any（从其他来源传入的情况）
+		if monitorMap, ok := val.(map[string]any); ok {
+			if enable, ok := monitorMap["enable"].(bool); ok {
+				defaultConfig.Enable = enable
+			}
+			if generalized, ok := monitorMap["generalized"].(bool); ok {
+				defaultConfig.Generalized = generalized
+			}
+			if checkInterval, ok := monitorMap["check_interval"].(int); ok {
+				defaultConfig.CheckInterval = checkInterval
+			}
+			if timeout, ok := monitorMap["timeout"].(int); ok {
+				defaultConfig.Timeout = timeout
+			}
+			if sellPercent, ok := monitorMap["sell_percent"].(int); ok {
+				defaultConfig.SellPercent = sellPercent
+			}
+			if minBuyAmount, ok := monitorMap["min_buy_amount"].(float64); ok {
+				defaultConfig.MinBuyAmount = minBuyAmount
+			}
+		}
+	}
+
+	return defaultConfig
 }

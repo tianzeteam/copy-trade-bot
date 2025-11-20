@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="nav.dashboard">BeyondJeet CopyTrade - 控制面板</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -661,6 +664,150 @@
                                                 <li class="mb-0"><i class="bi bi-exclamation-triangle text-danger me-1"></i> 保护您的投资免受突发风险</li>
                                             </ul>
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 买单活跃度监控 -->
+                <div class="card border-info mt-4">
+                    <div class="card-header bg-info bg-opacity-10">
+                        <h6 class="mb-0"><i class="bi bi-activity me-2"></i>买单活跃度监控（仅Pump内盘）</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="buyActivityMonitorEnable">
+                                    <label class="form-check-label fw-semibold" for="buyActivityMonitorEnable">
+                                        <i class="bi bi-toggle-on me-1"></i>买单活跃度总开关
+                                    </label>
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        <small>监控买入后一段时间内是否有新买单，无新买单则自动卖出部分代币。</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="buyActivityMonitorGeneralized" checked>
+                                    <label class="form-check-label fw-semibold" for="buyActivityMonitorGeneralized">
+                                        <i class="bi bi-arrow-repeat me-1"></i>泛化监控模式
+                                    </label>
+                                    <div class="form-text">
+                                        <i class="bi bi-info-circle me-1"></i>
+                                        <small><strong>勾选（泛化）</strong>：持续监控，只要超时内无新单就卖出。<strong>不勾选（非泛化）</strong>：首次超时内有新单则永久取消监控。</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="buyActivityCheckInterval" class="form-label fw-semibold">
+                                        <i class="bi bi-clock-history me-1"></i>检查间隔（毫秒）
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-stopwatch"></i></span>
+                                        <input 
+                                            type="number" 
+                                            class="form-control" 
+                                            id="buyActivityCheckInterval" 
+                                            min="100" 
+                                            max="10000" 
+                                            step="100" 
+                                            value="500"
+                                            placeholder="500"
+                                        >
+                                        <span class="input-group-text">ms</span>
+                                    </div>
+                                    <div class="form-text">
+                                        <i class="bi bi-lightbulb me-1"></i>
+                                        <small>每隔多少毫秒检查一次是否有新买单，建议500-2000ms。</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="buyActivityTimeout" class="form-label fw-semibold">
+                                        <i class="bi bi-hourglass-split me-1"></i>超时时间（秒）
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-alarm"></i></span>
+                                        <input 
+                                            type="number" 
+                                            class="form-control" 
+                                            id="buyActivityTimeout" 
+                                            min="1" 
+                                            max="60" 
+                                            step="1" 
+                                            value="3"
+                                            placeholder="3"
+                                        >
+                                        <span class="input-group-text">秒</span>
+                                    </div>
+                                    <div class="form-text">
+                                        <i class="bi bi-lightbulb me-1"></i>
+                                        <small>多少秒内无新买单则触发卖出，建议3-10秒。</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="buyActivitySellPercent" class="form-label fw-semibold">
+                                        <i class="bi bi-percent me-1"></i>卖出百分比（%）
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-graph-down"></i></span>
+                                        <input 
+                                            type="number" 
+                                            class="form-control" 
+                                            id="buyActivitySellPercent" 
+                                            min="1" 
+                                            max="100" 
+                                            step="1" 
+                                            value="50"
+                                            placeholder="50"
+                                        >
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                    <div class="form-text">
+                                        <i class="bi bi-lightbulb me-1"></i>
+                                        <small>超时后卖出持仓的百分比，建议30-100%。</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="buyActivityMinBuyAmount" class="form-label fw-semibold">
+                                        <i class="bi bi-currency-dollar me-1"></i>最小买单金额（SOL）
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-coin"></i></span>
+                                        <input 
+                                            type="number" 
+                                            class="form-control" 
+                                            id="buyActivityMinBuyAmount" 
+                                            min="0" 
+                                            max="10" 
+                                            step="0.01" 
+                                            value="0.1"
+                                            placeholder="0.1"
+                                        >
+                                        <span class="input-group-text">SOL</span>
+                                    </div>
+                                    <div class="form-text">
+                                        <i class="bi bi-lightbulb me-1"></i>
+                                        <small>只统计大于此金额的买单，过滤小额交易。</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="card bg-light mt-3">
+                                    <div class="card-body p-3">
+                                        <h6 class="card-title text-info mb-2">买单活跃度监控</h6>
+                                        <ul class="list-unstyled mb-0 small">
+                                            <li class="mb-1"><i class="bi bi-check-circle text-info me-1"></i> 买入后立即启动监控</li>
+                                            <li class="mb-1"><i class="bi bi-check-circle text-info me-1"></i> 定期检查是否有新买单进入</li>
+                                            <li class="mb-1"><i class="bi bi-check-circle text-info me-1"></i> 超时无新买单则自动卖出</li>
+                                            <li class="mb-0"><i class="bi bi-check-circle text-info me-1"></i> 避免持有无人接盘的代币</li>
+                                        </ul>
                                     </div>
                                 </div>
                             </div>

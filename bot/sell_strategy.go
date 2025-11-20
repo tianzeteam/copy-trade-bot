@@ -258,12 +258,40 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 			SellTipFee:      0.002,
 		}
 	}
-	// 先计算卖出金额
-	pumpAccounts, err := b.Trader.AccountsCalc.CalculatePumpAccounts(context.Background(), tokenInfo.Creator, tokenInfo.Mint, tokenInfo.Owner)
+	pumpVersion := tokenInfo.PumpVersion
+	logger.Infof("Pump版本: %s", pumpVersion)
+
+	// 根据 PumpVersion 选择不同的账户计算方法
+	var pumpAccounts *types.PumpAccounts
+	var err error
+
+	if pumpVersion == "v2" {
+		// V2 版本：使用 Token-2022 Program
+
+		pumpAccounts, err = b.Trader.AccountsCalc.CalculatePumpV2Accounts(
+			context.Background(),
+			tokenInfo.Creator,
+			tokenInfo.Mint,
+			tokenInfo.Owner,
+			solana.Token2022ProgramID,
+		)
+		logger.Debugf("使用 Pump V2 账户计算 (Token-2022): mint=%s", tokenInfo.Mint.String())
+	} else {
+		// V1 版本：使用标准 Token Program
+		pumpAccounts, err = b.Trader.AccountsCalc.CalculatePumpAccounts(
+			context.Background(),
+			tokenInfo.Creator,
+			tokenInfo.Mint,
+			tokenInfo.Owner,
+		)
+		logger.Debugf("使用 Pump V1 账户计算 (Token Program): mint=%s", tokenInfo.Mint.String())
+	}
+
 	if err != nil {
-		logger.Errorf("计算卖出金额失败: %v", err)
+		logger.Errorf("计算账户信息失败 (version=%s): %v", pumpVersion, err)
 		return
 	}
+
 	// 计算卖出金额
 	amounts, err := b.Trader.AmountsCalc.CalculateSellAmounts(
 		context.Background(),
@@ -277,7 +305,8 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 		logger.Errorf("计算卖出金额失败: %v", err)
 		return
 	}
-	//构建交易基础参数
+
+	// 构建交易基础参数
 	globalBlockhash := noncecache.GetNonceManager().GetGlobalBlockhash()
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
@@ -288,6 +317,7 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 			AssociatedTokenAccount: pumpAccounts.AssociatedTokenAccount,
 			CreatorVault:           pumpAccounts.CreatorVaultPda,
 			NonceAccount:           *noncecache.GetNonceManager().GetNonceAccountPubkey(),
+			Version:                pumpVersion, // 设置版本信息
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MinOut, // 卖出时 Cost 表示最小获得数量
@@ -297,6 +327,7 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 			PriorityFee: uint64(specialScheme.SellPriorityFee * 1e9),
 		},
 	}
+
 	// 构建完整的订单参数
 	orderParams := core.BuildSellOrderParams(tradeParams, b.Config, specialScheme.SellTipFee)
 
@@ -359,6 +390,7 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 		tradeInfo.MintAddress,
 		botWallet,
 		tradeInfo.CoinCreator,
+		tradeInfo.PumpVersion,
 	)
 	if err != nil {
 		logger.Errorf("Failed to calculate accounts: %v", err)
@@ -389,6 +421,7 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 	globalBlockhash := noncecache.GetNonceManager().GetGlobalBlockhash()
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
+			Version:                   tradeInfo.PumpVersion,
 			User:                      tokenInfo.User,
 			Mint:                      ammAccounts.Mint,
 			BaseMint:                  ammAccounts.BaseMint,
@@ -666,14 +699,14 @@ func (b *Bot) ExecuteDbcSellOrder(tokenInfo queue.TokenInfo) {
 	// 实际的卖出逻辑
 	logger.Infof("执行 Meteora DBC 卖出订单: 代币=%s, 数量=%d", tokenInfo.Mint.String(), tokenInfo.Amount)
 	botWallet := global.GetConfig().TradeWalletKey.PublicKey()
-	
+
 	// 从全局缓存中获取DBC交易信息
 	tradeInfo := global.GetDBCTradeInfo(tokenInfo.Mint.String())
 	if tradeInfo == nil {
 		logger.Errorf("找不到代币 %s 的DBC交易信息", tokenInfo.Mint.String())
 		return
 	}
-	
+
 	_, specialScheme, _ := b.getSpecialScheme(tokenInfo.Mint.String())
 	if specialScheme == nil {
 		logger.Errorf("未找到代币 %s 的配置参数模版,使用默认模版", tokenInfo.Mint.String())
@@ -683,7 +716,7 @@ func (b *Bot) ExecuteDbcSellOrder(tokenInfo queue.TokenInfo) {
 			SellTipFee:      0.002,
 		}
 	}
-	
+
 	// 计算DBC账户信息
 	dbcAccounts, err := b.Trader.AccountsCalc.CalculateMeteoraDbcAccounts(
 		botWallet,
@@ -707,7 +740,7 @@ func (b *Bot) ExecuteDbcSellOrder(tokenInfo queue.TokenInfo) {
 		logger.Errorf("计算DBC金额失败: %v", err)
 		return
 	}
-	
+
 	// 构建交易基础参数
 	globalBlockhash := noncecache.GetNonceManager().GetGlobalBlockhash()
 	tradeParams := types.TradeParams{

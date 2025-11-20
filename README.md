@@ -3,8 +3,8 @@
 部署：
 
 server {
-        # Uncomment the next line to enable listening on port 80
-        server_name block0.beyondpump.app;
+        # Uncomment the next line to enable listening on               port 80
+        server_name bot.alibot.bio;
         location / {
            # proxy_set_header   X-Forwarded-For          $remote_addr;
            # proxy_set_header   Host $http_host;
@@ -16,8 +16,6 @@ server {
             proxy_cache off;
          }
    }
-
-
 
 [program:copytrade]
 directory=/usr/local/server/copy-trade-bot

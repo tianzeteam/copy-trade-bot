@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"copytrade/core"
+	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/sdk"
 	"copytrade/utils"
@@ -44,6 +45,9 @@ type Bot struct {
 
 	// 盈利目标监控器
 	profitMonitor *ProfitTargetMonitor
+
+	// 买单活跃度监控器（仅pumpfun内盘）
+	buyActivityMonitor *BuyActivityMonitor
 
 	// OpenBook market states map, with baseMint as key
 	marketStates     map[string]*MarketState
@@ -149,10 +153,13 @@ func NewBot(config *utils.Config, sdkClient *sdk.TradeSubscriptionClient) (*Bot,
 		marketStates:     make(map[string]*MarketState),
 		marketStatesLock: sync.RWMutex{},
 	}
-	
+
 	// 初始化盈利目标监控器（需要在Bot创建后初始化，因为需要传入bot实例）
-	b.profitMonitor = NewProfitTargetMonitor(&config.ProfitTargetMonitor, b)
-	
+	b.profitMonitor = NewProfitTargetMonitor(config)
+
+	// 初始化买单活跃度监控器
+	b.buyActivityMonitor = NewBuyActivityMonitor(config)
+
 	b.fetchBlockhashLoop()
 	return b, nil
 }
@@ -164,11 +171,7 @@ func (b *Bot) GetProfitMonitor() *ProfitTargetMonitor {
 
 // StartProfitTargetMonitoring 启动盈利目标监控
 func (b *Bot) StartProfitTargetMonitoring(mintAddress string, platform string, buyPrice float64, buyAmount uint64, creator solana.PublicKey, owner solana.PublicKey) {
-	// 检查是否启用盈利目标监控
-	if !b.Config.ProfitTargetMonitor.Enable {
-		return
-	}
-	
+
 	// 创建监控任务
 	task := &ProfitTargetTask{
 		MintAddress:        mintAddress,
@@ -185,20 +188,36 @@ func (b *Bot) StartProfitTargetMonitoring(mintAddress string, platform string, b
 		Owner:              owner,
 		Creator:            creator,
 	}
-	
+
 	// 启动监控
 	b.profitMonitor.StartMonitoring(task)
 }
 
-// NewCoin creates a new Coin instance with the provided parameters
-func NewCoin(privateKey solana.PrivateKey, publicKey solana.PublicKey, mintAddr solana.PublicKey, buySolToLamport float64, slippage uint64) *Coin {
-	return &Coin{
+// GetBuyActivityMonitor 获取买单活跃度监控器
+func (b *Bot) GetBuyActivityMonitor() *BuyActivityMonitor {
+	return b.buyActivityMonitor
+}
 
-		privateKey:      privateKey,
-		publicKey:       publicKey,
-		mintAddr:        mintAddr,
-		slippage:        slippage,
-		tokensHeld:      big.NewInt(0),
-		buySolToLamport: buySolToLamport,
+// StartBuyActivityMonitoring 启动买单活跃度监控（仅pumpfun平台）
+func (b *Bot) StartBuyActivityMonitoring(mintAddress string, platform string, buyPrice float64, buyAmount uint64, creator solana.PublicKey, owner solana.PublicKey) {
+	buyActivityMonitorConfig := global.GetConfig().BuyActivityMonitor
+	// 创建监控任务
+	task := &BuyActivityTask{
+		MintAddress:   mintAddress,
+		WalletAddress: owner.String(),
+		Platform:      platform,
+		BuyPrice:      buyPrice,
+		BuyAmount:     buyAmount,
+		BuyTime:       time.Now(),
+		Timeout:       time.Duration(buyActivityMonitorConfig.Timeout) * time.Second,
+		SellPercent:   buyActivityMonitorConfig.SellPercent,
+		MinBuyAmount:  buyActivityMonitorConfig.MinBuyAmount,
+		Generalized:   buyActivityMonitorConfig.Generalized,
+		CancelChan:    make(chan struct{}),
+		Owner:         owner,
+		Creator:       creator,
 	}
+
+	// 启动监控
+	b.buyActivityMonitor.StartMonitoring(task)
 }

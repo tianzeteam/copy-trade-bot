@@ -12,6 +12,7 @@ import (
 
 // TradeEventInfo 存储交易事件信息
 type TradeEventInfo struct {
+	PumpVersion          string //pump version
 	UserAddress          string // 用户地址
 	SolAmount            uint64 // Sol数量
 	TokenAmount          uint64 // Token数量
@@ -74,6 +75,7 @@ type CreateEventInfo struct {
 
 // AmmTradeEventInfo 存储AMM交易事件信息
 type AmmTradeEventInfo struct {
+	PumpVersion  string
 	UserAddress  solana.PublicKey // 用户地址
 	SolAmount    uint64           // Sol数量
 	TokenAmount  uint64           // Token数量
