@@ -13,6 +13,7 @@ type TradeAccounts struct {
 	Version                 string
 	Mint                    solana.PublicKey
 	User                    solana.PublicKey
+	FeeRecipient            solana.PublicKey
 	BondingCurve            solana.PublicKey
 	AssociatedBondingCurve  solana.PublicKey
 	AssociatedTokenAccount  solana.PublicKey

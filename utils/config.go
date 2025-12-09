@@ -58,6 +58,20 @@ type LogConfig struct {
 	File   string `yaml:"file"`   // 日志文件路径，为空则输出到控制台
 }
 
+// ShredStreamConfig ShredStream 配置 (默认关闭，不影响原有逻辑)
+type ShredStreamConfig struct {
+	Enabled           bool   `yaml:"enabled"`            // 是否启用 ShredStream (默认 false)
+	Endpoint          string `yaml:"endpoint"`           // ShredStream 服务端点
+	ReconnectInterval int    `yaml:"reconnect_interval"` // 重连间隔（秒）
+	MaxRetries        int    `yaml:"max_retries"`        // 最大重试次数
+}
+
+// EventDedupConfig 事件去重配置 (仅在 ShredStream 启用时生效)
+type EventDedupConfig struct {
+	CacheSize  int `yaml:"cache_size"`   // LRU 缓存大小
+	TTLSeconds int `yaml:"ttl_seconds"`  // 缓存过期时间（秒）
+}
+
 // Config 表示整个配置文件结构
 type Config struct {
 	SkipCreateNonceAccount bool                      `yaml:"skip_create_nonce_account"`
@@ -108,6 +122,10 @@ type Config struct {
 	Blockrazor             ModeConfig                `yaml:"blockrazor"`
 	Astralane              ModeConfig                `yaml:"astralane"`
 	FlashBlock             ModeConfig                `yaml:"flashblock"`
+
+	// ========== ShredStream 配置 (新增，默认关闭) ==========
+	ShredStream ShredStreamConfig `yaml:"shred_stream"` // ShredStream 配置
+	EventDedup  EventDedupConfig  `yaml:"event_dedup"`  // 事件去重配置
 }
 
 // LoadConfig 从文件加载配置

@@ -223,7 +223,7 @@ func (s *MultiLevelSellStrategy) CalculateSellBatches(tokenInfo queue.TokenInfo)
 }
 
 // ExecuteSellStrategy 执行卖出策略
-func (b *Bot) ExecuteSellStrategy(tokenInfo queue.TokenInfo, vTokenReserves, vSolReserves uint64) {
+func (b *Bot) ExecuteSellStrategy(tokenInfo queue.TokenInfo, feeRecipient solana.PublicKey, vTokenReserves, vSolReserves uint64) {
 	// 使用策略计算卖出批次
 	batches := b.sellStrategy.CalculateSellBatches(tokenInfo)
 
@@ -241,12 +241,12 @@ func (b *Bot) ExecuteSellStrategy(tokenInfo queue.TokenInfo, vTokenReserves, vSo
 		// 执行此批次的卖出订单
 		sellTokenInfo := tokenInfo
 		sellTokenInfo.Amount = batch.Amount
-		b.ExecuteSellOrder(sellTokenInfo, vTokenReserves, vSolReserves)
+		b.ExecuteSellOrder(sellTokenInfo, feeRecipient, vTokenReserves, vSolReserves)
 	}
 }
 
 // executeSellOrder 处理实际的pump 内盘卖出逻辑
-func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolReserves uint64) {
+func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, feeRecipient solana.PublicKey, vTokenReserves, vSolReserves uint64) {
 	// 实际的卖出逻辑
 	logger.Infof("执行卖出订单: 代币=%s, 数量=%d, time: %v", tokenInfo.Mint.String(), tokenInfo.Amount, time.Now().Format("2006-01-02 15:04:05.000000"))
 	_, specialScheme, _ := b.getSpecialScheme(tokenInfo.Mint.String())
@@ -311,6 +311,7 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, vTokenReserves, vSolRe
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
 			User:                   tokenInfo.Owner,
+			FeeRecipient:           feeRecipient,
 			Mint:                   tokenInfo.Mint,
 			BondingCurve:           pumpAccounts.BondingCurve,
 			AssociatedBondingCurve: pumpAccounts.AssociatedBondingCurve,

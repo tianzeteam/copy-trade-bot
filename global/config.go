@@ -20,6 +20,20 @@ type BuyActivityMonitorConfig struct {
 	MinBuyAmount  float64 `json:"min_buy_amount"` // 最小买单金额（SOL）
 }
 
+// ShredStreamConfig ShredStream 配置 (默认关闭，不影响原有逻辑)
+type ShredStreamConfig struct {
+	Enabled           bool   `json:"enabled"`            // 是否启用 ShredStream (默认 false)
+	Endpoint          string `json:"endpoint"`           // ShredStream 服务端点
+	ReconnectInterval int    `json:"reconnect_interval"` // 重连间隔（秒）
+	MaxRetries        int    `json:"max_retries"`        // 最大重试次数
+}
+
+// EventDedupConfig 事件去重配置 (仅在 ShredStream 启用时生效)
+type EventDedupConfig struct {
+	CacheSize  int `json:"cache_size"`   // LRU 缓存大小
+	TTLSeconds int `json:"ttl_seconds"`  // 缓存过期时间（秒）
+}
+
 // GlobalConfig 全局配置结构体，存储在内存中
 type GlobalConfig struct {
 	// 交易平台启用状态
@@ -63,6 +77,10 @@ type GlobalConfig struct {
 
 	// 钱包参数模板
 	WalletParamSchemes map[string]*types.ParamScheme `json:"wallet_param_schemes"` // 钱包地址到参数模板的映射
+
+	// ========== ShredStream 配置 (新增，默认关闭) ==========
+	ShredStream ShredStreamConfig `json:"shred_stream"` // ShredStream 配置
+	EventDedup  EventDedupConfig  `json:"event_dedup"`  // 事件去重配置
 
 	// 其他系统配置
 	UpdatedAt time.Time `json:"updated_at"` // 最后更新时间
@@ -238,9 +256,46 @@ func InitConfig(config map[string]any) {
 		// 钱包参数模板
 		WalletParamSchemes:  getWalletParamSchemes(config),
 		NonceAccountAddress: getStringValue(config, "nonce_account_address", ""),
+		// ========== ShredStream 配置 (新增，默认关闭) ==========
+		ShredStream: getShredStreamConfig(config),
+		EventDedup:  getEventDedupConfig(config),
 		// 更新时间
 		UpdatedAt: time.Now(),
 	}
+}
+
+// getShredStreamConfig 从配置中获取 ShredStream 配置
+func getShredStreamConfig(config map[string]any) ShredStreamConfig {
+	shredConfig := ShredStreamConfig{
+		Enabled:           false, // 默认关闭
+		Endpoint:          "",
+		ReconnectInterval: 5,
+		MaxRetries:        10,
+	}
+
+	if shredMap, ok := config["shred_stream"].(map[string]any); ok {
+		shredConfig.Enabled = getBoolValue(shredMap, "enabled", false)
+		shredConfig.Endpoint = getStringValue(shredMap, "endpoint", "")
+		shredConfig.ReconnectInterval = getIntValue(shredMap, "reconnect_interval", 5)
+		shredConfig.MaxRetries = getIntValue(shredMap, "max_retries", 10)
+	}
+
+	return shredConfig
+}
+
+// getEventDedupConfig 从配置中获取事件去重配置
+func getEventDedupConfig(config map[string]any) EventDedupConfig {
+	dedupConfig := EventDedupConfig{
+		CacheSize:  100000,
+		TTLSeconds: 60,
+	}
+
+	if dedupMap, ok := config["event_dedup"].(map[string]any); ok {
+		dedupConfig.CacheSize = getIntValue(dedupMap, "cache_size", 100000)
+		dedupConfig.TTLSeconds = getIntValue(dedupMap, "ttl_seconds", 60)
+	}
+
+	return dedupConfig
 }
 
 func getFloatValue(config map[string]any, s string, defaultValue float64) float64 {

@@ -13,6 +13,7 @@ import (
 	"copytrade/logger"
 	"copytrade/noncecache"
 	"copytrade/raydium/layouts"
+	"copytrade/shredstream"
 	"copytrade/wallet"
 
 	goyser "copytrade/yellowstone_geyser"
@@ -61,6 +62,10 @@ type StreamManager struct {
 	// 市场订阅配置
 	quoteTokenMint solana.PublicKey // 用于市场和池订阅的报价代币
 
+	// ========== ShredStream 相关 (新增，通过配置开关控制) ==========
+	shredClient  *shredstream.Client  // ShredStream 客户端
+	shredEnabled bool                 // 是否启用 ShredStream
+	eventMerger  *core.EventMerger    // 事件去重器
 }
 
 // SubscriptionConfig 订阅配置
@@ -105,6 +110,40 @@ func NewStreamManager(grpcUrl string, tradeBot *bot.Bot, transactionMonitor *wal
 		},
 	}
 
+	// ========== 新增: ShredStream 初始化 (仅在配置启用时) ==========
+	config := global.GetConfig()
+	if config.ShredStream.Enabled {
+		streamManager.shredEnabled = true
+
+		// 初始化事件去重器
+		cacheSize := config.EventDedup.CacheSize
+		if cacheSize == 0 {
+			cacheSize = 100000
+		}
+		ttlSeconds := config.EventDedup.TTLSeconds
+		if ttlSeconds == 0 {
+			ttlSeconds = 60
+		}
+		streamManager.eventMerger = core.NewEventMerger(cacheSize, ttlSeconds)
+
+		// 初始化 ShredStream 客户端
+		shredConfig := shredstream.ShredStreamConfig{
+			Enabled:           config.ShredStream.Enabled,
+			Endpoint:          config.ShredStream.Endpoint,
+			ReconnectInterval: config.ShredStream.ReconnectInterval,
+			MaxRetries:        config.ShredStream.MaxRetries,
+		}
+		shredClient, err := shredstream.NewClient(shredConfig)
+		if err != nil {
+			logger.Warnf("Failed to create ShredStream client: %v, running in gRPC-only mode", err)
+			streamManager.shredEnabled = false
+		} else {
+			streamManager.shredClient = shredClient
+			logger.Infof("ShredStream client initialized, endpoint: %s", config.ShredStream.Endpoint)
+		}
+	}
+	// ========== ShredStream 初始化结束 ==========
+
 	return streamManager
 }
 
@@ -148,6 +187,19 @@ func (sm *StreamManager) Start() error {
 		// 不返回错误，因为这不是致命错误
 	}
 
+	// ========== 新增: ShredStream 启动 (仅在配置启用时执行) ==========
+	if sm.shredEnabled && sm.shredClient != nil {
+		if err := sm.shredClient.Start(); err != nil {
+			logger.Warnf("Failed to start ShredStream: %v, falling back to gRPC only", err)
+			sm.shredEnabled = false
+			// 失败时静默降级，不影响原有 gRPC 功能
+		} else {
+			go sm.handleShredStream()
+			logger.Infof("ShredStream enabled, running in dual-channel mode")
+		}
+	}
+	// ========== 新增代码结束 ==========
+
 	logger.Infof("Stream manager started successfully")
 	return nil
 }
@@ -169,6 +221,12 @@ func (sm *StreamManager) Stop() {
 		// 注意：根据goyser库的实际API调整关闭方法
 		sm.client = nil
 	}
+
+	// ========== 新增: 停止 ShredStream ==========
+	if sm.shredClient != nil {
+		sm.shredClient.Stop()
+	}
+	// ========== 新增代码结束 ==========
 
 	logger.Infof("Stream manager stopped")
 }
@@ -685,6 +743,16 @@ func (sm *StreamManager) processTransactionUpdate(out *yellowstone_geyser_pb.Sub
 		return
 	}
 
+	// ========== 新增: 去重检查 (仅在 ShredStream 启用时执行) ==========
+	if sm.shredEnabled && sm.eventMerger != nil {
+		signature := base58.Encode(out.GetTransaction().Transaction.Signature)
+		if !sm.eventMerger.ShouldProcess(signature, core.SourceGRPC) {
+			logger.Debugf("Skipping duplicate event from gRPC: %s", signature)
+			return
+		}
+	}
+	// ========== 新增代码结束 ==========
+
 	innerInstructions := out.GetTransaction().Transaction.Meta.InnerInstructions
 	accountsAddress := sm.tradeBot.GetAccountList(out)
 	var innerProgramID string = "nativeProgramID"
@@ -1177,3 +1245,126 @@ func (sm *StreamManager) GetQuoteTokenMint() solana.PublicKey {
 	defer sm.mu.RUnlock()
 	return sm.quoteTokenMint
 }
+
+// ========== 新增: ShredStream 处理函数 ==========
+
+// handleShredStream 处理 ShredStream 事件
+func (sm *StreamManager) handleShredStream() {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Errorf("ShredStream handler panicked: %v", r)
+		}
+	}()
+
+	logger.Infof("ShredStream handler started")
+
+	for event := range sm.shredClient.EventChan {
+		if event == nil {
+			continue
+		}
+
+		// 去重检查
+		if sm.eventMerger != nil {
+			if !sm.eventMerger.ShouldProcess(event.Signature, core.SourceShredStream) {
+				continue
+			}
+		}
+
+		// 处理 ShredStream 事件
+		sm.processShredEvent(event)
+	}
+
+	logger.Infof("ShredStream handler stopped")
+}
+
+// processShredEvent 处理单个 ShredStream 事件
+func (sm *StreamManager) processShredEvent(event *shredstream.ShredEvent) {
+	if event == nil || event.Transaction == nil {
+		return
+	}
+
+	// 获取账户列表
+	accountKeys := event.Transaction.Message.AccountKeys
+	accountsAddress := make([]string, len(accountKeys))
+	for i, key := range accountKeys {
+		accountsAddress[i] = key.String()
+	}
+
+	// PumpFun (内盘) - 当前版本仅支持
+	if slices.Contains(accountsAddress, core.PUMP_PROGRAM_ID.String()) {
+		sm.processShredPumpFun(event, accountsAddress)
+		return
+	}
+
+	// TODO: 后续版本支持
+	// - PumpAMM (外盘)
+	// - Raydium V4
+	// - Raydium CPMM
+	// - 其他 DEX
+}
+
+// processShredPumpFun 处理 ShredStream PumpFun 交易
+func (sm *StreamManager) processShredPumpFun(event *shredstream.ShredEvent, accountsAddress []string) {
+	if !global.GetConfig().PumpTradeEnable {
+		logger.Debugf("ShredStream: pump trade is disabled")
+		return
+	}
+
+	// 解析交易
+	tradeInfo := shredstream.ParsePumpFunTransaction(event)
+	if tradeInfo == nil {
+		return
+	}
+
+	logger.Debugf("ShredStream: PumpFun trade detected - sig=%s, mint=%s, user=%s, isBuy=%v",
+		event.Signature, tradeInfo.MintAddress, tradeInfo.UserAddress, tradeInfo.IsBuy)
+
+	// 存储到全局映射
+	global.SetTradeInfo(tradeInfo.MintAddress, tradeInfo)
+
+	if sm.transactionMonitor == nil {
+		return
+	}
+
+	tokenAddress := tradeInfo.MintAddress
+	userAddress := tradeInfo.UserAddress
+
+	if tradeInfo.IsBuy {
+		// 检查代币黑名单
+		if sm.walletMonitor.IsTokenBlacklisted(tokenAddress) {
+			logger.Debugf("ShredStream: 跳过黑名单代币: token=%s", tokenAddress)
+			return
+		}
+
+		// 检查用户黑名单
+		if sm.walletMonitor.IsBlacklisted(userAddress) {
+			logger.Warnf("ShredStream: 检测到黑名单用户: user=%s, token=%s", userAddress, tokenAddress)
+			sm.walletMonitor.AddBlacklistedToken(tokenAddress, userAddress)
+			return
+		}
+
+		go sm.transactionMonitor.ProcessTransaction(tradeInfo)
+	} else {
+		go sm.transactionMonitor.ProcessSellTransaction(tradeInfo)
+	}
+
+	go sm.walletMonitor.CheckExitConditions("pumpfun", tradeInfo.MintAddress, tradeInfo.CurrentPrice, tradeInfo.PumpVersion)
+}
+
+// GetShredStreamStats 获取 ShredStream 统计信息
+func (sm *StreamManager) GetShredStreamStats() map[string]interface{} {
+	stats := make(map[string]interface{})
+	stats["enabled"] = sm.shredEnabled
+
+	if sm.shredClient != nil {
+		stats["client_running"] = sm.shredClient.IsRunning()
+	}
+
+	if sm.eventMerger != nil {
+		stats["dedup_stats"] = sm.eventMerger.GetStats()
+	}
+
+	return stats
+}
+
+// ========== ShredStream 处理函数结束 ==========

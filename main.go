@@ -64,8 +64,9 @@ func processWaitingSellTokens(tradeBot *bot.Bot) {
 
 			vTokenReserves := tradeInfo.VirtualTokenReserves
 			vSolReserves := tradeInfo.VirtualSolReserves
+			feeRecipient := tradeInfo.FeeRecipient
 
-			go tradeBot.ExecuteSellOrder(tokenInfo, vTokenReserves, vSolReserves)
+			go tradeBot.ExecuteSellOrder(tokenInfo, feeRecipient, vTokenReserves, vSolReserves)
 
 		} else if platform == "raydiumV4" {
 			go tradeBot.ExecuteRaydiumV4SellOrder(tokenInfo)
@@ -205,8 +206,8 @@ func main() {
 	nonceManager := noncecache.NewNonceManager(config)
 	if !SKIP_CREATE_NONCE_ACCOUNT {
 		if err := nonceManager.Initialize(ctx, config.PrivateKey); err != nil {
-			logger.Errorf("初始化nonce管理器失败: %v", err)
-			os.Exit(1)
+			logger.Warnf("初始化nonce管理器失败（将使用blockhash模式）: %v", err)
+			// 不退出，继续启动，使用 blockhash 模式
 		}
 	}
 	//启动时刷新一次nonce hash

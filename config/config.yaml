@@ -2,6 +2,16 @@ skip_create_nonce_account: false
 nonce_account_pubkey: CeyfxPbWP81zny2j79rTWeYvi4GGNSnnmQ1UzMkZgv3V
 simulate_mode: false
 private_key: QhdErk44YuyJpp3hN1P2zNYbEhgvQ4NoJ5nFDpLSUkabiav3VYXAT5AQd5bjx7jTpCjD8dDqjZCivk6emMtu6J7
+#ShredStream 配置 (默认关闭)
+shred_stream:
+    enabled: true                    # 改为 true 启用
+    endpoint: http://64.130.32.73:10800
+    reconnect_interval: 5
+    max_retries: 10
+#事件去重配置
+event_dedup:
+    cache_size: 100000
+    ttl_seconds: 60
 grpc_url: https://solana-yellowstone-grpc.publicnode.com:443
 rpc_url: https://mainnet.helius-rpc.com/?api-key=dc537a21-36c2-4a5f-bcf8-90ae704fbbfc
 redis_db: 0

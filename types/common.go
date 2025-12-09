@@ -186,6 +186,7 @@ type RaydiumLaunchpadAccounts struct {
 type TradeAccounts struct {
 	Version                   string
 	User                      solana.PublicKey
+	FeeRecipient              solana.PublicKey
 	Mint                      solana.PublicKey
 	BaseMint                  solana.PublicKey
 	QuoteMint                 solana.PublicKey

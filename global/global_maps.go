@@ -15,6 +15,7 @@ type TradeEventInfo struct {
 	PumpVersion          string //pump version
 	UserAddress          string // 用户地址
 	SolAmount            uint64 // Sol数量
+	FeeRecipient         solana.PublicKey
 	TokenAmount          uint64 // Token数量
 	IsBuy                bool   // 是否买入
 	MintAddress          string // Mint地址

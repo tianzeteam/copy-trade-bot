@@ -157,7 +157,7 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 			params.TradeParams.Amount,
 			params.TradeParams.Cost,
 			GLOBAL_ACCOUNT,
-			FEE_RECIPIENT,
+			params.TradeParams.Accounts.FeeRecipient,
 			params.TradeParams.Accounts.Mint,
 			params.TradeParams.Accounts.BondingCurve,
 			params.TradeParams.Accounts.AssociatedBondingCurve,
@@ -181,7 +181,7 @@ func (t *TraderImpl) Buy(ctx context.Context, params types.OrderParams) (string,
 		// V1 版本：使用 pump 的 Builder API
 		buyInstruction := pump.NewBuyInstructionBuilder().
 			SetGlobalAccount(GLOBAL_ACCOUNT).
-			SetFeeRecipientAccount(FEE_RECIPIENT).
+			SetFeeRecipientAccount(params.TradeParams.Accounts.FeeRecipient).
 			SetMintAccount(params.TradeParams.Accounts.Mint).
 			SetBondingCurveAccount(params.TradeParams.Accounts.BondingCurve).
 			SetAssociatedBondingCurveAccount(params.TradeParams.Accounts.AssociatedBondingCurve).
@@ -1626,7 +1626,7 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 			params.TradeParams.Amount,
 			params.TradeParams.Cost,
 			GLOBAL_ACCOUNT,
-			FEE_RECIPIENT,
+			params.TradeParams.Accounts.FeeRecipient,
 			params.TradeParams.Accounts.Mint,
 			params.TradeParams.Accounts.BondingCurve,
 			params.TradeParams.Accounts.AssociatedBondingCurve,
@@ -1648,7 +1648,7 @@ func (t *TraderImpl) Sell(ctx context.Context, params types.OrderParams) (string
 		// V1 版本：使用 pump 的 Builder API
 		sellInstruction := pump.NewSellInstructionBuilder().
 			SetGlobalAccount(GLOBAL_ACCOUNT).
-			SetFeeRecipientAccount(FEE_RECIPIENT).
+			SetFeeRecipientAccount(params.TradeParams.Accounts.FeeRecipient).
 			SetMintAccount(params.TradeParams.Accounts.Mint).
 			SetBondingCurveAccount(params.TradeParams.Accounts.BondingCurve).
 			SetAssociatedBondingCurveAccount(params.TradeParams.Accounts.AssociatedBondingCurve).

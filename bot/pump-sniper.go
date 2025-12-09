@@ -63,7 +63,7 @@ type MyBuyMap struct {
 // 全局交易信息映射表已移至 global_maps.go
 
 // PumpSellMint 处理代币卖出逻辑
-func (b *Bot) PumpSell(tokenInfo queue.TokenInfo, virtualTokenReserves, virtualSolReserves uint64) {
+func (b *Bot) PumpSell(tokenInfo queue.TokenInfo, feeRecipient solana.PublicKey, virtualTokenReserves, virtualSolReserves uint64) {
 
 	// 使用策略模式进行卖出
 	logger.Infof("使用策略模式卖出代币: %s", tokenInfo.Mint.String())
@@ -75,7 +75,7 @@ func (b *Bot) PumpSell(tokenInfo queue.TokenInfo, virtualTokenReserves, virtualS
 	}
 
 	// 执行卖出策略
-	b.ExecuteSellStrategy(tokenInfo, virtualTokenReserves, virtualSolReserves)
+	b.ExecuteSellStrategy(tokenInfo, feeRecipient, virtualTokenReserves, virtualSolReserves)
 
 }
 
@@ -282,6 +282,7 @@ func (b *Bot) handlePumpTradeEvent(tradeEvent *pump.TradeEventEventData) *global
 		PumpVersion:          constants.PumpVersionV1,
 		MintAddress:          mintAddress,
 		UserAddress:          tradeEvent.User.String(),
+		FeeRecipient:         tradeEvent.FeeRecipient,
 		SolAmount:            tradeEvent.SolAmount,
 		TokenAmount:          tradeEvent.TokenAmount,
 		IsBuy:                tradeEvent.IsBuy,
@@ -382,6 +383,7 @@ func (b *Bot) handlePumpV2TradeEvent(tradeEvent *pumpV2.TradeEvent) *global.Trad
 		PumpVersion:          constants.PumpVersionV2,
 		MintAddress:          mintAddress,
 		UserAddress:          tradeEvent.User.String(),
+		FeeRecipient:         tradeEvent.FeeRecipient,
 		SolAmount:            tradeEvent.SolAmount,
 		TokenAmount:          tradeEvent.TokenAmount,
 		IsBuy:                tradeEvent.IsBuy,
