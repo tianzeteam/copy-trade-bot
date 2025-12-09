@@ -132,7 +132,7 @@ func DecodePumpAmmV2EventsInLogs(logMessages []string) ([]any, error) {
 			eventBase64 := log[len(eventLogPrefix):]
 			eventBinary, err := base64.StdEncoding.DecodeString(eventBase64)
 			if err != nil {
-				logger.Warnf("failed to decode logMessage event: %s", eventBase64)
+				logger.Debugf("failed to decode logMessage event: %s", eventBase64)
 				continue
 			}
 
@@ -159,7 +159,7 @@ func decodePumpAmmV2EventsWithCPI(logMessages []string, innerIxs []ag_rpc.InnerI
 			eventBase64 := log[len(eventLogPrefix):]
 			eventBinary, err := base64.StdEncoding.DecodeString(eventBase64)
 			if err != nil {
-				logger.Warnf("failed to decode logMessage event: %s", eventBase64)
+				logger.Debugf("failed to decode logMessage event: %s", eventBase64)
 				continue
 			}
 			eventBinaries = append(eventBinaries, eventBinary)
@@ -276,10 +276,10 @@ func (b *Bot) UniversalRouterPumpParse(out *yellowstone_geyser_pb.SubscribeUpdat
 		// 尝试使用 pumpV2 解析
 		eventsV2, errV2 := pumpV2.DecodeEventsInTransaction(logMessages, innerIxs, accountKeysPubkeys, core.PUMP_PROGRAM_ID, signature)
 		if errV2 != nil {
-			logger.Infof("pumpV2 解析失败: %v", errV2)
+			logger.Debugf("pumpV2 解析失败: %v", errV2)
 			return nil
 		} else if len(eventsV2) == 0 {
-			logger.Infof("pumpV2 解析成功但未找到事件")
+			logger.Debugf("pumpV2 解析成功但未找到事件")
 			return nil
 		}
 		// 先处理 CreateEvent

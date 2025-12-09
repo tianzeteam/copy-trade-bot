@@ -422,7 +422,7 @@ func (b *Bot) ExecuteAmmSellOrder(tokenInfo queue.TokenInfo) {
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
 			Version:                   tradeInfo.PumpVersion,
-			User:                      tokenInfo.User,
+			User:                      botWallet,
 			Mint:                      ammAccounts.Mint,
 			BaseMint:                  ammAccounts.BaseMint,
 			QuoteMint:                 ammAccounts.QuoteMint,

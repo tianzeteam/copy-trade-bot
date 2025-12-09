@@ -12,6 +12,8 @@ import (
 	yellowstone_geyser_pb "copytrade/yellowstone_geyser/pb"
 
 	"github.com/gagliardetto/solana-go"
+	ag_solanago "github.com/gagliardetto/solana-go"
+	ag_rpc "github.com/gagliardetto/solana-go/rpc"
 	_ "github.com/joho/godotenv/autoload"
 
 	"copytrade/pumpammV2"
@@ -22,9 +24,9 @@ import (
 // 全局AMM交易信息映射表已移至 global_maps.go
 
 // parseAmmTransaction 解析AMM交易事件
-func (b *Bot) parseAmmTransaction(logMessages []string, mintAddress string, tradeDirection string) *global.AmmTradeEventInfo {
-	// 使用 pumpammV2 包中的事件解析功能
-	events, err := DecodePumpAmmV2EventsInLogs(logMessages)
+func (b *Bot) parseAmmTransaction(logMessages []string, innerIxs []ag_rpc.InnerInstruction, accountKeys ag_solanago.PublicKeySlice, mintAddress string, tradeDirection string) *global.AmmTradeEventInfo {
+	// 使用 pumpammV2 包中的事件解析功能（支持 CPI 事件）
+	events, err := decodePumpAmmV2EventsWithCPI(logMessages, innerIxs, accountKeys, pumpammV2.ProgramID)
 	if err != nil {
 		logger.Errorf("解析AMM事件失败: %v", err)
 		return nil
@@ -212,8 +214,50 @@ func (b *Bot) PumpAmmParse(out *yellowstone_geyser_pb.SubscribeUpdate, ctx conte
 		return nil
 	}
 
+	// 获取 InnerInstructions 和 AccountKeys（用于解析 CPI 事件）
+	accountList := b.GetAccountList(out)
+	var accountKeysPubkeys ag_solanago.PublicKeySlice
+	for _, addrStr := range accountList {
+		pubkey, err := ag_solanago.PublicKeyFromBase58(addrStr)
+		if err != nil {
+			logger.Warnf("无法解析账户地址: %s, 错误: %v", addrStr, err)
+			continue
+		}
+		accountKeysPubkeys = append(accountKeysPubkeys, pubkey)
+	}
+
+	// 转换 InnerInstructions 为 solana-go 类型
+	innerInstructions := txn.Transaction.Meta.InnerInstructions
+	var innerIxs []ag_rpc.InnerInstruction
+	for _, innerIx := range innerInstructions {
+		var instructions []ag_solanago.CompiledInstruction
+		for _, ix := range innerIx.Instructions {
+			if int(ix.ProgramIdIndex) >= len(accountKeysPubkeys) {
+				continue
+			}
+			accounts := make([]uint16, 0, len(ix.Accounts))
+			for _, acc := range ix.Accounts {
+				if int(acc) >= len(accountKeysPubkeys) {
+					continue
+				}
+				accounts = append(accounts, uint16(acc))
+			}
+			instructions = append(instructions, ag_solanago.CompiledInstruction{
+				ProgramIDIndex: uint16(ix.ProgramIdIndex),
+				Accounts:       accounts,
+				Data:           ag_solanago.Base58(ix.Data),
+			})
+		}
+		if len(instructions) > 0 {
+			innerIxs = append(innerIxs, ag_rpc.InnerInstruction{
+				Index:        uint16(innerIx.Index),
+				Instructions: instructions,
+			})
+		}
+	}
+
 	// 处理AMM交易信息
-	tradeInfo := b.parseAmmTransaction(logMessages, mintAddress, tradeDirection)
+	tradeInfo := b.parseAmmTransaction(logMessages, innerIxs, accountKeysPubkeys, mintAddress, tradeDirection)
 
 	botWallet := global.GetConfig().TradeWalletKey.PublicKey()
 
