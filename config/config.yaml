@@ -1,11 +1,11 @@
-skip_create_nonce_account: false
+skip_create_nonce_account: true
 nonce_account_pubkey: CeyfxPbWP81zny2j79rTWeYvi4GGNSnnmQ1UzMkZgv3V
 simulate_mode: false
 private_key: QhdErk44YuyJpp3hN1P2zNYbEhgvQ4NoJ5nFDpLSUkabiav3VYXAT5AQd5bjx7jTpCjD8dDqjZCivk6emMtu6J7
 #ShredStream 配置 (默认关闭)
 shred_stream:
-    enabled: true                    # 改为 true 启用
-    endpoint: http://64.130.32.73:10800
+    enabled: false                  # 改为 true 启用
+    endpoint: 64.130.32.73:10800
     reconnect_interval: 5
     max_retries: 10
 #事件去重配置
@@ -20,6 +20,8 @@ trade_channel: flashtrade:trade
 web_port: 3000
 buy_sol_amount: 0
 dev_sell: false
+dev_sell_tip: 0.001
+dev_sell_priority_fee: 0.001
 capital_recovery_percent: 50
 sell_interval_limit: 3
 sell_mode: delay_sell

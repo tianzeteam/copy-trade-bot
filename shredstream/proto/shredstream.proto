@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package shredstream;
+
+option go_package = "copytrade/shredstream/pb";
+
+// ShredstreamProxy 服务 - 用于订阅 Entry 数据流
+service ShredstreamProxy {
+  // 订阅 Entry 数据流
+  rpc SubscribeEntries(SubscribeEntriesRequest) returns (stream Entry);
+}
+
+// 订阅请求（可扩展过滤参数）
+message SubscribeEntriesRequest {
+  // 预留过滤字段
+}
+
+// Entry 响应消息
+message Entry {
+  // Slot 号
+  uint64 slot = 1;
+  // bincode 序列化的 Vec<Entry>
+  bytes entries = 2;
+}
+
+// Socket 地址（用于 Heartbeat）
+message Socket {
+  string ip = 1;
+  uint32 port = 2;
+}
+
+// 心跳请求
+message Heartbeat {
+  Socket socket = 1;
+  repeated string regions = 2;
+}
+
+// 心跳响应
+message HeartbeatResponse {
+  uint32 ttl_ms = 1;
+}

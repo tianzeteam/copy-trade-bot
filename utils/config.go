@@ -68,8 +68,8 @@ type ShredStreamConfig struct {
 
 // EventDedupConfig 事件去重配置 (仅在 ShredStream 启用时生效)
 type EventDedupConfig struct {
-	CacheSize  int `yaml:"cache_size"`   // LRU 缓存大小
-	TTLSeconds int `yaml:"ttl_seconds"`  // 缓存过期时间（秒）
+	CacheSize  int `yaml:"cache_size"`  // LRU 缓存大小
+	TTLSeconds int `yaml:"ttl_seconds"` // 缓存过期时间（秒）
 }
 
 // Config 表示整个配置文件结构
@@ -86,6 +86,8 @@ type Config struct {
 	WebPort                int                       `yaml:"web_port"`
 	BuySolAmount           float64                   `yaml:"buy_sol_amount"`
 	DevSell                bool                      `yaml:"dev_sell"`
+	DevSellTip             float64                   `yaml:"dev_sell_tip"`
+	DevSellPriorityFee     float64                   `yaml:"dev_sell_priority_fee"`
 	CapitalRecoveryPercent float64                   `yaml:"capital_recovery_percent"`
 	SellIntervalLimit      int                       `yaml:"sell_interval_limit"`
 	SellMode               string                    `yaml:"sell_mode"`

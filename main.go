@@ -244,10 +244,24 @@ func main() {
 		"repeat_trade_enable":      config.RepeatTradeEnable,
 		"trade_wallet_key":         config.PrivateKey,
 		"dev_sell":                 config.DevSell,
+		"dev_sell_tip":             config.DevSellTip,
+		"dev_sell_priority_fee":    config.DevSellPriorityFee,
 		"capital_recovery_percent": config.CapitalRecoveryPercent,
 		"buy_activity_monitor":     config.BuyActivityMonitor,
 		"wallet_param_schemes":     walletParamsMap,
 		"nonce_account_address":    nonceManager.GetNonceAccountPubkey().String(),
+		// ShredStream 配置
+		"shred_stream": map[string]any{
+			"enabled":            config.ShredStream.Enabled,
+			"endpoint":           config.ShredStream.Endpoint,
+			"reconnect_interval": config.ShredStream.ReconnectInterval,
+			"max_retries":        config.ShredStream.MaxRetries,
+		},
+		// 事件去重配置
+		"event_dedup": map[string]any{
+			"cache_size":  config.EventDedup.CacheSize,
+			"ttl_seconds": config.EventDedup.TTLSeconds,
+		},
 	}
 
 	global.InitConfig(configMap)
@@ -263,7 +277,6 @@ func main() {
 
 	//-------------------创建流管理器 - 交易数据订阅核心组件----------------------
 	streamManager := stream.NewStreamManager(config.GRPCUrl, tradeBot, transactionMonitor, walletMonitor, balanceManager)
-	//stream.SetStreamManager(streamManager) // 设置全局流管理器实例
 
 	if err := streamManager.Start(); err != nil {
 		logger.Fatalf("启动流管理器失败: %v", err)

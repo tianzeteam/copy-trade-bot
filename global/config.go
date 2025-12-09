@@ -30,8 +30,8 @@ type ShredStreamConfig struct {
 
 // EventDedupConfig 事件去重配置 (仅在 ShredStream 启用时生效)
 type EventDedupConfig struct {
-	CacheSize  int `json:"cache_size"`   // LRU 缓存大小
-	TTLSeconds int `json:"ttl_seconds"`  // 缓存过期时间（秒）
+	CacheSize  int `json:"cache_size"`  // LRU 缓存大小
+	TTLSeconds int `json:"ttl_seconds"` // 缓存过期时间（秒）
 }
 
 // GlobalConfig 全局配置结构体，存储在内存中
@@ -46,6 +46,8 @@ type GlobalConfig struct {
 	SellDelayTime          int                      `json:"sell_delay_time"`          // 延迟卖出时间（ms）
 	SellIntervalLimit      int                      `json:"sell_interval_limit"`      // 卖出时间间隔限制（秒）
 	DevSell                bool                     `json:"dev_sell"`                 // 开启ds卖出
+	DevSellTip             float64                  `json:"dev_sell_tip"`
+	DevSellPriorityFee     float64                  `json:"dev_sell_priority_fee"`
 	CapitalRecoveryPercent float64                  `json:"capital_recovery_percent"` // 抽回本金盈利百分比
 	BuyActivityMonitor     BuyActivityMonitorConfig `json:"buy_activity_monitor"`     // 买单活跃度监控配置
 	TradeWalletKey         *solana.Wallet           `json:"trade_wallet_key"`         // 交易钱包密钥
@@ -250,6 +252,8 @@ func InitConfig(config map[string]any) {
 		RepeatTradeEnable:      getBoolValue(config, "repeat_trade_enable", false),
 		SellIntervalLimit:      getIntValue(config, "sell_interval_limit", 2),
 		DevSell:                getBoolValue(config, "dev_sell", false),
+		DevSellTip:             getFloatValue(config, "dev_sell_tip", 0.001),
+		DevSellPriorityFee:     getFloatValue(config, "dev_sell_priority_fee", 0.001),
 		CapitalRecoveryPercent: getFloatValue(config, "capital_recovery_percent", 0),
 		BuyActivityMonitor:     getBuyActivityMonitorConfig(config),
 		TradeWalletKey:         &solana.Wallet{PrivateKey: privateKey}, //
@@ -406,12 +410,12 @@ func getBuyActivityMonitorConfig(config map[string]any) BuyActivityMonitorConfig
 				MinBuyAmount:  utilsConfig.MinBuyAmount,
 			}
 		}
-		
+
 		// 尝试断言为 global.BuyActivityMonitorConfig（已经是目标类型）
 		if monitorConfig, ok := val.(BuyActivityMonitorConfig); ok {
 			return monitorConfig
 		}
-		
+
 		// 尝试断言为 map[string]any（从其他来源传入的情况）
 		if monitorMap, ok := val.(map[string]any); ok {
 			if enable, ok := monitorMap["enable"].(bool); ok {

@@ -3,10 +3,12 @@ package shredstream
 import (
 	"context"
 	"fmt"
+	"io"
 	"sync"
 	"time"
 
 	"copytrade/logger"
+	"copytrade/shredstream/pb"
 
 	"github.com/mr-tron/base58"
 	"google.golang.org/grpc"
@@ -17,6 +19,7 @@ import (
 type Client struct {
 	endpoint string
 	conn     *grpc.ClientConn
+	client   pb.ShredstreamProxyClient
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -56,7 +59,7 @@ func NewClient(config ShredStreamConfig) (*Client, error) {
 		cancel:            cancel,
 		reconnectInterval: reconnectInterval,
 		maxRetries:        maxRetries,
-		EventChan:         make(chan *ShredEvent, 1000),
+		EventChan:         make(chan *ShredEvent, 100000), // 增大缓冲区
 	}, nil
 }
 
@@ -78,6 +81,7 @@ func (c *Client) Start() error {
 		return fmt.Errorf("failed to connect to shredstream: %w", err)
 	}
 	c.conn = conn
+	c.client = pb.NewShredstreamProxyClient(conn)
 	c.isRunning = true
 
 	// 启动订阅处理
@@ -149,30 +153,38 @@ func (c *Client) subscribeLoop() {
 }
 
 // subscribe 执行实际的订阅逻辑
-// 注意: 这是一个简化的实现，实际需要根据 ShredStream 服务的 proto 定义来实现
 func (c *Client) subscribe() error {
-	// TODO: 实现实际的 gRPC 订阅逻辑
-	// 这里需要根据实际的 ShredStream proto 定义来实现
-	//
-	// 示例伪代码:
-	// stream, err := c.client.SubscribeEntries(c.ctx, &pb.SubscribeEntriesRequest{})
-	// if err != nil {
-	//     return err
-	// }
-	//
-	// for {
-	//     resp, err := stream.Recv()
-	//     if err != nil {
-	//         return err
-	//     }
-	//     c.processEntries(resp.Slot, resp.Entries)
-	// }
+	// 创建订阅请求
+	req := &pb.SubscribeEntriesRequest{}
 
-	logger.Warnf("ShredStream subscribe() is a placeholder - implement with actual proto")
+	// 调用 gRPC 流式订阅
+	stream, err := c.client.SubscribeEntries(c.ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to subscribe entries: %w", err)
+	}
 
-	// 临时: 等待上下文取消
-	<-c.ctx.Done()
-	return c.ctx.Err()
+	logger.Infof("ShredStream subscription established")
+
+	// 接收并处理数据流
+	for {
+		select {
+		case <-c.ctx.Done():
+			return c.ctx.Err()
+		default:
+		}
+
+		// 接收消息
+		entry, err := stream.Recv()
+		if err != nil {
+			if err == io.EOF {
+				return fmt.Errorf("stream closed by server")
+			}
+			return fmt.Errorf("stream recv error: %w", err)
+		}
+
+		// 处理 Entry 数据
+		c.processEntries(entry.Slot, entry.Entries)
+	}
 }
 
 // processEntries 处理接收到的 Entry 数据

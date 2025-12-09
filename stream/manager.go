@@ -63,9 +63,9 @@ type StreamManager struct {
 	quoteTokenMint solana.PublicKey // 用于市场和池订阅的报价代币
 
 	// ========== ShredStream 相关 (新增，通过配置开关控制) ==========
-	shredClient  *shredstream.Client  // ShredStream 客户端
-	shredEnabled bool                 // 是否启用 ShredStream
-	eventMerger  *core.EventMerger    // 事件去重器
+	shredClient  *shredstream.Client // ShredStream 客户端
+	shredEnabled bool                // 是否启用 ShredStream
+	eventMerger  *core.EventMerger   // 事件去重器
 }
 
 // SubscriptionConfig 订阅配置
@@ -142,7 +142,6 @@ func NewStreamManager(grpcUrl string, tradeBot *bot.Bot, transactionMonitor *wal
 			logger.Infof("ShredStream client initialized, endpoint: %s", config.ShredStream.Endpoint)
 		}
 	}
-	// ========== ShredStream 初始化结束 ==========
 
 	return streamManager
 }
@@ -198,7 +197,6 @@ func (sm *StreamManager) Start() error {
 			logger.Infof("ShredStream enabled, running in dual-channel mode")
 		}
 	}
-	// ========== 新增代码结束 ==========
 
 	logger.Infof("Stream manager started successfully")
 	return nil
@@ -226,7 +224,6 @@ func (sm *StreamManager) Stop() {
 	if sm.shredClient != nil {
 		sm.shredClient.Stop()
 	}
-	// ========== 新增代码结束 ==========
 
 	logger.Infof("Stream manager stopped")
 }
@@ -743,16 +740,6 @@ func (sm *StreamManager) processTransactionUpdate(out *yellowstone_geyser_pb.Sub
 		return
 	}
 
-	// ========== 新增: 去重检查 (仅在 ShredStream 启用时执行) ==========
-	if sm.shredEnabled && sm.eventMerger != nil {
-		signature := base58.Encode(out.GetTransaction().Transaction.Signature)
-		if !sm.eventMerger.ShouldProcess(signature, core.SourceGRPC) {
-			logger.Debugf("Skipping duplicate event from gRPC: %s", signature)
-			return
-		}
-	}
-	// ========== 新增代码结束 ==========
-
 	innerInstructions := out.GetTransaction().Transaction.Meta.InnerInstructions
 	accountsAddress := sm.tradeBot.GetAccountList(out)
 	var innerProgramID string = "nativeProgramID"
@@ -793,6 +780,14 @@ func (sm *StreamManager) processTransactionUpdate(out *yellowstone_geyser_pb.Sub
 		tradeInfo := sm.tradeBot.UniversalRouterPumpParse(out, ctx, signature)
 
 		if tradeInfo != nil && sm.transactionMonitor != nil {
+			// ========== 新增: 去重检查 (仅在 ShredStream 启用时执行) ==========
+			if sm.shredEnabled && sm.eventMerger != nil {
+				signature := base58.Encode(out.GetTransaction().Transaction.Signature)
+				if !sm.eventMerger.ShouldProcess(signature, core.SourceGRPC) {
+					logger.Debugf("Skipping duplicate event from gRPC: %s", signature)
+					return
+				}
+			}
 
 			//logger.Infof("tx signature: %s, pumpversion: %s", signature, tradeInfo.PumpVersion)
 			tokenAddress := tradeInfo.MintAddress
@@ -1258,23 +1253,27 @@ func (sm *StreamManager) handleShredStream() {
 
 	logger.Infof("ShredStream handler started")
 
-	for event := range sm.shredClient.EventChan {
-		if event == nil {
-			continue
-		}
-
-		// 去重检查
-		if sm.eventMerger != nil {
-			if !sm.eventMerger.ShouldProcess(event.Signature, core.SourceShredStream) {
+	for {
+		select {
+		case <-sm.ctx.Done():
+			logger.Infof("ShredStream handler stopped")
+			return
+		case event, ok := <-sm.shredClient.EventChan:
+			if !ok {
+				logger.Warnf("ShredStream event channel closed")
+				return
+			}
+			if event == nil {
 				continue
 			}
+			// 去重检查
+			if sm.eventMerger != nil && !sm.eventMerger.ShouldProcess(event.Signature, core.SourceShredStream) {
+				continue
+			}
+			// 异步处理
+			go sm.processShredEvent(event)
 		}
-
-		// 处理 ShredStream 事件
-		sm.processShredEvent(event)
 	}
-
-	logger.Infof("ShredStream handler stopped")
 }
 
 // processShredEvent 处理单个 ShredStream 事件
@@ -1283,17 +1282,20 @@ func (sm *StreamManager) processShredEvent(event *shredstream.ShredEvent) {
 		return
 	}
 
-	// 获取账户列表
+	// 快速检查：直接遍历 AccountKeys 查找目标 Program
 	accountKeys := event.Transaction.Message.AccountKeys
-	accountsAddress := make([]string, len(accountKeys))
-	for i, key := range accountKeys {
-		accountsAddress[i] = key.String()
-	}
 
-	// PumpFun (内盘) - 当前版本仅支持
-	if slices.Contains(accountsAddress, core.PUMP_PROGRAM_ID.String()) {
-		sm.processShredPumpFun(event, accountsAddress)
-		return
+	// 使用 PublicKey 直接比较，避免 String() 转换开销
+	for _, key := range accountKeys {
+		if key.Equals(core.PUMP_PROGRAM_ID) {
+			// 仅在需要时构建 accountsAddress
+			accountsAddress := make([]string, len(accountKeys))
+			for i, k := range accountKeys {
+				accountsAddress[i] = k.String()
+			}
+			sm.processShredPumpFun(event, accountsAddress)
+			return
+		}
 	}
 
 	// TODO: 后续版本支持
@@ -1319,8 +1321,8 @@ func (sm *StreamManager) processShredPumpFun(event *shredstream.ShredEvent, acco
 	logger.Debugf("ShredStream: PumpFun trade detected - sig=%s, mint=%s, user=%s, isBuy=%v",
 		event.Signature, tradeInfo.MintAddress, tradeInfo.UserAddress, tradeInfo.IsBuy)
 
-	// 存储到全局映射
-	global.SetTradeInfo(tradeInfo.MintAddress, tradeInfo)
+	//TODO grpc负责存储到全局映射
+	//global.SetTradeInfo(tradeInfo.MintAddress, tradeInfo)
 
 	if sm.transactionMonitor == nil {
 		return
