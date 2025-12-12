@@ -60,7 +60,9 @@ func ParsePumpFunTransaction(event *ShredEvent) *global.TradeEventInfo {
 	}
 
 	// 查找 PumpFun 指令
+
 	for _, ix := range msg.Instructions {
+
 		if int(ix.ProgramIDIndex) >= len(accountKeys) {
 			continue
 		}
