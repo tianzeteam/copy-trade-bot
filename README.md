@@ -377,6 +377,13 @@ go test ./test/...
 - `BUY_ACTIVITY_MONITOR_README.md`、`CONCURRENCY_OPTIMIZATION.md` — 功能与并发优化说明
 - `sdk/README.md` — Redis 交易订阅 SDK 使用说明
 
+
+## 联系方式
+
+Telegram 交流与技术支持，扫描下方二维码添加：
+
+![Telegram 二维码](docs/telegram-qrcode.png)
+
 ## 安全提示
 
 - `config/config.yaml` 中的 `private_key`、各 SWQOS `api_keys`、RPC key 属敏感信息，**切勿提交到公开仓库**（仓库当前直接包含真实密钥，建议改用环境变量/密钥管理并轮换）
