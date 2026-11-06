@@ -3,6 +3,7 @@ package global
 import (
 	"copytrade/types"
 	"copytrade/utils"
+	"encoding/json"
 	"strconv"
 	"sync"
 	"time"
@@ -54,10 +55,11 @@ type GlobalConfig struct {
 	NonceAccountAddress    string                   `json:"nonce_account_address"`    // nonce账户地址
 	GlobalBlockhash        *solana.Hash             `json:"global_blockhash"`         // 全局区块哈希
 	// 交易触发和池子大小参数
-	MinFollowTriggerAmount float64 `json:"min_follow_trigger_amount"` // 最小触发买入数量 (SOL)
-	MaxFollowTriggerAmount float64 `json:"max_follow_trigger_amount"` // 最大触发买入数量 (SOL)
-	MinPoolSize            float64 `json:"min_pool_size"`             // 最小池子大小 (SOL)
-	MaxPoolSize            float64 `json:"max_pool_size"`             // 最大池子大小 (SOL)
+	MinFollowTriggerAmount float64                            `json:"min_follow_trigger_amount"` // 最小触发买入数量 (SOL)
+	MaxFollowTriggerAmount float64                            `json:"max_follow_trigger_amount"` // 最大触发买入数量 (SOL)
+	MinPoolSize            float64                            `json:"min_pool_size"`             // 最小池子大小 (SOL)
+	MaxPoolSize            float64                            `json:"max_pool_size"`             // 最大池子大小 (SOL)
+	QuoteAmounts           map[string]types.QuoteAmountConfig `json:"quote_amounts,omitempty"`   // 按 quote mint 独立的金额配置
 
 	// 交易参数
 	MaxBuyAmount         float64 `json:"max_buy_amount"`         // 最大买入金额 (SOL)
@@ -188,6 +190,10 @@ func UpdateConfigField(key string, value any) {
 		if val, ok := value.(map[string]*types.ParamScheme); ok {
 			Config.WalletParamSchemes = val
 		}
+	case "quote_amounts":
+		if val, ok := value.(map[string]types.QuoteAmountConfig); ok {
+			Config.QuoteAmounts = val
+		}
 
 	//nonce_account_pubkey
 	case "nonce_account_pubkey":
@@ -261,11 +267,28 @@ func InitConfig(config map[string]any) {
 		WalletParamSchemes:  getWalletParamSchemes(config),
 		NonceAccountAddress: getStringValue(config, "nonce_account_address", ""),
 		// ========== ShredStream 配置 (新增，默认关闭) ==========
-		ShredStream: getShredStreamConfig(config),
-		EventDedup:  getEventDedupConfig(config),
+		ShredStream:  getShredStreamConfig(config),
+		EventDedup:   getEventDedupConfig(config),
+		QuoteAmounts: getQuoteAmountsConfig(config),
 		// 更新时间
 		UpdatedAt: time.Now(),
 	}
+}
+
+func getQuoteAmountsConfig(config map[string]any) map[string]types.QuoteAmountConfig {
+	raw, ok := config["quote_amounts"]
+	if !ok {
+		return nil
+	}
+	data, err := json.Marshal(raw)
+	if err != nil {
+		return nil
+	}
+	var out map[string]types.QuoteAmountConfig
+	if err := json.Unmarshal(data, &out); err != nil {
+		return nil
+	}
+	return out
 }
 
 // getShredStreamConfig 从配置中获取 ShredStream 配置

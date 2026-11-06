@@ -29,6 +29,8 @@ type TradeEventInfo struct {
 	TradeTime            string    // 交易时间
 	Milliseconds         int64     // 毫秒时间戳
 	ReceivedAt           time.Time // 接收时间
+	QuoteMint     solana.PublicKey // 计价 mint（零值或 wSOL = SOL 配对，其他 = USDC 等）
+	MayhemMode    bool             // 代币是否 mayhem 模式（决定 fee recipient 集合与供应量取值）
 }
 
 // DbcTradeEventInfo 存储DBC交易事件信息

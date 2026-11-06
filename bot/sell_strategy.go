@@ -8,10 +8,12 @@ import (
 	"time"
 
 	"copytrade/asset"
+	"copytrade/constants"
 	"copytrade/core"
 	"copytrade/global"
 	"copytrade/logger"
 	"copytrade/noncecache"
+	pumpV3 "copytrade/pumpV3"
 	"copytrade/queue"
 	"copytrade/types"
 	"copytrade/utils"
@@ -261,44 +263,73 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, feeRecipient solana.Pu
 	pumpVersion := tokenInfo.PumpVersion
 	logger.Infof("Pump版本: %s", pumpVersion)
 
-	// 根据 PumpVersion 选择不同的账户计算方法
-	var pumpAccounts *types.PumpAccounts
-	var err error
-
-	if pumpVersion == "v2" {
-		// V2 版本：使用 Token-2022 Program
-
-		pumpAccounts, err = b.Trader.AccountsCalc.CalculatePumpV2Accounts(
-			context.Background(),
-			tokenInfo.Creator,
-			tokenInfo.Mint,
-			tokenInfo.Owner,
-			solana.Token2022ProgramID,
-		)
-		logger.Debugf("使用 Pump V2 账户计算 (Token-2022): mint=%s", tokenInfo.Mint.String())
-	} else {
-		// V1 版本：使用标准 Token Program
-		pumpAccounts, err = b.Trader.AccountsCalc.CalculatePumpAccounts(
-			context.Background(),
-			tokenInfo.Creator,
-			tokenInfo.Mint,
-			tokenInfo.Owner,
-		)
-		logger.Debugf("使用 Pump V1 账户计算 (Token Program): mint=%s", tokenInfo.Mint.String())
+	curveSnapshot, ok := global.GetPumpCurveSnapshot(tokenInfo.Mint)
+	if !ok {
+		curveSnapshot = global.PumpCurveSnapshot{
+			Mint:                 tokenInfo.Mint,
+			Creator:              tokenInfo.Creator,
+			VirtualTokenReserves: vTokenReserves,
+			VirtualQuoteReserves: vSolReserves,
+		}
+		if latestTradeInfo := global.GetTradeInfo(tokenInfo.Mint.String()); latestTradeInfo != nil {
+			curveSnapshot.QuoteMint = latestTradeInfo.QuoteMint
+			curveSnapshot.VirtualTokenReserves = latestTradeInfo.VirtualTokenReserves
+			curveSnapshot.VirtualQuoteReserves = latestTradeInfo.VirtualSolReserves
+			curveSnapshot.RealTokenReserves = latestTradeInfo.RealTokenReserves
+			curveSnapshot.RealQuoteReserves = latestTradeInfo.RealSolReserves
+			curveSnapshot.IsMayhemMode = latestTradeInfo.MayhemMode
+		}
+		if !curveSnapshot.IsMayhemMode {
+			curveSnapshot.TokenTotalSupply = pumpV3.OneBillionSupply
+		}
+		global.SetPumpCurveSnapshot(curveSnapshot)
+	}
+	if curveSnapshot.Creator.IsZero() {
+		curveSnapshot.Creator = tokenInfo.Creator
+	}
+	if curveSnapshot.Creator.IsZero() {
+		logger.Errorf("Pump 曲线 creator 尚未缓存: mint=%s", tokenInfo.Mint)
+		return
+	}
+	if curveSnapshot.QuoteMint.IsZero() {
+		curveSnapshot.QuoteMint = pumpV3.WSOLMint
+	}
+	quoteMint := curveSnapshot.QuoteMint
+	if pumpV3.IsSolLikeQuoteMint(quoteMint) {
+		quoteMint = pumpV3.WSOLMint
+	}
+	if !pumpV3.IsSupportedQuoteMint(quoteMint) {
+		logger.Errorf("代币 %s 使用不支持的 quote mint=%s，无法卖出", tokenInfo.Mint.String(), quoteMint)
+		return
 	}
 
+	baseTokenProgram := curveSnapshot.BaseTokenProgram
+	if baseTokenProgram.IsZero() {
+		baseTokenProgram = solana.TokenProgramID
+		if pumpVersion == constants.PumpVersionV2 {
+			baseTokenProgram = solana.Token2022ProgramID
+		}
+	}
+
+	// 账户派生与金额计算均只读取本地快照。
+	ctx := context.Background()
+	v3Accounts, err := b.Trader.AccountsCalc.CalculatePumpV3Accounts(
+		ctx,
+		curveSnapshot.Creator,
+		tokenInfo.Mint,
+		tokenInfo.Owner,
+		baseTokenProgram,
+		quoteMint,
+		feeRecipient,
+	)
 	if err != nil {
 		logger.Errorf("计算账户信息失败 (version=%s): %v", pumpVersion, err)
 		return
 	}
 
-	// 计算卖出金额
-	amounts, err := b.Trader.AmountsCalc.CalculateSellAmounts(
-		context.Background(),
-		pumpAccounts.BondingCurve,
-		float64(tokenInfo.Amount),
-		vTokenReserves,
-		vSolReserves,
+	amounts, err := b.Trader.AmountsCalc.CalculatePumpV3SellAmounts(
+		curveSnapshot,
+		tokenInfo.Amount,
 		specialScheme.SellSlippage,
 	)
 	if err != nil {
@@ -313,12 +344,10 @@ func (b *Bot) ExecuteSellOrder(tokenInfo queue.TokenInfo, feeRecipient solana.Pu
 			User:                   tokenInfo.Owner,
 			FeeRecipient:           feeRecipient,
 			Mint:                   tokenInfo.Mint,
-			BondingCurve:           pumpAccounts.BondingCurve,
-			AssociatedBondingCurve: pumpAccounts.AssociatedBondingCurve,
-			AssociatedTokenAccount: pumpAccounts.AssociatedTokenAccount,
-			CreatorVault:           pumpAccounts.CreatorVaultPda,
+			AssociatedTokenAccount: v3Accounts.AssociatedBaseUser,
 			NonceAccount:           *noncecache.GetNonceManager().GetNonceAccountPubkey(),
-			Version:                pumpVersion, // 设置版本信息
+			Version:                pumpVersion,
+			PumpV3:                 v3Accounts,
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MinOut, // 卖出时 Cost 表示最小获得数量

@@ -5,6 +5,8 @@ import (
 	"copytrade/asset"
 	"copytrade/constants"
 	"copytrade/core"
+	"math"
+	"strconv"
 
 	"copytrade/global"
 	"copytrade/logger"
@@ -14,9 +16,11 @@ import (
 
 	"copytrade/bot"
 	"copytrade/noncecache"
+	pumpV3 "copytrade/pumpV3"
 	"copytrade/types"
 
 	"github.com/gagliardetto/solana-go"
+	"github.com/gagliardetto/solana-go/rpc"
 )
 
 // 交易监控器
@@ -64,13 +68,21 @@ func (m *TransactionMonitor) ProcessTransaction(tradeInfo *global.TradeEventInfo
 		logger.Errorf("获取参数模板失败: %v", err)
 		return
 	}
-
-	if float64(tradeInfo.SolAmount) < (specialScheme.MinFollowTriggerAmount*1e9) || float64(tradeInfo.SolAmount) > (specialScheme.MaxFollowTriggerAmount*1e9) {
-		//不在跟卖金额范围内，忽略
+	// 支持 SOL 与主网 USDC 配对；金额阈值按对应 quote 的最小单位换算。
+	if !pumpV3.IsSupportedQuoteMint(tradeInfo.QuoteMint) {
+		logger.Infof("跳过不支持 quote mint 的泵交易: 代币=%s, quoteMint=%s", tradeInfo.MintAddress, tradeInfo.QuoteMint)
 		return
 	}
-	if float64(tradeInfo.RealSolReserves) < (specialScheme.MinPoolSize*1e9) || float64(tradeInfo.RealSolReserves) > (specialScheme.MaxPoolSize*1e9) {
-		//不在跟卖池子大小范围内，忽略
+	quoteConfig := quoteAmountConfigFor(specialScheme, tradeInfo.QuoteMint)
+	quoteScale := math.Pow10(int(pumpV3.QuoteDecimals(tradeInfo.QuoteMint)))
+	quoteAmount := float64(tradeInfo.SolAmount) / quoteScale
+	quotePoolSize := float64(tradeInfo.RealSolReserves) / quoteScale
+	if quoteAmount < quoteConfig.MinFollowTriggerAmount || quoteAmount > quoteConfig.MaxFollowTriggerAmount {
+		// 不在跟买金额范围内，忽略
+		return
+	}
+	if quotePoolSize < quoteConfig.MinPoolSize || quotePoolSize > quoteConfig.MaxPoolSize {
+		// 不在跟买池子大小范围内，忽略
 		return
 	}
 	//检查代币创建时间
@@ -449,92 +461,110 @@ func (m *TransactionMonitor) executeCopyTrade(tradeInfo *global.TradeEventInfo, 
 		logger.Errorf("Failed to parse mint address: %v", err)
 		return
 	}
-	creator := tradeInfo.Creator
-
-	// 根据 PumpVersion 选择不同的账户计算方法
-	var pumpAccounts *types.PumpAccounts
-
-	if tradeInfo.PumpVersion == constants.PumpVersionV2 {
-		// V2 版本：使用 Token-2022 Program
-		tokenProgram := solana.Token2022ProgramID
-		pumpAccounts, err = m.TradeBot.Trader.AccountsCalc.CalculatePumpV2Accounts(
-			ctx,
-			creator,
-			mintAddr,
-			botWallet,
-			tokenProgram,
-		)
-		logger.Infof("使用 Pump V2 账户计算 (Token-2022): mint=%s", mintAddr.String())
-	} else {
-		// V1 版本：使用标准 Token Program
-		pumpAccounts, err = m.TradeBot.Trader.AccountsCalc.CalculatePumpAccounts(
-			ctx,
-			creator,
-			mintAddr,
-			botWallet,
-		)
-		logger.Debugf("使用 Pump V1 账户计算 (Token Program): mint=%s", mintAddr.String())
+	curveSnapshot, ok := global.GetPumpCurveSnapshot(mintAddr)
+	if !ok {
+		// ShredStream/旧入口没有直接写曲线缓存时，用已解析的事件快照初始化。
+		curveSnapshot = global.PumpCurveSnapshot{
+			Mint:                 mintAddr,
+			Creator:              tradeInfo.Creator,
+			QuoteMint:            tradeInfo.QuoteMint,
+			VirtualTokenReserves: tradeInfo.VirtualTokenReserves,
+			VirtualQuoteReserves: tradeInfo.VirtualSolReserves,
+			RealTokenReserves:    tradeInfo.RealTokenReserves,
+			RealQuoteReserves:    tradeInfo.RealSolReserves,
+			IsMayhemMode:         tradeInfo.MayhemMode,
+		}
+		if !curveSnapshot.IsMayhemMode {
+			curveSnapshot.TokenTotalSupply = pumpV3.OneBillionSupply
+		}
+		global.SetPumpCurveSnapshot(curveSnapshot)
+	}
+	if curveSnapshot.Creator.IsZero() {
+		curveSnapshot.Creator = tradeInfo.Creator
+	}
+	if curveSnapshot.Creator.IsZero() {
+		logger.Errorf("Pump 曲线 creator 尚未缓存: mint=%s", mintAddr)
+		return
+	}
+	if curveSnapshot.QuoteMint.IsZero() {
+		curveSnapshot.QuoteMint = pumpV3.WSOLMint
+		global.UpdatePumpCurveSnapshot(mintAddr, func(snapshot *global.PumpCurveSnapshot) {
+			snapshot.QuoteMint = curveSnapshot.QuoteMint
+		})
 	}
 
-	if err != nil {
-		logger.Errorf("Failed to calculate pump accounts (version=%s): %v", tradeInfo.PumpVersion, err)
+	baseTokenProgram := curveSnapshot.BaseTokenProgram
+	if baseTokenProgram.IsZero() {
+		baseTokenProgram = solana.TokenProgramID
+		if tradeInfo.PumpVersion == constants.PumpVersionV2 {
+			baseTokenProgram = solana.Token2022ProgramID
+		}
+	}
+
+	// 指令参数 quote_mint：SOL 配对传 wSOL，USDC 配对传 USDC。
+	quoteMint := tradeInfo.QuoteMint
+	if quoteMint.IsZero() {
+		quoteMint = curveSnapshot.QuoteMint
+	}
+	if pumpV3.IsSolLikeQuoteMint(quoteMint) {
+		quoteMint = pumpV3.WSOLMint
+	}
+	if !pumpV3.IsSupportedQuoteMint(quoteMint) {
+		logger.Errorf("不支持的 Pump quote mint: %s", quoteMint)
 		return
 	}
 
-	// Prepare transaction parameters
-	accounts := core.TradeAccounts{
-		Version:                 tradeInfo.PumpVersion,
-		Mint:                    mintAddr,
-		User:                    botWallet,
-		FeeRecipient:            tradeInfo.FeeRecipient,
-		BondingCurve:            pumpAccounts.BondingCurve,
-		AssociatedBondingCurve:  pumpAccounts.AssociatedBondingCurve,
-		AssociatedTokenAccount:  pumpAccounts.AssociatedTokenAccount,
-		CreatorVault:            pumpAccounts.CreatorVaultPda,
-		GlobalVolumeAccumulator: pumpAccounts.GlobalVolumeAccumulator,
-		UserVolumeAccumulator:   pumpAccounts.UserVolumeAccumulator,
-	}
-
-	// Get trade information using the thread-safe getter function
-	TradeEventInfo := global.GetTradeInfo(mintAddr.String())
-
-	// If trade information isn't available yet, use default values
-	var virtualSolReserves uint64
-	if TradeEventInfo == nil {
-		logger.Debugf("TradeInfoMap not found for mint address: %s", mintAddr.String())
-		virtualSolReserves = 30_000_000_000 // 30 SOL in lamports
-
-	} else {
-		virtualSolReserves = TradeEventInfo.VirtualSolReserves
-	}
-	// Calculate buy amounts
-	amounts, err := m.TradeBot.Trader.AmountsCalc.CalculateBuyAmounts(
+	// 账户派生只使用本地 PDA/ATA 规则，不访问 RPC。
+	v3Accounts, err := m.TradeBot.Trader.AccountsCalc.CalculatePumpV3Accounts(
 		ctx,
-		pumpAccounts.BondingCurve,
-		specialScheme.BuySolAmount,
-		virtualSolReserves,
+		curveSnapshot.Creator,
+		mintAddr,
+		botWallet,
+		baseTokenProgram,
+		quoteMint,
+		tradeInfo.FeeRecipient,
+	)
+	if err != nil {
+		logger.Errorf("Failed to calculate pump V3 accounts (version=%s): %v", tradeInfo.PumpVersion, err)
+		return
+	}
+
+	// 买入金额完全基于事件阶段缓存的曲线状态计算；预算使用 quote 最小单位。
+	quoteConfig := quoteAmountConfigFor(specialScheme, quoteMint)
+	quoteScale := math.Pow10(int(pumpV3.QuoteDecimals(quoteMint)))
+	quoteBudget := uint64(quoteConfig.BuyAmount * quoteScale)
+	amounts, err := m.TradeBot.Trader.AmountsCalc.CalculatePumpV3BuyAmounts(
+		curveSnapshot,
+		quoteBudget,
 		specialScheme.BuySlippage,
 	)
-
 	if err != nil {
 		logger.Errorf("Failed to calculate buy amounts: %v", err)
 		return
+	}
+	if !pumpV3.IsSolLikeQuoteMint(quoteMint) {
+		balance, balanceErr := m.TradeBot.Trader.Client.GetTokenAccountBalance(ctx, v3Accounts.AssociatedQuoteUser, rpc.CommitmentFinalized)
+		if balanceErr != nil || balance == nil || balance.Value == nil {
+			logger.Errorf("USDC quote ATA 不可用: mint=%s, err=%v", mintAddr, balanceErr)
+			return
+		}
+		available, parseErr := strconv.ParseUint(balance.Value.Amount, 10, 64)
+		if parseErr != nil || available < amounts.MaxCost {
+			logger.Errorf("USDC 余额不足: mint=%s, available=%d, required=%d", mintAddr, available, amounts.MaxCost)
+			return
+		}
 	}
 
 	// Build transaction parameters
 	tradeParams := types.TradeParams{
 		Accounts: types.TradeAccounts{
-			Version:                 accounts.Version,
-			User:                    accounts.User,
-			Mint:                    accounts.Mint,
-			FeeRecipient:            accounts.FeeRecipient,
-			BondingCurve:            accounts.BondingCurve,
-			AssociatedBondingCurve:  accounts.AssociatedBondingCurve,
-			AssociatedTokenAccount:  accounts.AssociatedTokenAccount,
-			CreatorVault:            accounts.CreatorVault,
-			GlobalVolumeAccumulator: accounts.GlobalVolumeAccumulator,
-			UserVolumeAccumulator:   accounts.UserVolumeAccumulator,
-			NonceAccount:            *m.NonceManager.GetNonceAccountPubkey(),
+			Version:                tradeInfo.PumpVersion,
+			User:                   botWallet,
+			Mint:                   mintAddr,
+			FeeRecipient:           tradeInfo.FeeRecipient,
+			AssociatedTokenAccount: v3Accounts.AssociatedBaseUser,
+			NonceAccount:           *m.NonceManager.GetNonceAccountPubkey(),
+			PumpV3:                 v3Accounts,
 		},
 		Amount:    amounts.TokenAmount,
 		Cost:      amounts.MaxCost,

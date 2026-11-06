@@ -7,8 +7,8 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/stretchr/testify/assert"
 
-	"copytrade/IDL/generated/raydium_cp_swap"
 	"copytrade/calculator"
+	"copytrade/raydium_cp_swap"
 )
 
 // TestCalculateAmmAccounts tests the CalculateAmmAccounts function

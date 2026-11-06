@@ -222,6 +222,41 @@
                 </div>
             </div>
         </div>
+        <!-- USDC ATA 准备 -->
+        <div class="card mb-4 border-info" id="usdcAtaSection">
+            <div class="card-header bg-info bg-opacity-10 d-flex flex-wrap justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0"><i class="bi bi-wallet2 me-2"></i>USDC 跟单资金准备</h5>
+                    <small class="text-muted">创建并检查机器人 USDC ATA</small>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-info btn-sm" id="refreshUsdcAtaBtn">
+                        <i class="bi bi-arrow-clockwise"></i> 刷新状态
+                    </button>
+                    <button type="button" class="btn btn-info btn-sm" id="createUsdcAtaBtn">
+                        <i class="bi bi-plus-circle"></i> 创建 USDC ATA
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="usdcAtaStatus" class="alert alert-secondary mb-3">正在检查 USDC ATA 状态...</div>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="small text-muted">机器人钱包</div>
+                        <div class="font-monospace small text-break" id="usdcAtaWallet">-</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="small text-muted">USDC ATA</div>
+                        <div class="font-monospace small text-break" id="usdcAtaAddress">-</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="small text-muted">USDC 余额</div>
+                        <div class="fs-5" id="usdcAtaBalance">-</div>
+                    </div>
+                </div>
+                <div class="form-text mt-3">创建 ATA 只会创建账户并支付少量 SOL 租金；仍需向该 ATA 转入 USDC 后才能进行 USDC 跟单。</div>
+            </div>
+        </div>
         
         <!-- 参数模板管理 -->
         <div class="card mb-4" id="paramSchemeSection">
@@ -285,7 +320,7 @@
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
-                                        <label for="schemeMinPoolSize" class="form-label">最小池子大小 (SOL)</label>
+                                        <label for="schemeMinPoolSize" class="form-label">最小池子大小（计价资产）</label>
                                         <div class="input-group">
                                             <span class="input-group-text"><i class="bi bi-water"></i></span>
                                             <input type="number" class="form-control" id="schemeMinPoolSize" min="0" step="0.1">
@@ -294,7 +329,7 @@
                                 </div>
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
-                                        <label for="schemeMaxPoolSize" class="form-label">最大池子大小 (SOL)</label>
+                                        <label for="schemeMaxPoolSize" class="form-label">最大池子大小（计价资产）</label>
                                         <div class="input-group">
                                             <span class="input-group-text"><i class="bi bi-water"></i></span>
                                             <input type="number" class="form-control" id="schemeMaxPoolSize" min="0" step="0.1">
@@ -350,7 +385,7 @@
                             <div class="row">
                                 <div class="col-md-4">
                                     <div class="form-group mb-3">
-                                        <label for="schemeBuySolAmount" class="form-label">购买金额 (SOL)</label>
+                                        <label for="schemeBuySolAmount" class="form-label">购买金额（计价资产）</label>
                                         <div class="input-group">
                                             <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
                                             <input type="number" class="form-control" id="schemeBuySolAmount" min="0" step="0.01">
@@ -367,9 +402,18 @@
                                         </div>
                                     </div>
                                 </div>
-                         
-                         
                             </div>
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="form-group mb-3">
+                                        <label for="schemeQuoteAmounts" class="form-label">Quote 专用金额配置（JSON）</label>
+                                        <textarea class="form-control" id="schemeQuoteAmounts" rows="5" placeholder='{"SOL":{"buy_amount":0.5},"USDC":{"buy_amount":10}}'></textarea>
+                                        <small class="form-text">可选 key：SOL、USDC 或完整 quote mint 公钥。</small>
+                                    </div>
+                                </div>
+                            </div>
+                         
+                         
                             
                             <div class="row">
                              
@@ -1130,7 +1174,7 @@
                                 <div class="row">
                                     <div class="col-md-4">
                                         <div class="mb-3">
-                                            <label for="newSchemeMinPoolSize" class="form-label">最小池子大小 (SOL)</label>
+                                            <label for="newSchemeMinPoolSize" class="form-label">最小池子大小（计价资产）</label>
                                             <div class="input-group">
                                                 <span class="input-group-text"><i class="bi bi-water"></i></span>
                                                 <input type="number" class="form-control" id="newSchemeMinPoolSize" min="0" step="0.1" value="1">
@@ -1139,7 +1183,7 @@
                                     </div>
                                     <div class="col-md-4">
                                         <div class="mb-3">
-                                            <label for="newSchemeMaxPoolSize" class="form-label">最大池子大小 (SOL)</label>
+                                            <label for="newSchemeMaxPoolSize" class="form-label">最大池子大小（计价资产）</label>
                                             <div class="input-group">
                                                 <span class="input-group-text"><i class="bi bi-water"></i></span>
                                                 <input type="number" class="form-control" id="newSchemeMaxPoolSize" min="0" step="0.1" value="100">
@@ -1159,7 +1203,7 @@
                                 <div class="row">
                                     <div class="col-md-4">
                                         <div class="mb-3">
-                                            <label for="newSchemeBuySolAmount" class="form-label">购买金额 (SOL)</label>
+                                            <label for="newSchemeBuySolAmount" class="form-label">购买金额（计价资产）</label>
                                             <div class="input-group">
                                                 <span class="input-group-text"><i class="bi bi-currency-dollar"></i></span>
                                                 <input type="number" class="form-control" id="newSchemeBuySolAmount" min="0" step="0.01" value="0.5">
@@ -1176,8 +1220,17 @@
                                             </div>
                                         </div>
                                     </div>
-
                                 </div>
+                                <div class="row">
+                                    <div class="col-12">
+                                        <div class="mb-3">
+                                            <label for="newSchemeQuoteAmounts" class="form-label">Quote 专用金额配置（JSON）</label>
+                                            <textarea class="form-control" id="newSchemeQuoteAmounts" rows="5" placeholder='{"SOL":{"buy_amount":0.5},"USDC":{"buy_amount":10}}'></textarea>
+                                            <small class="form-text">可选 key：SOL、USDC 或完整 quote mint 公钥。</small>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 
                                 <div class="row">
                                 

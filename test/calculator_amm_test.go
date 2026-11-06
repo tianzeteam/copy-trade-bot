@@ -167,7 +167,7 @@ func TestCalculateAmmAccountsV2(t *testing.T) {
 
 // TestCalculateAmmAccountsPDADerivation 测试 PDA 推导的正确性
 func TestCalculateAmmAccountsPDADerivation(t *testing.T) {
-	pool := solana.MustPublicKeyFromBase58("5VVJt6rHh9FdYLhxvXJ8KvWOFbA7vZPvJzXYmEPUKLqL")
+	pool := solana.MustPublicKeyFromBase58("EKqskknwdwGGnz8a8coxQrQ3RXgr9Lcs52NDEFAKpDbF")
 	baseMint := solana.MustPublicKeyFromBase58("HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC")
 	user := solana.MustPublicKeyFromBase58("22jkcdB9gFCZps5LYTvvpN4iVgMynEP7ci6QHwkTBPSx")
 	coinCreator := solana.MustPublicKeyFromBase58("CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM")
@@ -277,7 +277,7 @@ func TestCalculateAmmAccountsPDADerivation(t *testing.T) {
 
 // TestCalculateAmmAccountsWithDifferentUsers 测试不同用户的账户计算
 func TestCalculateAmmAccountsWithDifferentUsers(t *testing.T) {
-	pool := solana.MustPublicKeyFromBase58("5VVJt6rHh9FdYLhxvXJ8KvWOFbA7vZPvJzXYmEPUKLqL")
+	pool := solana.MustPublicKeyFromBase58("EKqskknwdwGGnz8a8coxQrQ3RXgr9Lcs52NDEFAKpDbF")
 	baseMint := solana.MustPublicKeyFromBase58("HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC")
 	coinCreator := solana.MustPublicKeyFromBase58("CebN5WGQ4jvEPvsVU4EoHEpgzq1VV7AbicfhtW4xC9iM")
 
@@ -285,7 +285,7 @@ func TestCalculateAmmAccountsWithDifferentUsers(t *testing.T) {
 
 	// 测试两个不同的用户
 	user1 := solana.MustPublicKeyFromBase58("22jkcdB9gFCZps5LYTvvpN4iVgMynEP7ci6QHwkTBPSx")
-	user2 := solana.MustPublicKeyFromBase58("3XYZ1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZabcde")
+	user2 := solana.MustPublicKeyFromBase58("AwiFZDp7ee2QPbwUbGcpDSQ8hWz4a2qsNfqa13noY1EL")
 
 	accounts1, err1 := calc.CalculateAmmAccounts(pool, baseMint, user1, coinCreator, "v2")
 	require.NoError(t, err1)

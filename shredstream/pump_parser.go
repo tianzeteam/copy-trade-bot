@@ -9,6 +9,7 @@ import (
 	"copytrade/core"
 	"copytrade/global"
 	"copytrade/logger"
+	pumpV3 "copytrade/pumpV3"
 	"copytrade/queue"
 
 	ag_binary "github.com/gagliardetto/binary"
@@ -17,10 +18,15 @@ import (
 
 // PumpFun 指令 discriminator
 var (
-	PumpBuyDiscriminator  = [8]byte{102, 6, 61, 18, 1, 218, 235, 234}
-	PumpSellDiscriminator = [8]byte{51, 230, 133, 164, 1, 127, 131, 173}
+	PumpBuyDiscriminator  = pumpV3.InstructionBuy
+	PumpSellDiscriminator = pumpV3.InstructionSell
 
-	PumpBuyExactSolInDiscriminator = [8]byte{56, 252, 116, 8, 158, 223, 205, 95}
+	PumpBuyExactSolInDiscriminator = pumpV3.InstructionBuyExactSolIn
+
+	// v2 统一交易指令（buy_v2 / sell_v2 / buy_exact_quote_in_v2）
+	PumpBuyV2Discriminator             = pumpV3.InstructionBuyV2
+	PumpSellV2Discriminator            = pumpV3.InstructionSellV2
+	PumpBuyExactQuoteInV2Discriminator = pumpV3.InstructionBuyExactQuoteInV2
 )
 
 // PumpBuyParams Buy 指令参数
@@ -102,7 +108,6 @@ func parseInstruction(ix solana.CompiledInstruction, accountKeys []solana.Public
 
 	discriminator := [8]byte{}
 	copy(discriminator[:], ix.Data[:8])
-
 	switch discriminator {
 	case PumpBuyDiscriminator:
 		return parseBuyInstruction(ix, accountKeys, event)
@@ -110,6 +115,12 @@ func parseInstruction(ix solana.CompiledInstruction, accountKeys []solana.Public
 		return parseBuyExactSolInInstruction(ix, accountKeys, event)
 	case PumpSellDiscriminator:
 		return parseSellInstruction(ix, accountKeys, event)
+	case PumpBuyV2Discriminator:
+		return parseBuyV2Instruction(ix, accountKeys, event)
+	case PumpBuyExactQuoteInV2Discriminator:
+		return parseBuyExactQuoteInV2Instruction(ix, accountKeys, event)
+	case PumpSellV2Discriminator:
+		return parseSellV2Instruction(ix, accountKeys, event)
 	}
 
 	return nil
@@ -160,18 +171,11 @@ func parseBuyInstruction(ix solana.CompiledInstruction, accountKeys []solana.Pub
 		feeRecipient = accountKeys[feeRecipientIndex]
 	}
 
-	// 提取 creator (如果存在)
-	var creator solana.PublicKey
-	if len(ix.Accounts) > 9 {
-		creatorVaultIndex := ix.Accounts[9]
-		if int(creatorVaultIndex) < len(accountKeys) {
-			creator = accountKeys[creatorVaultIndex]
-		}
-	}
 	latestTradeInfo := global.GetTradeInfo(mintAddress.String())
 	if latestTradeInfo == nil {
 		return nil
 	}
+	creator := latestTradeInfo.Creator
 	// 创建交易信息
 	// 注意: ShredStream 无法获取执行后的储备量和价格
 	// 这些需要从后续的 gRPC 事件或链上查询获取
@@ -403,15 +407,6 @@ func parseBuyExactSolInInstruction(ix solana.CompiledInstruction, accountKeys []
 		feeRecipient = accountKeys[feeRecipientIndex]
 	}
 
-	// 提取 creator (如果存在)
-	var creator solana.PublicKey
-	if len(ix.Accounts) > 9 {
-		creatorVaultIndex := ix.Accounts[9]
-		if int(creatorVaultIndex) < len(accountKeys) {
-			creator = accountKeys[creatorVaultIndex]
-		}
-	}
-
 	// 创建交易信息
 	// 注意: BuyExactSolIn 是指定 SOL 数量买入，与 Buy 不同
 	// SolAmount = SpendableSolIn (实际花费的 SOL)
@@ -420,6 +415,7 @@ func parseBuyExactSolInInstruction(ix solana.CompiledInstruction, accountKeys []
 	if latestTradeInfo == nil {
 		return nil
 	}
+	creator := latestTradeInfo.Creator
 	tradeInfo := &global.TradeEventInfo{
 		PumpVersion:  constants.PumpVersionV1, // BuyExactSolIn 是 pumpV2 的指令
 		MintAddress:  mintAddress.String(),
@@ -453,6 +449,160 @@ func parseBuyExactSolInInstruction(ix solana.CompiledInstruction, accountKeys []
 	logger.Debugf("ShredStream: Parsed PumpFun BuyExactSolIn - mint=%s, user=%s, solIn=%d, minTokens=%d",
 		mintAddress.String(), userAddress.String(), params.SpendableSolIn, params.MinTokensOut)
 
+	return tradeInfo
+}
+
+// extractV2Accounts 按 buy_v2 / sell_v2 / buy_exact_quote_in_v2 的统一账户布局提取关键字段。
+// 布局（buy_v2 共 27 个账户，sell_v2 少 global_volume_accumulator，索引 0-13 一致）：
+// [1]=base_mint [2]=quote_mint [3]=base_token_program [6]=fee_recipient [13]=user。
+// creator 不在账户列表中，无法从指令推导。
+func extractV2Accounts(ix solana.CompiledInstruction, accountKeys []solana.PublicKey) (mint, quoteMint, feeRecipient, user solana.PublicKey, ok bool) {
+	if len(ix.Accounts) < 14 {
+		logger.Debugf("ShredStream: v2 instruction has insufficient accounts: %d", len(ix.Accounts))
+		return
+	}
+	get := func(i int) solana.PublicKey {
+		if int(ix.Accounts[i]) < len(accountKeys) {
+			return accountKeys[ix.Accounts[i]]
+		}
+		return solana.PublicKey{}
+	}
+	mint = get(1)
+	quoteMint = get(2)
+	feeRecipient = get(6)
+	user = get(13)
+	ok = !mint.IsZero() && !user.IsZero()
+	return
+}
+
+// v2PumpVersion 按 base_token_program 判断代币版本。
+func v2PumpVersion(ix solana.CompiledInstruction, accountKeys []solana.PublicKey) string {
+	if len(ix.Accounts) > 3 && int(ix.Accounts[3]) < len(accountKeys) {
+		if accountKeys[ix.Accounts[3]] == solana.Token2022ProgramID {
+			return constants.PumpVersionV2
+		}
+	}
+	return constants.PumpVersionV1
+}
+
+// parseBuyV2Instruction 解析 buy_v2 指令（参数: amount, max_sol_cost）。
+func parseBuyV2Instruction(ix solana.CompiledInstruction, accountKeys []solana.PublicKey, event *ShredEvent) *global.TradeEventInfo {
+	params, err := decodeBuyParams(ix.Data[8:])
+	if err != nil {
+		logger.Debugf("ShredStream: Failed to decode buy_v2 params: %v", err)
+		return nil
+	}
+	mint, quoteMint, feeRecipient, user, ok := extractV2Accounts(ix, accountKeys)
+	if !ok {
+		return nil
+	}
+	latestTradeInfo := global.GetTradeInfo(mint.String())
+	if latestTradeInfo == nil {
+		return nil
+	}
+	tradeInfo := &global.TradeEventInfo{
+		PumpVersion:          v2PumpVersion(ix, accountKeys),
+		MintAddress:          mint.String(),
+		UserAddress:          user.String(),
+		TokenAmount:          params.Amount,
+		SolAmount:            params.MaxSolCost, // 最大成本，非实际成本
+		IsBuy:                true,
+		FeeRecipient:         feeRecipient,
+		Creator:              latestTradeInfo.Creator,
+		QuoteMint:            quoteMint,
+		TimeStamp:            time.Now().Unix(),
+		TradeTime:            time.Now().Format("2006-01-02 15:04:05"),
+		ReceivedAt:           event.ReceivedAt,
+		VirtualSolReserves:   latestTradeInfo.VirtualSolReserves,
+		VirtualTokenReserves: latestTradeInfo.VirtualTokenReserves,
+		RealSolReserves:      latestTradeInfo.RealSolReserves,
+		RealTokenReserves:    latestTradeInfo.RealTokenReserves,
+		CurrentPrice:         latestTradeInfo.CurrentPrice,
+		MayhemMode:           latestTradeInfo.MayhemMode,
+	}
+	logger.Debugf("ShredStream: Parsed PumpFun buy_v2 - mint=%s, user=%s, amount=%d, maxCost=%d",
+		mint.String(), user.String(), params.Amount, params.MaxSolCost)
+	return tradeInfo
+}
+
+// parseBuyExactQuoteInV2Instruction 解析 buy_exact_quote_in_v2 指令。
+// 参数语义与 buy_v2 相反：第一个 u64 是 quote 预算，第二个是最小代币数量。
+func parseBuyExactQuoteInV2Instruction(ix solana.CompiledInstruction, accountKeys []solana.PublicKey, event *ShredEvent) *global.TradeEventInfo {
+	params, err := decodeBuyExactSolInParams(ix.Data[8:])
+	if err != nil {
+		logger.Debugf("ShredStream: Failed to decode buy_exact_quote_in_v2 params: %v", err)
+		return nil
+	}
+	mint, quoteMint, feeRecipient, user, ok := extractV2Accounts(ix, accountKeys)
+	if !ok {
+		return nil
+	}
+	latestTradeInfo := global.GetTradeInfo(mint.String())
+	if latestTradeInfo == nil {
+		return nil
+	}
+	tradeInfo := &global.TradeEventInfo{
+		PumpVersion:          v2PumpVersion(ix, accountKeys),
+		MintAddress:          mint.String(),
+		UserAddress:          user.String(),
+		TokenAmount:          params.MinTokensOut,   // 最小代币数量，实际可能更多
+		SolAmount:            params.SpendableSolIn, // quote 预算（SOL 配对即 lamports）
+		IsBuy:                true,
+		FeeRecipient:         feeRecipient,
+		Creator:              latestTradeInfo.Creator,
+		QuoteMint:            quoteMint,
+		TimeStamp:            time.Now().Unix(),
+		TradeTime:            time.Now().Format("2006-01-02 15:04:05"),
+		ReceivedAt:           event.ReceivedAt,
+		VirtualSolReserves:   latestTradeInfo.VirtualSolReserves,
+		VirtualTokenReserves: latestTradeInfo.VirtualTokenReserves,
+		RealSolReserves:      latestTradeInfo.RealSolReserves,
+		RealTokenReserves:    latestTradeInfo.RealTokenReserves,
+		CurrentPrice:         latestTradeInfo.CurrentPrice,
+		MayhemMode:           latestTradeInfo.MayhemMode,
+	}
+	logger.Debugf("ShredStream: Parsed PumpFun buy_exact_quote_in_v2 - mint=%s, user=%s, quoteIn=%d, minTokens=%d",
+		mint.String(), user.String(), params.SpendableSolIn, params.MinTokensOut)
+	return tradeInfo
+}
+
+// parseSellV2Instruction 解析 sell_v2 指令（参数: amount, min_sol_output）。
+func parseSellV2Instruction(ix solana.CompiledInstruction, accountKeys []solana.PublicKey, event *ShredEvent) *global.TradeEventInfo {
+	params, err := decodeSellParams(ix.Data[8:])
+	if err != nil {
+		logger.Debugf("ShredStream: Failed to decode sell_v2 params: %v", err)
+		return nil
+	}
+	mint, quoteMint, feeRecipient, user, ok := extractV2Accounts(ix, accountKeys)
+	if !ok {
+		return nil
+	}
+	latestTradeInfo := global.GetTradeInfo(mint.String())
+	if latestTradeInfo == nil {
+		return nil
+	}
+	tradeInfo := &global.TradeEventInfo{
+		PumpVersion:          v2PumpVersion(ix, accountKeys),
+		MintAddress:          mint.String(),
+		UserAddress:          user.String(),
+		TokenAmount:          params.Amount,
+		SolAmount:            params.MinSolOut, // 最小收入，非实际收入
+		IsBuy:                false,
+		FeeRecipient:         feeRecipient,
+		Creator:              latestTradeInfo.Creator,
+		QuoteMint:            quoteMint,
+		TimeStamp:            time.Now().Unix(),
+		TradeTime:            time.Now().Format("2006-01-02 15:04:05"),
+		ReceivedAt:           event.ReceivedAt,
+		VirtualSolReserves:   latestTradeInfo.VirtualSolReserves,
+		VirtualTokenReserves: latestTradeInfo.VirtualTokenReserves,
+		RealSolReserves:      latestTradeInfo.RealSolReserves,
+		RealTokenReserves:    latestTradeInfo.RealTokenReserves,
+		CurrentPrice:         latestTradeInfo.CurrentPrice,
+		MayhemMode:           latestTradeInfo.MayhemMode,
+	}
+	logger.Debugf("ShredStream: Parsed PumpFun sell_v2 - mint=%s, user=%s, amount=%d, minOut=%d",
+		mint.String(), user.String(), params.Amount, params.MinSolOut)
 	return tradeInfo
 }
 
@@ -520,7 +670,10 @@ func HasPumpFunInstruction(tx *solana.Transaction) bool {
 
 				if bytes.Equal(discriminator[:], PumpBuyDiscriminator[:]) ||
 					bytes.Equal(discriminator[:], PumpBuyExactSolInDiscriminator[:]) ||
-					bytes.Equal(discriminator[:], PumpSellDiscriminator[:]) {
+					bytes.Equal(discriminator[:], PumpSellDiscriminator[:]) ||
+					bytes.Equal(discriminator[:], PumpBuyV2Discriminator[:]) ||
+					bytes.Equal(discriminator[:], PumpSellV2Discriminator[:]) ||
+					bytes.Equal(discriminator[:], PumpBuyExactQuoteInV2Discriminator[:]) {
 					return true
 				}
 			}

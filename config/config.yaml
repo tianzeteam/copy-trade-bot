@@ -1,6 +1,6 @@
 skip_create_nonce_account: true
 nonce_account_pubkey: CeyfxPbWP81zny2j79rTWeYvi4GGNSnnmQ1UzMkZgv3V
-simulate_mode: false
+simulate_mode: true
 private_key: QhdErk44YuyJpp3hN1P2zNYbEhgvQ4NoJ5nFDpLSUkabiav3VYXAT5AQd5bjx7jTpCjD8dDqjZCivk6emMtu6J7
 #ShredStream 配置 (默认关闭)
 shred_stream:
@@ -13,7 +13,7 @@ event_dedup:
     cache_size: 100000
     ttl_seconds: 60
 grpc_url: https://solana-yellowstone-grpc.publicnode.com:443
-rpc_url: https://mainnet.helius-rpc.com/?api-key=dc537a21-36c2-4a5f-bcf8-90ae704fbbfc
+rpc_url: https://billowing-dimensional-glitter.solana-mainnet.quiknode.pro/63b6f96796c7d14e917112dc63fe434ad0f24c2e
 redis_db: 0
 redis_key_prefix: copytrade
 trade_channel: flashtrade:trade
@@ -54,7 +54,7 @@ buy_activity_monitor:
     min_buy_amount: 0.15
 skip_ata_check: true
 pump_trade_enable: false
-pump_amm_trade_enable: true
+pump_amm_trade_enable: false
 raydium_trade_enable: false
 launchpad_trade_enable: false
 meteora_dbc_trade_enable: false

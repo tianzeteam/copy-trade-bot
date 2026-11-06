@@ -4,6 +4,16 @@ import (
 	"time"
 )
 
+// QuoteAmountConfig 是某一 quote mint 独立的跟单金额和风控配置。
+// map key 推荐使用 SOL 或 USDC；也兼容完整 quote mint 公钥。
+type QuoteAmountConfig struct {
+	BuyAmount              float64 `json:"buy_amount" yaml:"buy_amount"`
+	MinFollowTriggerAmount float64 `json:"min_follow_trigger_amount" yaml:"min_follow_trigger_amount"`
+	MaxFollowTriggerAmount float64 `json:"max_follow_trigger_amount" yaml:"max_follow_trigger_amount"`
+	MinPoolSize            float64 `json:"min_pool_size" yaml:"min_pool_size"`
+	MaxPoolSize            float64 `json:"max_pool_size" yaml:"max_pool_size"`
+}
+
 // ParamScheme 参数模板结构体
 type ParamScheme struct {
 	ID          string    `json:"id"`          // 参数模板ID
@@ -17,22 +27,23 @@ type ParamScheme struct {
 	SellDelayTime int `json:"sell_delay_time"` // 延迟卖出时间（ms）
 
 	// 交易触发和池子大小参数
-	MinFollowTriggerAmount float64 `json:"min_follow_trigger_amount"` // 最小触发买入数量 (SOL)
-	MaxFollowTriggerAmount float64 `json:"max_follow_trigger_amount"` // 最大触发买入数量 (SOL)
-	MinPoolSize            float64 `json:"min_pool_size"`             // 最小池子大小 (SOL)
-	MaxPoolSize            float64 `json:"max_pool_size"`             // 最大池子大小 (SOL)
+	MinFollowTriggerAmount float64 `json:"min_follow_trigger_amount"` // 最小触发买入数量（按 quote 资产单位）
+	MaxFollowTriggerAmount float64 `json:"max_follow_trigger_amount"` // 最大触发买入数量（按 quote 资产单位）
+	MinPoolSize            float64 `json:"min_pool_size"`             // 最小池子大小（按 quote 资产单位）
+	MaxPoolSize            float64 `json:"max_pool_size"`             // 最大池子大小（按 quote 资产单位）
 
 	// 代币创建时间过滤参数 (防止聪明钱包反向收割)
 	TokenAgeMinMinutes int `json:"token_age_min_minutes"` // 代币最小创建时间 (分钟)
 	TokenAgeMaxMinutes int `json:"token_age_max_minutes"` // 代币最大创建时间 (分钟)
 
 	// 交易参数
-	BuySolAmount float64 `json:"buy_sol_amount"` // 买入金额 (SOL)
+	BuySolAmount float64 `json:"buy_sol_amount"` // 买入金额（SOL/USDC，按 quote 资产单位）
 	//MaxBuyAmount float64 `json:"max_buy_amount"` // 最大买入金额 (SOL)
 	//MinBuyAmount float64 `json:"min_buy_amount"` // 最小买入金额 (SOL)
 	//SellPercentage       float64 `json:"sell_percentage"`        // 卖出比例 (%)
 	//StopLossPercentage   float64 `json:"stop_loss_percentage"`   // 止损比例 (%)
 	//TakeProfitPercentage float64 `json:"take_profit_percentage"` // 止盈比例 (%)
+	QuoteAmounts map[string]QuoteAmountConfig `json:"quote_amounts,omitempty"`
 
 	// 滑点参数
 	BuySlippage  float64 `json:"buy_slippage"`  // 买入滑点 (%)

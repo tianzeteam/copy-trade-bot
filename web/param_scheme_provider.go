@@ -70,6 +70,7 @@ func (p *ParamSchemeProviderImpl) GetParamScheme(ctx context.Context, id string)
 		//MaxBuyAmount:           scheme.MaxBuyAmount,
 		//MinBuyAmount:           scheme.MinBuyAmount,
 		BuySolAmount: scheme.BuySolAmount,
+		QuoteAmounts: scheme.QuoteAmounts,
 		//SellPercentage:         scheme.SellPercentage,
 		//StopLossPercentage:   scheme.StopLossPercentage,
 		//TakeProfitPercentage: scheme.TakeProfitPercentage,

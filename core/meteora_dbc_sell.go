@@ -13,7 +13,7 @@ import (
 	"copytrade/types"
 
 	"github.com/gagliardetto/solana-go"
-	associatedtokenaccount "github.com/gagliardetto/solana-go/programs/associated-token-account"
+	associatedtokenaccount "copytrade/helpers/associatedtokenaccount"
 	"github.com/gagliardetto/solana-go/programs/system"
 	"github.com/gagliardetto/solana-go/programs/token"
 )

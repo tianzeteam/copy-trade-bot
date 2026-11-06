@@ -101,6 +101,36 @@ type PumpAccounts struct {
 	UserVolumeAccumulator   solana.PublicKey // 用户成交量累加器地址
 }
 
+// PumpV3Accounts 存储 pump 统一交易接口（buy_v2 / sell_v2）所需的全部账户。
+// 布局与 pumpV3.TradeAccounts 一一对应，由 calculator.CalculatePumpV3Accounts 派生。
+type PumpV3Accounts struct {
+	BaseMint                           solana.PublicKey // 基础代币 mint
+	QuoteMint                          solana.PublicKey // 计价 mint：SOL 配对为 wSOL，USDC 配对为 USDC
+	BaseTokenProgram                   solana.PublicKey // base 代币程序（SPL Token 或 Token-2022）
+	QuoteTokenProgram                  solana.PublicKey // quote 代币程序（wSOL/USDC 均为 SPL Token）
+	AssociatedTokenProgram             solana.PublicKey // SPL ATA 程序
+	FeeRecipient                       solana.PublicKey // 手续费接收地址（程序校验其合法性）
+	AssociatedQuoteFeeRecipient        solana.PublicKey // fee recipient 的 quote ATA
+	BuybackFeeRecipient                solana.PublicKey // buyback 手续费接收地址
+	AssociatedQuoteBuybackFeeRecipient solana.PublicKey // buyback recipient 的 quote ATA
+	BondingCurve                       solana.PublicKey // 内盘曲线 PDA
+	AssociatedBaseBondingCurve         solana.PublicKey // 曲线的 base ATA
+	AssociatedQuoteBondingCurve        solana.PublicKey // 曲线的 quote ATA
+	User                               solana.PublicKey // 交易发起者（机器人钱包）
+	AssociatedBaseUser                 solana.PublicKey // 用户的 base ATA
+	AssociatedQuoteUser                solana.PublicKey // 用户的 quote ATA（SOL 配对仅做 seed 约束）
+	CreatorVault                       solana.PublicKey // 创建者金库 PDA
+	AssociatedCreatorVault             solana.PublicKey // 创建者金库的 quote ATA
+	SharingConfig                      solana.PublicKey // creator fee 分账配置（可未初始化）
+	GlobalVolumeAccumulator            solana.PublicKey // 全局成交量累加器（仅买入指令使用）
+	UserVolumeAccumulator              solana.PublicKey // 用户成交量累加器
+	AssociatedUserVolumeAccumulator    solana.PublicKey // 用户成交量累加器的 quote ATA
+	FeeConfigAccount                   solana.PublicKey // pump_fees 动态费率配置账户
+	FeeProgram                         solana.PublicKey // pump_fees 程序地址
+	EventAuthority                     solana.PublicKey // Anchor 事件签发 PDA
+	Program                            solana.PublicKey // pump 程序地址
+}
+
 // AmmAccounts 存储 PumpAMM V2 相关的账户地址
 type AmmAccounts struct {
 	Pool                             solana.PublicKey // AMM池地址
@@ -208,6 +238,7 @@ type TradeAccounts struct {
 	GlobalVolumeAccumulator solana.PublicKey // 全局成交量累加器地址
 	UserVolumeAccumulator   solana.PublicKey // 用户成交量累加器地址
 	NonceAccount            solana.PublicKey // nonce账户
+	PumpV3           *PumpV3Accounts   // pump 统一交易接口（buy_v2 / sell_v2）账户集合
 }
 
 // RaydiumCPMMAccounts stores all the necessary accounts for interacting with the Raydium CPMM.

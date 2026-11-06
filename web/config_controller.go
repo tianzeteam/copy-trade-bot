@@ -74,6 +74,7 @@ func (c *ConfigController) handleGetConfig(ctx *gin.Context) {
 		MaxFollowTriggerAmount: config.MaxFollowTriggerAmount,
 		MinPoolSize:            config.MinPoolSize,
 		MaxPoolSize:            config.MaxPoolSize,
+		QuoteAmounts:           config.QuoteAmounts,
 
 		// 交易参数
 		MaxBuyAmount:         config.MaxBuyAmount,
@@ -203,6 +204,7 @@ func (c *ConfigController) handleUpdateConfig(ctx *gin.Context) {
 		MaxFollowTriggerAmount: updatedConfig.MaxFollowTriggerAmount,
 		MinPoolSize:            updatedConfig.MinPoolSize,
 		MaxPoolSize:            updatedConfig.MaxPoolSize,
+		QuoteAmounts:           updatedConfig.QuoteAmounts,
 
 		// 交易参数
 		MaxBuyAmount:         updatedConfig.MaxBuyAmount,

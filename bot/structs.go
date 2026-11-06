@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"sync"
@@ -153,6 +154,8 @@ func NewBot(config *utils.Config, sdkClient *sdk.TradeSubscriptionClient) (*Bot,
 		marketStates:     make(map[string]*MarketState),
 		marketStatesLock: sync.RWMutex{},
 	}
+	// 启动时预热并在后台刷新 Pump 费率配置；交易组装阶段只读缓存。
+	go trader.AmountsCalc.RunPumpFeeConfigRefresh(context.Background())
 
 	// 初始化盈利目标监控器（需要在Bot创建后初始化，因为需要传入bot实例）
 	b.profitMonitor = NewProfitTargetMonitor(config)

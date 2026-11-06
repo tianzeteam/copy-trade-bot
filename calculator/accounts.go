@@ -2,13 +2,14 @@ package calculator
 
 import (
 	"context"
-	//"copytrade/global"
-	//"copytrade/types"
+	"copytrade/global"
 
 	"copytrade/helpers"
 	"copytrade/logger"
+	pumpV3 "copytrade/pumpV3"
 	"copytrade/types"
 	"fmt"
+	"time"
 
 	"copytrade/raydium/layouts"
 	"copytrade/raydium/utils"
@@ -47,170 +48,133 @@ func NewAccountsCalculator(endpoint string) *AccountsCalculator {
 	}
 }
 
-// CalculatePumpAccounts 计算Pump V1所需的所有账户（使用标准 Token Program）
-func (c *AccountsCalculator) CalculatePumpAccounts(ctx context.Context, creator, mint, user solana.PublicKey) (*types.PumpAccounts, error) {
-	// 计算bonding curve地址
-	bondingCurve, _, err := solana.FindProgramAddress(
-		[][]byte{
-			[]byte("bonding-curve"),
-			mint.Bytes(),
-		},
-		PUMP_PROGRAM_ID,
-	)
+// CalculatePumpV3Accounts 派生统一交易接口（buy_v2 / sell_v2）所需的全部账户。
+//
+//	creator          代币创建者钱包（BondingCurve.creator）
+//	mint             base 代币 mint
+//	user             交易发起者（机器人钱包）
+//	baseTokenProgram base 代币所属程序：V1 币为 SPL Token，V2 币为 Token-2022
+//	quoteMint        计价 mint：SOL 配对传 wSOL，USDC 配对传 USDC（指令参数语义）
+//	feeRecipient     手续费接收地址。复用触发事件的地址即可——链上程序只校验其在全局名单内。
+//
+// SOL 配对币无需预创建用户的 quote ATA（associated_quote_user 仅做 seed 约束）。
+func (c *AccountsCalculator) CalculatePumpV3Accounts(_ context.Context, creator, mint, user, baseTokenProgram, quoteMint, feeRecipient solana.PublicKey) (*types.PumpV3Accounts, error) {
+	quoteTokenProgram := pumpV3.QuoteTokenProgram(quoteMint)
+
+	bondingCurve, err := pumpV3.BondingCurvePDA(mint)
 	if err != nil {
-		return nil, fmt.Errorf("计算bonding curve失败: %w", err)
+		return nil, fmt.Errorf("计算 bonding curve 失败: %w", err)
 	}
-	// 计算associated bonding curve地址
-	associatedBondingCurve, _, err := solana.FindAssociatedTokenAddress(
-		bondingCurve,
-		mint,
-	)
+	if creator.IsZero() {
+		return nil, fmt.Errorf("Pump 曲线 creator 尚未缓存")
+	}
+	creatorVault, err := pumpV3.CreatorVaultPDA(creator)
 	if err != nil {
-		return nil, fmt.Errorf("计算associated bonding curve失败: %w", err)
+		return nil, fmt.Errorf("计算 creator vault 失败: %w", err)
+	}
+	sharingConfig, err := pumpV3.SharingConfigPDA(mint)
+	if err != nil {
+		return nil, fmt.Errorf("计算 sharing config 失败: %w", err)
+	}
+	globalVolumeAccumulator, err := pumpV3.GlobalVolumeAccumulatorPDA()
+	if err != nil {
+		return nil, fmt.Errorf("计算 global volume accumulator 失败: %w", err)
+	}
+	userVolumeAccumulator, err := pumpV3.UserVolumeAccumulatorPDA(user)
+	if err != nil {
+		return nil, fmt.Errorf("计算 user volume accumulator 失败: %w", err)
+	}
+	feeConfigAddr, err := pumpV3.FeeConfigPDA()
+	if err != nil {
+		return nil, fmt.Errorf("计算 fee config 失败: %w", err)
 	}
 
-	// 计算用户的associated token account
-	associatedTokenAccount, _, err := solana.FindAssociatedTokenAddress(
-		user,
-		mint,
-	)
+	associatedBaseBondingCurve, err := pumpV3.AssociatedTokenAccount(bondingCurve, mint, baseTokenProgram)
 	if err != nil {
-		return nil, fmt.Errorf("计算associated token account失败: %w", err)
+		return nil, fmt.Errorf("计算曲线 base ATA 失败: %w", err)
+	}
+	associatedQuoteBondingCurve, err := pumpV3.AssociatedTokenAccount(bondingCurve, quoteMint, quoteTokenProgram)
+	if err != nil {
+		return nil, fmt.Errorf("计算曲线 quote ATA 失败: %w", err)
+	}
+	associatedBaseUser, err := pumpV3.AssociatedTokenAccount(user, mint, baseTokenProgram)
+	if err != nil {
+		return nil, fmt.Errorf("计算用户 base ATA 失败: %w", err)
+	}
+	associatedQuoteUser, err := pumpV3.AssociatedTokenAccount(user, quoteMint, quoteTokenProgram)
+	if err != nil {
+		return nil, fmt.Errorf("计算用户 quote ATA 失败: %w", err)
+	}
+	associatedCreatorVault, err := pumpV3.AssociatedTokenAccount(creatorVault, quoteMint, quoteTokenProgram)
+	if err != nil {
+		return nil, fmt.Errorf("计算 creator vault quote ATA 失败: %w", err)
+	}
+	associatedQuoteFeeRecipient, err := pumpV3.AssociatedTokenAccount(feeRecipient, quoteMint, quoteTokenProgram)
+	if err != nil {
+		return nil, fmt.Errorf("计算 fee recipient quote ATA 失败: %w", err)
+	}
+	associatedUserVolumeAccumulator, err := pumpV3.AssociatedTokenAccount(userVolumeAccumulator, quoteMint, quoteTokenProgram)
+	if err != nil {
+		return nil, fmt.Errorf("计算 UVA quote ATA 失败: %w", err)
 	}
 
-	// 计算creator vault PDA地址
-	// 根据Pump程序的设计，creator vault PDA的seeds是 ["creator-vault", creator]
-	creatorVaultPda, _, err := solana.FindProgramAddress(
-		[][]byte{
-			[]byte("creator-vault"),
-			creator.Bytes(),
-		},
-		PUMP_PROGRAM_ID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("计算creator vault PDA失败: %w", err)
+	// buyback recipient 名单只从已预热的 Global 缓存读取；热路径不访问 RPC。
+	_, globalConfig := global.GetPumpFeeConfig()
+	if globalConfig == nil {
+		return nil, fmt.Errorf("Pump Global 配置尚未预热")
 	}
-	// 计算global_volume_accumulator (全局成交量累加器地址)
-	globalVolumeAccumulator, _, err := solana.FindProgramAddress(
-		[][]byte{
-			[]byte("global_volume_accumulator"),
-		},
-		PUMP_PROGRAM_ID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("计算global volume accumulator失败: %w", err)
+	buybackPool := globalConfig.AllBuybackFeeRecipients()
+	if len(buybackPool) == 0 {
+		return nil, fmt.Errorf("链上 Global 未提供 buyback fee recipient，无法构建泵交易")
 	}
-	// 计算user_volume_accumulator (用户成交量累加器地址)
-	userVolumeAccumulator, _, err := solana.FindProgramAddress(
-		[][]byte{
-			[]byte("user_volume_accumulator"),
-			user.Bytes(),
-		},
-		PUMP_PROGRAM_ID,
-	)
+	idx := int(time.Now().UnixNano())
+	if idx < 0 {
+		idx = -idx
+	}
+	buybackFeeRecipient := buybackPool[idx%len(buybackPool)]
+	associatedQuoteBuybackFeeRecipient, err := pumpV3.AssociatedTokenAccount(buybackFeeRecipient, quoteMint, quoteTokenProgram)
 	if err != nil {
-		return nil, fmt.Errorf("计算user volume accumulator失败: %w", err)
+		return nil, fmt.Errorf("计算 buyback recipient quote ATA 失败: %w", err)
 	}
 
-	return &types.PumpAccounts{
-		BondingCurve:            bondingCurve,
-		AssociatedBondingCurve:  associatedBondingCurve,
-		AssociatedTokenAccount:  associatedTokenAccount,
-		CreatorVaultPda:         creatorVaultPda,
-		GlobalVolumeAccumulator: globalVolumeAccumulator,
-		UserVolumeAccumulator:   userVolumeAccumulator,
+	return &types.PumpV3Accounts{
+		BaseMint:                           mint,
+		QuoteMint:                          quoteMint,
+		BaseTokenProgram:                   baseTokenProgram,
+		QuoteTokenProgram:                  quoteTokenProgram,
+		AssociatedTokenProgram:             solana.SPLAssociatedTokenAccountProgramID,
+		FeeRecipient:                       feeRecipient,
+		AssociatedQuoteFeeRecipient:        associatedQuoteFeeRecipient,
+		BuybackFeeRecipient:                buybackFeeRecipient,
+		AssociatedQuoteBuybackFeeRecipient: associatedQuoteBuybackFeeRecipient,
+		BondingCurve:                       bondingCurve,
+		AssociatedBaseBondingCurve:         associatedBaseBondingCurve,
+		AssociatedQuoteBondingCurve:        associatedQuoteBondingCurve,
+		User:                               user,
+		AssociatedBaseUser:                 associatedBaseUser,
+		AssociatedQuoteUser:                associatedQuoteUser,
+		CreatorVault:                       creatorVault,
+		AssociatedCreatorVault:             associatedCreatorVault,
+		SharingConfig:                      sharingConfig,
+		GlobalVolumeAccumulator:            globalVolumeAccumulator,
+		UserVolumeAccumulator:              userVolumeAccumulator,
+		AssociatedUserVolumeAccumulator:    associatedUserVolumeAccumulator,
+		FeeConfigAccount:                   feeConfigAddr,
+		FeeProgram:                         pumpV3.FeeProgramID,
+		EventAuthority:                     pumpV3.EventAuthority,
+		Program:                            pumpV3.ProgramID,
 	}, nil
 }
 
-// CalculatePumpV2Accounts 计算Pump V2所需的所有账户（支持 Token2022）
-// tokenProgram: 可以是 TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA (Token Program)
-//
-//	或 TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb (Token-2022 Program)
-func (c *AccountsCalculator) CalculatePumpV2Accounts(ctx context.Context, creator, mint, user, tokenProgram solana.PublicKey) (*types.PumpAccounts, error) {
-	// 计算bonding curve地址 - seeds: ["bonding-curve", mint]
-	bondingCurve, _, err := solana.FindProgramAddress(
-		[][]byte{
-			[]byte("bonding-curve"),
-			mint.Bytes(),
-		},
-		PUMP_PROGRAM_ID,
-	)
+// FetchPumpBondingCurve 拉取并解码内盘曲线账户（含 creator / quote_mint /
+// mayhem / 供应量等字段），用于事件里缺失这些信息的场景（如 ShredStream 路径、
+// mayhem 币的真实供应量）。
+func (c *AccountsCalculator) FetchPumpBondingCurve(ctx context.Context, bondingCurve solana.PublicKey) (*pumpV3.BondingCurve, error) {
+	data, err := getPumpAccountData(ctx, c.client, bondingCurve)
 	if err != nil {
-		return nil, fmt.Errorf("计算bonding curve失败: %w", err)
+		return nil, err
 	}
-
-	// 计算associated bonding curve地址
-	// V2 使用 ATA Program 派生，seeds: [bonding_curve, token_program, mint]
-	// program: ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL
-	associatedBondingCurve, _, err := solana.FindProgramAddress(
-		[][]byte{
-			bondingCurve.Bytes(),
-			tokenProgram.Bytes(),
-			mint.Bytes(),
-		},
-		solana.SPLAssociatedTokenAccountProgramID, // ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL
-	)
-	if err != nil {
-		return nil, fmt.Errorf("计算associated bonding curve失败: %w", err)
-	}
-
-	// 计算用户的associated token account (associated_user)
-	// V2 也使用 ATA Program 派生
-	associatedTokenAccount, _, err := solana.FindProgramAddress(
-		[][]byte{
-			user.Bytes(),
-			tokenProgram.Bytes(),
-			mint.Bytes(),
-		},
-		solana.SPLAssociatedTokenAccountProgramID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("计算associated token account失败: %w", err)
-	}
-
-	// 计算creator vault PDA地址 - seeds: ["creator-vault", creator]
-	creatorVaultPda, _, err := solana.FindProgramAddress(
-		[][]byte{
-			[]byte("creator-vault"),
-			creator.Bytes(),
-		},
-		PUMP_PROGRAM_ID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("计算creator vault PDA失败: %w", err)
-	}
-
-	// 计算global_volume_accumulator - seeds: ["global_volume_accumulator"]
-	globalVolumeAccumulator, _, err := solana.FindProgramAddress(
-		[][]byte{
-			[]byte("global_volume_accumulator"),
-		},
-		PUMP_PROGRAM_ID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("计算global volume accumulator失败: %w", err)
-	}
-
-	// 计算user_volume_accumulator - seeds: ["user_volume_accumulator", user]
-	userVolumeAccumulator, _, err := solana.FindProgramAddress(
-		[][]byte{
-			[]byte("user_volume_accumulator"),
-			user.Bytes(),
-		},
-		PUMP_PROGRAM_ID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("计算user volume accumulator失败: %w", err)
-	}
-
-	return &types.PumpAccounts{
-		BondingCurve:            bondingCurve,
-		AssociatedBondingCurve:  associatedBondingCurve,
-		AssociatedTokenAccount:  associatedTokenAccount,
-		CreatorVaultPda:         creatorVaultPda,
-		GlobalVolumeAccumulator: globalVolumeAccumulator,
-		UserVolumeAccumulator:   userVolumeAccumulator,
-	}, nil
+	return DecodePumpBondingCurve(data)
 }
 
 func (c *AccountsCalculator) CalculateV4Accounts(user solana.PublicKey, tradeInfo *types.AmmRaydiumV4TradeInfo, marketLayout *types.MarketState, poolLayout *layouts.LIQUIDITY_STATE_LAYOUT_V4) (*types.RaydiumV4Accounts, error) {

@@ -143,6 +143,8 @@ func (s *WebServer) RegisterRoutes() {
 	// 注册Redis配置控制器（需要认证）
 	configController := NewConfigController(s.RedisService, s.ConfigPath)
 	configController.RegisterRoutesWithAuth(s.Router)
+	// 注册 USDC ATA 状态与创建接口
+	NewUSDCATAController(s.ConfigPath).RegisterRoutesWithAuth(s.Router)
 
 	// 注册参数模板控制器（需要认证）
 	paramSchemeService := NewParamSchemeService(s.RedisService.Client, s.RedisService.KeyPrefix)
@@ -243,6 +245,7 @@ func (s *WebServer) handleGetTradeSettings(ctx *gin.Context) {
 		"sell_slippage":             config.SellSlippage,
 		"sell_priority_fee":         config.SellPriorityFee,
 		"sell_tip_fee":              config.SellTipFee,
+		"quote_amounts":             config.QuoteAmounts,
 	}
 
 	ctx.JSON(http.StatusOK, tradeSettings)

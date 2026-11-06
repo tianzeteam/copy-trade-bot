@@ -2,16 +2,13 @@ package bot
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"copytrade/asset"
 	"copytrade/constants"
-	"copytrade/core"
 	"copytrade/global"
 	"copytrade/logger"
-	"copytrade/pump"
-	pumpV2 "copytrade/pumpV2"
+	pumpV3 "copytrade/pumpV3"
 	"copytrade/queue"
 	"copytrade/types"
 
@@ -34,23 +31,6 @@ const (
 	Token2022Program = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 )
 
-// TradeEventInfo 存储交易事件信息
-type TradeEventInfo struct {
-	UserAddress          string    // 用户地址
-	SolAmount            uint64    // Sol数量
-	TokenAmount          uint64    // Token数量
-	IsBuy                bool      // 是否买入
-	MintAddress          string    // Mint地址
-	TimeStamp            int64     // 时间戳
-	VirtualSolReserves   uint64    // 虚拟Sol储备
-	VirtualTokenReserves uint64    // 虚拟Token储备
-	RealSolReserves      uint64    // 实际Sol储备
-	RealTokenReserves    uint64    // 实际Token储备
-	CurrentPrice         float64   // 当前价格
-	TradeTime            string    // 交易时间
-	Milliseconds         int64     // 毫秒时间戳
-	ReceivedAt           time.Time // 接收时间
-}
 type MyBuyMap struct {
 	UserAddress string
 	MintAddress string
@@ -79,8 +59,9 @@ func (b *Bot) PumpSell(tokenInfo queue.TokenInfo, feeRecipient solana.PublicKey,
 
 }
 
-// PumpParse 使用pipeline模式处理交易事件
-// 根据 accountsAddress 是否包含 Token2022 程序地址来选择使用 pumpV2 或 pump 模块
+// PumpParse 解析泵内盘交易事件。
+// 新旧六种买卖指令共用同一个 TradeEvent 判别码，统一走 pumpV3 解码；
+// accountsAddress 中是否出现 Token2022 程序仅用于标记 base 代币程序归属。
 func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, accountsAddress []string, ctx context.Context, signature string) *global.TradeEventInfo {
 	if out.GetTransaction() == nil {
 		return nil
@@ -141,7 +122,7 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, accountsAddr
 		}
 	}
 
-	// 检查是否包含 Token2022 程序地址
+	// 检查是否包含 Token2022 程序地址（决定 base 代币程序归属）
 	token2022ProgramID := solana.Token2022ProgramID.String()
 	isToken2022 := false
 	for _, addr := range accountsAddress {
@@ -151,146 +132,60 @@ func (b *Bot) PumpParse(out *yellowstone_geyser_pb.SubscribeUpdate, accountsAddr
 		}
 	}
 
+	// 统一事件解码：日志与 Self CPI 两个来源都覆盖，未知事件自动跳过。
+	events, err := pumpV3.DecodeEventsInTransaction(logMessages, innerIxs, accountKeysPubkeys, pumpV3.ProgramID)
+	if err != nil {
+		logger.Errorf("解析泵事件失败: %v", err)
+		return nil
+	}
+
+	var tradeInfo *global.TradeEventInfo
+	for _, evt := range events {
+		switch e := evt.(type) {
+		case *pumpV3.TradeEvent:
+			if info := b.handlePumpV3TradeEvent(e, isToken2022); info != nil {
+				tradeInfo = info
+			}
+		case *pumpV3.CreateEvent:
+			b.handlePumpV3CreateEvent(e)
+		}
+	}
+	return tradeInfo
+}
+
+// handlePumpV3TradeEvent 处理统一 TradeEvent。
+// buy / sell / buy_exact_sol_in / buy_v2 / sell_v2 / buy_exact_quote_in_v2
+// 六种指令共用该事件，旧指令事件缺失的尾部字段按零值解码。
+func (b *Bot) handlePumpV3TradeEvent(tradeEvent *pumpV3.TradeEvent, isToken2022 bool) *global.TradeEventInfo {
+	b.cachePumpTradeEvent(tradeEvent, isToken2022)
+	botWallet := global.GetConfig().TradeWalletKey.PublicKey()
+	mintAddress := tradeEvent.Mint.String()
+	currentPrice := tradeEvent.CurrentPrice()
+
+	version := constants.PumpVersionV1
 	if isToken2022 {
-		// 使用 pumpV2 模块解析 (Token-2022)
-		logger.Debugf("检测到 Token2022 程序，使用 pumpV2 模块解析")
-		eventsV2, errV2 := pumpV2.DecodeEventsInTransaction(logMessages, innerIxs, accountKeysPubkeys, core.PUMP_PROGRAM_ID, signature)
-		if errV2 != nil {
-			// 检查是否是未知事件类型错误
-			if strings.Contains(errV2.Error(), "unknown discriminator") {
-				logger.Debugf("pumpV2 遇到未知事件类型，跳过: %v", errV2)
-				return nil
-			}
-			logger.Errorf("pumpV2 解析事件失败: %v", errV2)
-			return nil
-		}
-
-		// 处理 pumpV2 事件
-		var tradeInfo *global.TradeEventInfo
-		for _, evt := range eventsV2 {
-			result := b.processPumpV2Event(evt)
-			if result != nil {
-				tradeInfo = result
-			}
-		}
-		return tradeInfo
-	} else {
-		// 使用 pump V1 模块解析 (标准 Token Program)
-		logger.Debugf("未检测到 Token2022 程序，使用 pump V1 模块解析")
-		eventsV1, errV1 := pump.DecodeEventsInLogs(logMessages)
-		if errV1 != nil {
-			// 检查是否是未知事件类型错误
-			if strings.Contains(errV1.Error(), "unknown discriminator") {
-				logger.Debugf("pump V1 遇到未知事件类型，跳过: %v", errV1)
-				return nil
-			}
-			logger.Errorf("pump V1 解析事件失败: %v", errV1)
-			return nil
-		}
-
-		// 处理 pump V1 事件
-		var tradeInfo *global.TradeEventInfo
-		for _, evt := range eventsV1 {
-			result := b.processPumpEvent(evt)
-			if result != nil {
-				tradeInfo = result
-			}
-		}
-		return tradeInfo
+		version = constants.PumpVersionV2
 	}
 
-}
-
-// processPumpEvent 处理 pump 模块的事件
-func (b *Bot) processPumpEvent(evt *pump.Event) *global.TradeEventInfo {
-	// 检查事件类型
-	if evt.Name == "TradeEvent" {
-		if tradeEvent, ok := evt.Data.(*pump.TradeEventEventData); ok {
-			return b.handlePumpTradeEvent(tradeEvent)
-		} else {
-			logger.Errorf("TradeEvent 类型断言失败，实际类型: %T", evt.Data)
-		}
-	}
-
-	// 检查是否是创建事件
-	if evt.Name == "CreateEvent" {
-		if createEvent, ok := evt.Data.(*pump.CreateEventEventData); ok {
-			b.handlePumpCreateEvent(createEvent)
-		} else {
-			logger.Errorf("CreateEvent 类型断言失败，实际类型: %T", evt.Data)
-		}
-	}
-
-	return nil
-}
-
-// processPumpV2Event 处理 pumpV2 模块的事件
-func (b *Bot) processPumpV2Event(evt any) *global.TradeEventInfo {
-
-	// 尝试解析为 TradeEvent
-	if tradeEvent, ok := evt.(*pumpV2.TradeEvent); ok {
-		return b.handlePumpV2TradeEvent(tradeEvent)
-	}
-
-	// 尝试解析为 CreateEvent
-	if createEvent, ok := evt.(*pumpV2.CreateEvent); ok {
-		b.handlePumpV2CreateEvent(createEvent)
-		return nil
-	}
-
-	// 尝试解析为 ExtendAccountEvent
-	if _, ok := evt.(*pumpV2.ExtendAccountEvent); ok {
-		return nil
-	}
-
-	// 其他不需要处理的事件类型
-	switch evt.(type) {
-	case *pumpV2.CompleteEvent,
-		*pumpV2.CompletePumpAmmMigrationEvent,
-		*pumpV2.CollectCreatorFeeEvent,
-		*pumpV2.SetCreatorEvent,
-		*pumpV2.SetMetaplexCreatorEvent,
-		*pumpV2.SetParamsEvent,
-		*pumpV2.UpdateGlobalAuthorityEvent,
-		*pumpV2.AdminSetCreatorEvent,
-		*pumpV2.AdminSetIdlAuthorityEvent,
-		*pumpV2.AdminUpdateTokenIncentivesEvent,
-		*pumpV2.ClaimTokenIncentivesEvent,
-		*pumpV2.CloseUserVolumeAccumulatorEvent,
-		*pumpV2.InitUserVolumeAccumulatorEvent,
-		*pumpV2.SyncUserVolumeAccumulatorEvent:
-		return nil
-	}
-
-	logger.Warnf("pumpV2 未知事件类型: %T", evt)
-	return nil
-}
-
-// handlePumpTradeEvent 处理 pump 模块的 TradeEvent
-func (b *Bot) handlePumpTradeEvent(tradeEvent *pump.TradeEventEventData) *global.TradeEventInfo {
-	// 获取基本信息
-	botWallet := global.GetConfig().TradeWalletKey.PublicKey()
-	mintAddress := tradeEvent.Mint.String()
-	currentPrice := float64(tradeEvent.VirtualSolReserves/1e9) / float64(tradeEvent.VirtualTokenReserves/1e6)
-
-	logger.Debugf("handlePumpTradeEvent: Mint=%s, User=%s, IsBuy=%v, Price=%.9f, SolAmount=%d, TokenAmount=%d",
+	logger.Debugf("handlePumpV3TradeEvent: Mint=%s, User=%s, IsBuy=%v, Price=%.9f, QuoteAmount=%d, TokenAmount=%d, IxName=%s",
 		mintAddress, tradeEvent.User.String(), tradeEvent.IsBuy, currentPrice,
-		tradeEvent.SolAmount, tradeEvent.TokenAmount)
+		tradeEvent.EffectiveQuoteAmount(), tradeEvent.TokenAmount, tradeEvent.IxName)
 
-	// 创建交易信息对象
 	tradeInfo := &global.TradeEventInfo{
-		PumpVersion:          constants.PumpVersionV1,
+		PumpVersion:          version,
 		MintAddress:          mintAddress,
 		UserAddress:          tradeEvent.User.String(),
 		FeeRecipient:         tradeEvent.FeeRecipient,
-		SolAmount:            tradeEvent.SolAmount,
+		SolAmount:            tradeEvent.EffectiveQuoteAmount(),
 		TokenAmount:          tradeEvent.TokenAmount,
 		IsBuy:                tradeEvent.IsBuy,
-		VirtualSolReserves:   tradeEvent.VirtualSolReserves,
+		VirtualSolReserves:   tradeEvent.EffectiveVirtualQuoteReserves(),
 		VirtualTokenReserves: tradeEvent.VirtualTokenReserves,
-		RealSolReserves:      tradeEvent.RealSolReserves,
+		RealSolReserves:      tradeEvent.EffectiveRealQuoteReserves(),
 		RealTokenReserves:    tradeEvent.RealTokenReserves,
 		Creator:              tradeEvent.Creator,
+		QuoteMint:            tradeEvent.EffectiveQuoteMint(),
+		MayhemMode:           tradeEvent.MayhemMode,
 		TimeStamp:            time.Now().Unix(),
 		TradeTime:            time.Now().Format("2006-01-02 15:04:05.000"),
 		Milliseconds:         time.Now().UnixMilli(),
@@ -306,12 +201,12 @@ func (b *Bot) handlePumpTradeEvent(tradeEvent *pump.TradeEventEventData) *global
 		if tradeEvent.User.String() == tradeEvent.Creator.String() && !tradeEvent.IsBuy {
 			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
 			if ok {
-				queue.SendTokenToSellChannel(0, assetInfo, assetInfo.Amount, currentPrice, constants.PumpVersionV1, "pumpfun", "DevSell", "ds清仓")
+				queue.SendTokenToSellChannel(0, assetInfo, assetInfo.Amount, currentPrice, version, "pumpfun", "DevSell", "ds清仓")
 			}
 		}
 	}
 
-	// 处理买入事件
+	// 处理自己的交易事件
 	if tradeEvent.User.String() == botWallet.String() {
 		if tradeEvent.IsBuy {
 			// 设置入场价格
@@ -367,273 +262,115 @@ func (b *Bot) handlePumpTradeEvent(tradeEvent *pump.TradeEventEventData) *global
 	return tradeInfo
 }
 
-// handlePumpV2TradeEvent 处理 pumpV2 模块的 TradeEvent
-func (b *Bot) handlePumpV2TradeEvent(tradeEvent *pumpV2.TradeEvent) *global.TradeEventInfo {
-	// 获取基本信息
-	botWallet := global.GetConfig().TradeWalletKey.PublicKey()
-	mintAddress := tradeEvent.Mint.String()
-	currentPrice := float64(tradeEvent.VirtualSolReserves/1e9) / float64(tradeEvent.VirtualTokenReserves/1e6)
-
-	logger.Debugf("handlePumpV2TradeEvent: Mint=%s, User=%s, IsBuy=%v, Price=%.9f, SolAmount=%d, TokenAmount=%d",
-		mintAddress, tradeEvent.User.String(), tradeEvent.IsBuy, currentPrice,
-		tradeEvent.SolAmount, tradeEvent.TokenAmount)
-
-	// 创建交易信息对象
-	tradeInfo := &global.TradeEventInfo{
-		PumpVersion:          constants.PumpVersionV2,
-		MintAddress:          mintAddress,
-		UserAddress:          tradeEvent.User.String(),
-		FeeRecipient:         tradeEvent.FeeRecipient,
-		SolAmount:            tradeEvent.SolAmount,
-		TokenAmount:          tradeEvent.TokenAmount,
-		IsBuy:                tradeEvent.IsBuy,
-		VirtualSolReserves:   tradeEvent.VirtualSolReserves,
-		VirtualTokenReserves: tradeEvent.VirtualTokenReserves,
-		RealSolReserves:      tradeEvent.RealSolReserves,
-		RealTokenReserves:    tradeEvent.RealTokenReserves,
-		Creator:              tradeEvent.Creator,
-		TimeStamp:            time.Now().Unix(),
-		TradeTime:            time.Now().Format("2006-01-02 15:04:05.000"),
-		Milliseconds:         time.Now().UnixMilli(),
-		ReceivedAt:           time.Now(),
-		CurrentPrice:         currentPrice,
-	}
-
-	// 存储到全局映射表中
-	global.SetTradeInfo(mintAddress, tradeInfo)
-
-	// ds清仓
-	if global.GetConfig().DevSell {
-		if tradeEvent.User.String() == tradeEvent.Creator.String() && !tradeEvent.IsBuy {
-			assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
-			if ok {
-				queue.SendTokenToSellChannel(0, assetInfo, assetInfo.Amount, currentPrice, constants.PumpVersionV2, "pumpfun", "DevSell", "ds清仓")
-			}
-		}
-	}
-
-	// 处理买入事件
-	if tradeEvent.User.String() == botWallet.String() {
-		if tradeEvent.IsBuy {
-			// 设置入场价格
-			global.SetTradeAsset(
-				mintAddress,
-				tradeEvent.Creator,
-				botWallet.String(),
-				currentPrice,
-				tradeEvent.TokenAmount,
-				6,
-			)
-			_, ok := global.GetPendingHoldAsset(mintAddress)
-			if ok {
-				assetManager := asset.GetHoldingsManager()
-				wallets := assetManager.GetWalletsByMint(mintAddress)
-				if len(wallets) == 0 {
-					logger.Errorf("未找到代币 %s 的持仓", mintAddress)
-					return nil
-				}
-				walletAddress := wallets[0]
-				specialScheme := global.GetConfigByWallet(walletAddress)
-				if specialScheme == nil {
-					logger.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
-					return nil
-				}
-				message := types.ClosePositionMessage{
-					MintAddress:  mintAddress,
-					CurrentPrice: currentPrice,
-					Platform:     "pumpfun",
-					MessageType:  "delay_sell",
-					Reason:       "延迟卖出",
-					CopyAddress:  walletAddress,
-				}
-				go b.sdkClient.PublishDelayedCPMessage(b.Config.TradeChannel, message, specialScheme.SellDelayTime)
-
-				// 启动盈利目标监控
-				go b.StartProfitTargetMonitoring(mintAddress, "pumpfun", currentPrice,
-					tradeEvent.TokenAmount, tradeEvent.Creator, botWallet)
-
-				// 启动买单活跃度监控（仅pumpfun内盘）
-				go b.StartBuyActivityMonitoring(mintAddress, "pumpfun", currentPrice,
-					tradeEvent.TokenAmount, tradeEvent.Creator, botWallet)
-			}
-		} else {
-			// 卖出记录处理
-			_, ok := global.GetPendingHoldAsset(mintAddress)
-			if ok {
-				global.DelPendingHoldAssetWithAmount(mintAddress, tradeEvent.TokenAmount)
-			}
-		}
-	}
-
-	return tradeInfo
-}
-
-// handlePumpCreateEvent 处理 pump 模块的 CreateEvent
-func (b *Bot) handlePumpCreateEvent(createEvent *pump.CreateEventEventData) {
+// handlePumpV3CreateEvent 处理代币创建事件（create / create_v2 共用）。
+func (b *Bot) handlePumpV3CreateEvent(createEvent *pumpV3.CreateEvent) {
+	b.cachePumpCreateEvent(createEvent)
 	createInfo := &global.CreateEventInfo{
 		MintAddress: createEvent.Mint.String(),
 		Name:        createEvent.Name,
 		CreatedAt:   time.Now(),
 	}
 	global.SetCreateInfo(createEvent.Mint.String(), createInfo)
-	logger.Debugf("代币创建事件处理: 代币=%s, 创建时间=%v", createEvent.Mint.String(), createInfo.CreatedAt.Format("2006-01-02 15:04:05.000000"))
-}
-
-// handlePumpV2CreateEvent 处理 pumpV2 模块的 CreateEvent
-func (b *Bot) handlePumpV2CreateEvent(createEvent *pumpV2.CreateEvent) {
-	createInfo := &global.CreateEventInfo{
-		MintAddress: createEvent.Mint.String(),
-		Name:        createEvent.Name,
-		CreatedAt:   time.Now(),
-	}
-	global.SetCreateInfo(createEvent.Mint.String(), createInfo)
-	logger.Debugf("代币创建事件处理 (Pump V2 - Token2022): 代币=%s, 名称=%s, Symbol=%s, URI=%s, Creator=%s, 创建时间=%v",
+	logger.Debugf("代币创建事件处理: 代币=%s, 名称=%s, Symbol=%s, URI=%s, Creator=%s, 创建时间=%v",
 		createEvent.Mint.String(),
 		createEvent.Name,
 		createEvent.Symbol,
-		createEvent.Uri,
+		createEvent.URI,
 		createEvent.User.String(),
 		createInfo.CreatedAt.Format("2006-01-02 15:04:05.000000"))
 }
 
-// 以下是原来的代码，已被上面的函数替换
-func (b *Bot) PumpParse_OLD_BACKUP(out *yellowstone_geyser_pb.SubscribeUpdate, accountsAddress []string, ctx context.Context) *global.TradeEventInfo {
-	if out.GetTransaction() == nil {
-		return nil
-	}
-
-	logMessages := out.GetTransaction().Transaction.Meta.LogMessages
-	// 检查是否为代币创建事件
-
-	events, err := pump.DecodeEventsInLogs(logMessages)
+func (b *Bot) cachePumpTradeEvent(tradeEvent *pumpV3.TradeEvent, isToken2022 bool) {
+	bondingCurve, err := pumpV3.BondingCurvePDA(tradeEvent.Mint)
 	if err != nil {
-		return nil
+		logger.Warnf("缓存 Pump 曲线失败: mint=%s, err=%v", tradeEvent.Mint, err)
+		return
 	}
 
-	for _, event := range events {
-		// 检查是否是交易事件
-		if event.Name == "TradeEvent" {
-			// 管道步骤1: 解析交易事件数据
-			tradeEvent, ok := event.Data.(*pump.TradeEventEventData)
-			if !ok {
-				logger.Errorf("无法解析TradeEvent事件")
-				continue
-			}
-
-			// 获取基本信息
-			botWallet := global.GetConfig().TradeWalletKey.PublicKey()
-			mintAddress := tradeEvent.Mint.String()
-			currentPrice := float64(tradeEvent.VirtualSolReserves/1e9) / float64(tradeEvent.VirtualTokenReserves/1e6)
-
-			// 管道步骤2: 创建交易信息对象
-			tradeInfo := &global.TradeEventInfo{
-				MintAddress:          mintAddress,
-				UserAddress:          tradeEvent.User.String(),
-				SolAmount:            tradeEvent.SolAmount,
-				TokenAmount:          tradeEvent.TokenAmount,
-				IsBuy:                tradeEvent.IsBuy,
-				VirtualSolReserves:   tradeEvent.VirtualSolReserves,
-				VirtualTokenReserves: tradeEvent.VirtualTokenReserves,
-				RealSolReserves:      tradeEvent.RealSolReserves,
-				RealTokenReserves:    tradeEvent.RealTokenReserves,
-				Creator:              tradeEvent.Creator,
-				TimeStamp:            time.Now().Unix(),
-				TradeTime:            time.Now().Format("2006-01-02 15:04:05.000"),
-				Milliseconds:         time.Now().UnixMilli(),
-				ReceivedAt:           time.Now(),
-				CurrentPrice:         currentPrice,
-			}
-
-			// 存储到全局映射表中
-			global.SetTradeInfo(mintAddress, tradeInfo)
-			//ds清仓
-			if global.GetConfig().DevSell {
-				if tradeEvent.User.String() == tradeEvent.Creator.String() && !tradeEvent.IsBuy {
-					assetInfo, ok := global.GetPendingHoldAsset(mintAddress)
-					if ok {
-						queue.SendTokenToSellChannel(0, assetInfo, assetInfo.Amount, currentPrice, constants.PumpVersionV1, "pumpfun", "DevSell", "ds清仓")
-
-					}
-				}
-			}
-
-			// 管道步骤3: 处理买入事件
-			if tradeEvent.User.String() == botWallet.String() {
-				if tradeEvent.IsBuy {
-
-					// 设置入场价格
-					global.SetTradeAsset(
-						mintAddress,
-						tradeEvent.Creator,
-						botWallet.String(),
-						currentPrice,
-						tradeEvent.TokenAmount,
-						6,
-					)
-					_, ok := global.GetPendingHoldAsset(mintAddress)
-					if ok {
-						assetManager := asset.GetHoldingsManager()
-						wallets := assetManager.GetWalletsByMint(mintAddress)
-						if len(wallets) == 0 {
-							logger.Errorf("未找到代币 %s 的持仓", mintAddress)
-							return nil
-						}
-						walletAddress := wallets[0]
-						specialScheme := global.GetConfigByWallet(walletAddress)
-						if specialScheme == nil {
-							logger.Errorf("未找跟单钱包的配置参数模版 %s", walletAddress)
-							return nil
-						}
-						message := types.ClosePositionMessage{
-							MintAddress:  mintAddress,
-							CurrentPrice: currentPrice,
-							Platform:     "pumpfun",
-							MessageType:  "delay_sell",
-							Reason:       "延迟卖出",
-							CopyAddress:  walletAddress,
-						}
-						go b.sdkClient.PublishDelayedCPMessage(b.Config.TradeChannel, message, specialScheme.SellDelayTime)
-
-						// 启动盈利目标监控
-						go b.StartProfitTargetMonitoring(mintAddress, "pumpfun", currentPrice,
-							tradeEvent.TokenAmount, tradeEvent.Creator, botWallet)
-
-						// 启动买单活跃度监控（仅pumpfun内盘）
-						go b.StartBuyActivityMonitoring(mintAddress, "pumpfun", currentPrice,
-							tradeEvent.TokenAmount, tradeEvent.Creator, botWallet)
-					}
-
-					//买入记录处理
-
-				} else {
-					//卖出记录处理
-					_, ok := global.GetPendingHoldAsset(mintAddress)
-					if ok {
-						global.DelPendingHoldAssetWithAmount(mintAddress, tradeEvent.TokenAmount)
-					}
-
-				}
-			}
-
-			return tradeInfo
-		} else if event.Name == "CreateEvent" {
-			createEvent, ok := event.Data.(*pump.CreateEventEventData)
-			if !ok {
-				logger.Errorf("无法解析CreateEvent事件")
-				continue
-			}
-			createInfo := &global.CreateEventInfo{
-				MintAddress: createEvent.Mint.String(),
-				Name:        createEvent.Name,
-				CreatedAt:   time.Now(),
-			}
-			global.SetCreateInfo(createEvent.Mint.String(), createInfo)
-			logger.Debugf("代币创建事件处理: 代币=%s, 创建时间=%v", createEvent.Mint.String(), createInfo.CreatedAt.Format("2006-01-02 15:04:05.000000"))
-
+	global.UpdatePumpCurveSnapshot(tradeEvent.Mint, func(snapshot *global.PumpCurveSnapshot) {
+		snapshot.BondingCurve = bondingCurve
+		if !tradeEvent.Creator.IsZero() {
+			snapshot.Creator = tradeEvent.Creator
 		}
+		if quoteMint := tradeEvent.EffectiveQuoteMint(); !quoteMint.IsZero() {
+			snapshot.QuoteMint = quoteMint
+		}
+		if isToken2022 {
+			snapshot.BaseTokenProgram = solana.Token2022ProgramID
+		} else if snapshot.BaseTokenProgram.IsZero() {
+			snapshot.BaseTokenProgram = solana.TokenProgramID
+		}
+		snapshot.VirtualTokenReserves = tradeEvent.VirtualTokenReserves
+		snapshot.VirtualQuoteReserves = tradeEvent.EffectiveVirtualQuoteReserves()
+		snapshot.RealTokenReserves = tradeEvent.RealTokenReserves
+		snapshot.RealQuoteReserves = tradeEvent.EffectiveRealQuoteReserves()
+		snapshot.IsMayhemMode = tradeEvent.MayhemMode
+		if !tradeEvent.MayhemMode && snapshot.TokenTotalSupply == 0 {
+			snapshot.TokenTotalSupply = pumpV3.OneBillionSupply
+		}
+	})
+
+	snapshot, _ := global.GetPumpCurveSnapshot(tradeEvent.Mint)
+	if snapshot.Creator.IsZero() || (tradeEvent.MayhemMode && snapshot.TokenTotalSupply == 0) {
+		b.prefetchPumpCurve(tradeEvent.Mint, bondingCurve)
+	}
+}
+
+func (b *Bot) cachePumpCreateEvent(createEvent *pumpV3.CreateEvent) {
+	baseTokenProgram := createEvent.TokenProgram
+	if baseTokenProgram.IsZero() {
+		baseTokenProgram = solana.TokenProgramID
+	}
+	tokenTotalSupply := createEvent.TokenTotalSupply
+	if tokenTotalSupply == 0 && !createEvent.IsMayhemMode {
+		tokenTotalSupply = pumpV3.OneBillionSupply
 	}
 
-	return nil
+	global.UpdatePumpCurveSnapshot(createEvent.Mint, func(snapshot *global.PumpCurveSnapshot) {
+		snapshot.BondingCurve = createEvent.BondingCurve
+		snapshot.Creator = createEvent.Creator
+		snapshot.QuoteMint = createEvent.QuoteMint
+		snapshot.BaseTokenProgram = baseTokenProgram
+		snapshot.VirtualTokenReserves = createEvent.VirtualTokenReserves
+		snapshot.VirtualQuoteReserves = createEvent.VirtualQuoteReserves
+		snapshot.RealTokenReserves = createEvent.RealTokenReserves
+		snapshot.RealQuoteReserves = 0
+		snapshot.TokenTotalSupply = tokenTotalSupply
+		snapshot.CreatorFeeBps = createEvent.CreatorFeeBps
+		snapshot.IsMayhemMode = createEvent.IsMayhemMode
+		snapshot.IsHolderReward = createEvent.IsHolderReward
+		snapshot.IsCashbackCoin = createEvent.IsCashbackEnabled
+	})
+}
+
+func (b *Bot) prefetchPumpCurve(mint, bondingCurve solana.PublicKey) {
+	if b == nil || b.Trader == nil || b.Trader.AccountsCalc == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	curve, err := b.Trader.AccountsCalc.FetchPumpBondingCurve(ctx, bondingCurve)
+	if err != nil {
+		logger.Warnf("预取 Pump 曲线失败: mint=%s, err=%v", mint, err)
+		return
+	}
+	global.UpdatePumpCurveSnapshot(mint, func(snapshot *global.PumpCurveSnapshot) {
+		if !curve.Creator.IsZero() {
+			snapshot.Creator = curve.Creator
+		}
+		if !curve.QuoteMint.IsZero() {
+			snapshot.QuoteMint = curve.QuoteMint
+		}
+		if curve.TokenTotalSupply != 0 {
+			snapshot.TokenTotalSupply = curve.TokenTotalSupply
+		}
+		if curve.CreatorFeeBps != 0 {
+			snapshot.CreatorFeeBps = curve.CreatorFeeBps
+		}
+		snapshot.IsMayhemMode = curve.IsMayhemMode
+		snapshot.IsHolderReward = curve.IsHolderReward
+		snapshot.IsCashbackCoin = curve.IsCashbackCoin
+	})
 }
 
 func (b *Bot) PumpStartPricePing(priceStreamClient *goyser.StreamClient) {

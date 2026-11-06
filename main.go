@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"time"
 
 	"copytrade/asset"
@@ -85,24 +84,6 @@ func main() {
 	rootDir := utils.GetRootDir()
 	configPath := filepath.Join(rootDir, "config", "config.yaml")
 	logger.Infof("加载配置文件: %s", configPath)
-
-	// 获取并显示本地IP地址
-	Authorize_IPs := []string{"162.19.235.154", "45.76.36.133", "192.168.1.4", "136.244.92.43", "78.141.212.224", "64.130.43.27", "199.247.26.80"}
-	localIPs := utils.GetLocalIPAddresses()
-	if len(localIPs) > 0 {
-		logger.Infof("本地IP地址:")
-		for i, ip := range localIPs {
-			logger.Infof("  [%d] %s", i+1, ip)
-			if slices.Contains(Authorize_IPs, ip) {
-				logger.Infof("您的IP地址 %s 在访问授权列表中，程序将正常运行", ip)
-				break
-			}
-			logger.Infof("您的IP地址 %s 不在访问授权列表中，程序将退出", ip)
-			os.Exit(1)
-		}
-	} else {
-		logger.Warnf("未能获取本地IP地址")
-	}
 
 	// 加载配置
 	config, err := utils.LoadConfig(configPath)
@@ -212,6 +193,12 @@ func main() {
 	}
 	//启动时刷新一次nonce hash
 	nonceManager.RefreshGlobalBlockhash(ctx)
+
+	//------------------ 启动校验：交易钱包与nonce账户链上状态 -------------------------
+	if err := noncecache.ValidateStartupAccounts(ctx, config.RPCUrl, config.PrivateKey, nonceManager.GetNonceAccountPubkey()); err != nil {
+		logger.Errorf("启动账户校验失败，退出: %v", err)
+		os.Exit(1)
+	}
 	// --------------------创建交易监控器-------------------------------
 	transactionMonitor = wallet.NewTransactionMonitor(tradeBot, walletMonitor, botWallet.PublicKey(), config.BuySolAmount, nonceManager)
 	// ---------------------- 启动Redis交易消息订阅服务-------------------------------
@@ -249,6 +236,7 @@ func main() {
 		"capital_recovery_percent": config.CapitalRecoveryPercent,
 		"buy_activity_monitor":     config.BuyActivityMonitor,
 		"wallet_param_schemes":     walletParamsMap,
+		"quote_amounts":            config.QuoteAmounts,
 		"nonce_account_address":    nonceManager.GetNonceAccountPubkey().String(),
 		// ShredStream 配置
 		"shred_stream": map[string]any{

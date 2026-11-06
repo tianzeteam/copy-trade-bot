@@ -14,7 +14,8 @@ const CONFIG = {
         TRADE_SETTINGS: '/api/trade-settings',
         GLOBAL_SELL: '/api/redis-config',
         PRIVATE_KEYS: '/api/wallets/private-keys',
-        BLACKLIST: '/api/blacklist'
+        BLACKLIST: '/api/blacklist',
+        USDC_ATA: '/api/usdc-ata',
     },
     SECTIONS: ['walletManagement', 'paramScheme', 'tradeSettings', 'globalSellSettings', 'blacklistManagement', 'privateKeyManagement']
 };
@@ -58,6 +59,7 @@ function initializePage() {
     
     // 加载私钥钱包列表
     loadPrivateKeyWallets();
+    loadUSDCATAStatus();
 }
 
 // 注册事件处理器
@@ -142,6 +144,8 @@ function registerEventHandlers() {
     document.getElementById('saveGlobalSellSettingsBtn').addEventListener('click', function() {
         saveGlobalSellSettings();
     });
+    document.getElementById('refreshUsdcAtaBtn').addEventListener('click', loadUSDCATAStatus);
+    document.getElementById('createUsdcAtaBtn').addEventListener('click', createUSDCATA);
     
     // 参数模板选择变更事件
     document.getElementById('schemeSelect').addEventListener('change', function() {
@@ -1109,7 +1113,77 @@ function addNewWallet() {
     })
     .catch(error => {
         console.error('添加钱包失败:', error);
+
         showError('添加钱包失败，请重试');
+    });
+}
+
+function loadUSDCATAStatus() {
+    fetch(CONFIG.API_ENDPOINTS.USDC_ATA, {
+        headers: {'Authorization': `Bearer ${authToken}`}
+    })
+    .then(response => {
+        if (response.status === 401) { logout(); return; }
+        return response.json();
+    })
+    .then(data => {
+        if (!data) return;
+        document.getElementById('usdcAtaWallet').textContent = data.wallet || '-';
+        document.getElementById('usdcAtaAddress').textContent = data.ata || '-';
+        document.getElementById('usdcAtaBalance').textContent = data.balance_ui || '0.000000 USDC';
+        const status = document.getElementById('usdcAtaStatus');
+        const createButton = document.getElementById('createUsdcAtaBtn');
+        createButton.disabled = !!data.exists;
+        if (data.error) {
+            status.className = 'alert alert-danger mb-3';
+            status.textContent = '读取 USDC ATA 状态失败：' + data.error;
+            return;
+        }
+        if (data.ready) {
+            status.className = 'alert alert-success mb-3';
+            status.textContent = 'USDC ATA 已准备完成，可以进行 USDC 跟单。';
+        } else if (data.exists) {
+            status.className = 'alert alert-warning mb-3';
+            status.textContent = 'USDC ATA 已创建，但余额不足，请向该 ATA 转入 USDC。';
+        } else {
+            status.className = 'alert alert-info mb-3';
+            status.textContent = 'USDC ATA 尚未创建，请点击右上角按钮创建。';
+        }
+    })
+    .catch(error => {
+        console.error('读取 USDC ATA 状态失败:', error);
+        showError('读取 USDC ATA 状态失败，请检查 RPC 连接');
+    });
+}
+
+function createUSDCATA() {
+    const button = document.getElementById('createUsdcAtaBtn');
+    button.disabled = true;
+    fetch(CONFIG.API_ENDPOINTS.USDC_ATA, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+        }
+    })
+    .then(response => {
+        if (response.status === 401) { logout(); return; }
+        return response.json();
+    })
+    .then(data => {
+        if (!data) return;
+        if (data.error) {
+            showError(data.error);
+            button.disabled = false;
+            return;
+        }
+        showSuccess(data.message || 'USDC ATA 创建交易已提交');
+        setTimeout(loadUSDCATAStatus, 2500);
+    })
+    .catch(error => {
+        console.error('创建 USDC ATA 失败:', error);
+        showError('创建 USDC ATA 失败，请稍后重试');
+        button.disabled = false;
     });
 }
 
@@ -1187,6 +1261,20 @@ function loadParamSchemes() {
     });
 }
 
+function parseQuoteAmounts(value) {
+    if (!value || !value.trim()) return {};
+    try {
+        const parsed = JSON.parse(value);
+        if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
+            throw new Error('quote_amounts 必须是 JSON 对象');
+        }
+        return parsed;
+    } catch (error) {
+        showError('Quote 专用金额配置 JSON 无效: ' + error.message);
+        return null;
+    }
+}
+
 // 加载参数模板详情
 function loadSchemeDetails(schemeId) {
     fetch(`/api/param-schemes/${schemeId}`, {
@@ -1220,6 +1308,7 @@ function loadSchemeDetails(schemeId) {
         //document.getElementById('schemeMinBuyAmount').value = scheme.min_buy_amount;
         //document.getElementById('schemeMaxBuyAmount').value = scheme.max_buy_amount;
         document.getElementById('schemeBuySolAmount').value = scheme.buy_sol_amount;
+        document.getElementById('schemeQuoteAmounts').value = JSON.stringify(scheme.quote_amounts || {}, null, 2);
         //document.getElementById('schemeSellPercentage').value = scheme.sell_percentage;
         //document.getElementById('schemeStopLossPercentage').value = scheme.stop_loss_percentage;
         //document.getElementById('schemeTakeProfitPercentage').value = scheme.take_profit_percentage;
@@ -1247,6 +1336,8 @@ function hideSchemeDetails() {
 
 // 创建新参数模板
 function addNewScheme() {
+    const quoteAmounts = parseQuoteAmounts(document.getElementById('newSchemeQuoteAmounts').value);
+    if (quoteAmounts === null) return;
     // 收集表单数据
     const newScheme = {
         name: document.getElementById('newSchemeName').value,
@@ -1260,6 +1351,7 @@ function addNewScheme() {
         //min_buy_amount: parseFloat(document.getElementById('newSchemeMinBuyAmount').value),
         //max_buy_amount: parseFloat(document.getElementById('newSchemeMaxBuyAmount').value),
         buy_sol_amount: parseFloat(document.getElementById('newSchemeBuySolAmount').value),
+        quote_amounts: quoteAmounts,
         //sell_percentage: parseFloat(document.getElementById('newSchemeSellPercentage').value),
         //stop_loss_percentage: parseFloat(document.getElementById('newSchemeStopLossPercentage').value),
         //take_profit_percentage: parseFloat(document.getElementById('newSchemeTakeProfitPercentage').value),
@@ -1321,6 +1413,8 @@ function updateScheme() {
         return;
     }
     
+    const quoteAmounts = parseQuoteAmounts(document.getElementById('schemeQuoteAmounts').value);
+    if (quoteAmounts === null) return;
     // 收集表单数据
     const updatedScheme = {
         id: schemeId,
@@ -1337,6 +1431,7 @@ function updateScheme() {
         //min_buy_amount: parseFloat(document.getElementById('schemeMinBuyAmount').value),
         //max_buy_amount: parseFloat(document.getElementById('schemeMaxBuyAmount').value),
         buy_sol_amount: parseFloat(document.getElementById('schemeBuySolAmount').value),
+        quote_amounts: quoteAmounts,
         //sell_percentage: parseFloat(document.getElementById('schemeSellPercentage').value),
         //stop_loss_percentage: parseFloat(document.getElementById('schemeStopLossPercentage').value),
         //take_profit_percentage: parseFloat(document.getElementById('schemeTakeProfitPercentage').value),

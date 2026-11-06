@@ -1,14 +1,14 @@
 package calculator
 
 import (
-	"context"
 	"fmt"
 	"math"
 	"math/big"
 
+	"copytrade/global"
 	"copytrade/logger"
+	pumpV3 "copytrade/pumpV3"
 
-	"github.com/gagliardetto/solana-go"
 	"github.com/gagliardetto/solana-go/rpc"
 )
 
@@ -23,33 +23,110 @@ func NewAmountsCalculator(endpoint string) *AmountsCalculator {
 	}
 }
 
-// CalculateBuyAmounts 计算购买所需的金额参数
-func (c *AmountsCalculator) CalculateBuyAmounts(ctx context.Context, bondingCurve solana.PublicKey, solAmount float64, virtualSolReserves uint64, slippage float64) (*BuyAmounts, error) {
+// CalculatePumpV3BuyAmounts 按已缓存的曲线快照计算买入金额（fee-aware）。
+func (c *AmountsCalculator) CalculatePumpV3BuyAmounts(snapshot global.PumpCurveSnapshot, quoteBudget uint64, slippage float64) (*BuyAmounts, error) {
+	if snapshot.Mint.IsZero() {
+		return nil, fmt.Errorf("Pump 曲线快照为空")
+	}
+	if quoteBudget == 0 {
+		return nil, fmt.Errorf("买入预算为 0")
+	}
+	if slippage < 0 || slippage >= 1 {
+		return nil, fmt.Errorf("滑点必须在 [0, 1) 区间")
+	}
+	if snapshot.IsMayhemMode && snapshot.TokenTotalSupply == 0 {
+		return nil, fmt.Errorf("mayhem 曲线供应量尚未缓存")
+	}
 
-	// 计算bonding curve
-	base := float64(1073000191)
-	coef := float64(32190005730)
+	bps, err := c.pumpFeeBps(snapshot)
+	if err != nil {
+		return nil, err
+	}
+	chargedCreatorBps := bps.Creator
+	if snapshot.Creator.IsZero() {
+		chargedCreatorBps = 0
+	}
 
-	_virtualSol := float64(virtualSolReserves)
-	_afterVirtualSol := _virtualSol + (solAmount * 1e9)
+	tokens, err := pumpV3.BuyTokenAmountFromQuoteBudget(
+		quoteBudget,
+		snapshot.VirtualQuoteReserves,
+		snapshot.VirtualTokenReserves,
+		snapshot.RealTokenReserves,
+		bps.Protocol+chargedCreatorBps,
+	)
+	if err != nil {
+		return nil, err
+	}
+	if tokens == 0 {
+		return nil, fmt.Errorf("预算 %d 过小，无法买到任何代币", quoteBudget)
+	}
 
-	pay1 := base - (coef / (_virtualSol / 1e9))
-	pay2 := base - (coef / (_afterVirtualSol / 1e9))
-
-	tokenAmount := pay2 - pay1
-	tokenAmountWithDecimals := uint64(tokenAmount * 1e6)
-
-	// 计算基础金额
-	solAmountWithDecimals := uint64(solAmount * 1e9)
-
-	// 计算最大花费（考虑滑点）
-	maxCost := uint64(float64(solAmountWithDecimals) * (1 + slippage))
-
+	maxCost := uint64(float64(quoteBudget) * (1 + slippage))
 	return &BuyAmounts{
-		TokenAmount: tokenAmountWithDecimals,
-		SolAmount:   solAmountWithDecimals,
+		TokenAmount: tokens,
+		SolAmount:   quoteBudget,
 		MaxCost:     maxCost,
 	}, nil
+}
+
+// CalculatePumpV3SellAmounts 按已缓存的曲线快照计算卖出金额（fee-aware）。
+func (c *AmountsCalculator) CalculatePumpV3SellAmounts(snapshot global.PumpCurveSnapshot, tokenAmount uint64, slippage float64) (*SellAmounts, error) {
+	if snapshot.Mint.IsZero() {
+		return nil, fmt.Errorf("Pump 曲线快照为空")
+	}
+	if tokenAmount == 0 {
+		return nil, fmt.Errorf("卖出数量为 0")
+	}
+	if slippage < 0 || slippage >= 1 {
+		return nil, fmt.Errorf("滑点必须在 [0, 1) 区间")
+	}
+	if snapshot.IsMayhemMode && snapshot.TokenTotalSupply == 0 {
+		return nil, fmt.Errorf("mayhem 曲线供应量尚未缓存")
+	}
+
+	bps, err := c.pumpFeeBps(snapshot)
+	if err != nil {
+		return nil, err
+	}
+	net, err := pumpV3.SellQuoteOutputFromTokenAmount(
+		tokenAmount,
+		snapshot.VirtualQuoteReserves,
+		snapshot.VirtualTokenReserves,
+		bps,
+		snapshot.Creator,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	minOut := uint64(float64(net) * (1 - slippage))
+	return &SellAmounts{
+		TokenAmount: tokenAmount,
+		SolAmount:   net,
+		MinOut:      minOut,
+	}, nil
+}
+
+func (c *AmountsCalculator) pumpFeeBps(snapshot global.PumpCurveSnapshot) (pumpV3.FeeBps, error) {
+	feeConfig, globalConfig := global.GetPumpFeeConfig()
+	if feeConfig == nil && globalConfig == nil {
+		logger.Warnf("泵费率配置不可用，按保守费率 200bps 计算")
+		return pumpV3.FeeBps{Protocol: 100, Creator: 100}, nil
+	}
+
+	mintSupply := snapshot.TokenTotalSupply
+	if mintSupply == 0 {
+		mintSupply = pumpV3.OneBillionSupply
+	}
+	return pumpV3.ComputeFeeBps(
+		feeConfig,
+		globalConfig,
+		snapshot.QuoteMint,
+		snapshot.CreatorFeeBps,
+		mintSupply,
+		snapshot.VirtualQuoteReserves,
+		snapshot.VirtualTokenReserves,
+	)
 }
 
 // BuyAmounts 存储购买相关的金额
@@ -58,71 +135,6 @@ type BuyAmounts struct {
 	SolAmount    uint64 // 支付的SOL数量
 	MaxSolAmount uint64 // 最大支付的SOL数量
 	MaxCost      uint64 // 最大花费（含滑点）
-}
-
-// CalculateSellAmounts 计算卖出所需的金额参数
-func (c *AmountsCalculator) CalculateSellAmounts(ctx context.Context, bondingCurve solana.PublicKey, tokenAmount float64, virtualTokenReserves uint64, virtualSolReserves uint64, slippage float64) (*SellAmounts, error) {
-
-	// 输入验证
-	if tokenAmount <= 0 {
-		return nil, fmt.Errorf("token amount must be positive")
-	}
-
-	if slippage < 0 || slippage >= 1 {
-		return nil, fmt.Errorf("slippage must be between 0 and 1")
-	}
-
-	// 转换为 big.Float 进行高精度计算
-	virtualSolFloat := new(big.Float).Quo(
-		new(big.Float).SetUint64(virtualSolReserves),
-		new(big.Float).SetFloat64(1e9),
-	)
-
-	virtualTokenFloat := new(big.Float).Quo(
-		new(big.Float).SetUint64(virtualTokenReserves),
-		new(big.Float).SetFloat64(1e6),
-	)
-
-	// 计算价格
-	priceFloat := new(big.Float).Quo(virtualSolFloat, virtualTokenFloat)
-
-	// 计算token数量
-	tokenAmountWithDecimals := uint64(tokenAmount)
-	if float64(tokenAmountWithDecimals) != tokenAmount {
-		logger.Warnf("Token amount precision loss: %f -> %d", tokenAmount, tokenAmountWithDecimals)
-	}
-
-	// 计算预期获得的SOL数量
-	tokenAmountNormalized := new(big.Float).Quo(
-		new(big.Float).SetFloat64(tokenAmount),
-		new(big.Float).SetFloat64(1e6),
-	)
-
-	solAmountFloat := new(big.Float).Mul(priceFloat, tokenAmountNormalized)
-
-	// 转换为 SOL 的最小单位 (lamports)
-	solAmountLamports := new(big.Float).Mul(solAmountFloat, new(big.Float).SetFloat64(1e9))
-
-	// 转换为 uint64，检查溢出
-	solAmountWithDecimals, accuracy := solAmountLamports.Uint64()
-	if accuracy != big.Exact {
-		return nil, fmt.Errorf("SOL amount calculation resulted in overflow or rounding")
-	}
-
-	// 计算最小获得数量（考虑滑点）
-	slippageFactor := new(big.Float).Sub(new(big.Float).SetFloat64(1.0), new(big.Float).SetFloat64(slippage))
-	minOutFloat := new(big.Float).Mul(new(big.Float).SetUint64(solAmountWithDecimals), slippageFactor)
-
-	minOut, accuracy := minOutFloat.Uint64()
-	if accuracy != big.Exact {
-		logger.Warnf("Min out calculation resulted in rounding, using floor value")
-	}
-
-	return &SellAmounts{
-		TokenAmount: tokenAmountWithDecimals,
-		SolAmount:   solAmountWithDecimals,
-		MinOut:      minOut,
-	}, nil
 }
 
 // SellAmounts 存储卖出相关的金额

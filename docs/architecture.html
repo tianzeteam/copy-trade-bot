@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { background:#0b0e14; }
+  body { font-family:-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans CJK SC",sans-serif; }
+  #canvas { position:relative; width:1720px; height:780px; background:#0b0e14; overflow:hidden; }
+  svg.lines { position:absolute; inset:0; z-index:0; }
+  .band { position:absolute; border:1px solid #1e2631; border-radius:10px; background:#10151d; }
+  .bandlabel { position:absolute; font-size:13px; letter-spacing:3px; color:#64748b; font-weight:600; }
+  .box { position:absolute; border-radius:8px; border:1.5px solid; display:flex; flex-direction:column;
+         align-items:center; justify-content:center; text-align:center; z-index:1;
+         box-shadow:0 4px 14px rgba(0,0,0,.45); }
+  .box .t { font-size:15px; font-weight:700; color:#e6edf3; line-height:1.35; }
+  .box .s { font-size:11.5px; color:#8b98a8; line-height:1.4; margin-top:2px; }
+  .title { position:absolute; left:40px; top:26px; font-size:26px; font-weight:800; color:#f1f5f9; }
+  .subtitle { position:absolute; left:40px; top:60px; font-size:14px; color:#94a3b8; }
+  .arw-label { position:absolute; font-size:12px; color:#8b98a8; z-index:1; }
+</style>
+</head>
+<body>
+<div id="canvas">
+  <div class="title">copy-trade-bot 系统架构</div>
+  <div class="subtitle">Solana 聪明钱包跟单机器人 · Yellowstone gRPC / ShredStream 双数据源 · 六大 DEX 平台自动跟单</div>
+
+  <!-- bands -->
+  <div class="band" style="left:24px;top:84px;width:1480px;height:132px;"></div>
+  <div class="band" style="left:24px;top:232px;width:1480px;height:234px;"></div>
+  <div class="band" style="left:24px;top:470px;width:1480px;height:120px;"></div>
+  <div class="band" style="left:24px;top:610px;width:1480px;height:110px;"></div>
+
+  <div class="bandlabel" style="left:40px;top:100px;">数据源</div>
+  <div class="bandlabel" style="left:40px;top:248px;">核心引擎</div>
+  <div class="bandlabel" style="left:40px;top:486px;">交易执行层</div>
+  <div class="bandlabel" style="left:40px;top:626px;">SWQOS 提交通道</div>
+  <div class="bandlabel" style="left:1520px;top:246px;">存储与管理</div>
+
+  <!-- data sources -->
+  <div class="box" style="left:410px;top:136px;width:260px;height:56px;background:#16233a;border-color:#3b82f6;">
+    <div class="t">Solana 区块链</div><div class="s">主网 · 交易 / 账户数据</div>
+  </div>
+  <div class="box" style="left:770px;top:136px;width:300px;height:56px;background:#16233a;border-color:#3b82f6;">
+    <div class="t">Yellowstone gRPC</div><div class="s">毫秒级交易流订阅</div>
+  </div>
+  <div class="box" style="left:1130px;top:136px;width:260px;height:56px;background:#16233a;border-color:#3b82f6;">
+    <div class="t">ShredStream</div><div class="s">可选 · Shred 流解析（-50~200ms）</div>
+  </div>
+
+  <!-- core engine -->
+  <div class="box" style="left:440px;top:268px;width:300px;height:60px;background:#1d1630;border-color:#a855f7;">
+    <div class="t">StreamManager</div><div class="s">流管理 · 订阅 / 重连 / 健康检查</div>
+  </div>
+  <div class="box" style="left:216px;top:380px;width:200px;height:60px;background:#1d1630;border-color:#a855f7;">
+    <div class="t">WalletMonitor</div><div class="s">钱包监控 · 止盈 / 止损 / 持仓</div>
+  </div>
+  <div class="box" style="left:440px;top:380px;width:200px;height:60px;background:#1d1630;border-color:#a855f7;">
+    <div class="t">TransactionMonitor</div><div class="s">交易监控 · 跟单决策</div>
+  </div>
+  <div class="box" style="left:664px;top:380px;width:200px;height:60px;background:#1d1630;border-color:#a855f7;">
+    <div class="t">Bot</div><div class="s">交易执行核心</div>
+  </div>
+  <div class="box" style="left:888px;top:380px;width:200px;height:60px;background:#1d1630;border-color:#a855f7;">
+    <div class="t">NonceManager</div><div class="s">Nonce 账户加速</div>
+  </div>
+  <div class="box" style="left:1112px;top:380px;width:200px;height:60px;background:#1d1630;border-color:#a855f7;">
+    <div class="t">AssetManager</div><div class="s">余额 / 持仓管理</div>
+  </div>
+
+  <!-- dex layer -->
+  <div class="box" style="left:139px;top:510px;width:190px;height:56px;background:#12271b;border-color:#22c55e;">
+    <div class="t">Pump.fun</div><div class="s">内盘 Bonding Curve</div>
+  </div>
+  <div class="box" style="left:351px;top:510px;width:190px;height:56px;background:#12271b;border-color:#22c55e;">
+    <div class="t">Pump AMM</div><div class="s">外盘 AMM</div>
+  </div>
+  <div class="box" style="left:563px;top:510px;width:190px;height:56px;background:#12271b;border-color:#22c55e;">
+    <div class="t">Raydium V4</div><div class="s">经典 AMM</div>
+  </div>
+  <div class="box" style="left:775px;top:510px;width:190px;height:56px;background:#12271b;border-color:#22c55e;">
+    <div class="t">Raydium Launchpad</div><div class="s">新币发行</div>
+  </div>
+  <div class="box" style="left:987px;top:510px;width:190px;height:56px;background:#12271b;border-color:#22c55e;">
+    <div class="t">Raydium CPMM</div><div class="s">集中流动性</div>
+  </div>
+  <div class="box" style="left:1199px;top:510px;width:190px;height:56px;background:#12271b;border-color:#22c55e;">
+    <div class="t">Meteora DBC</div><div class="s">Dynamic Bin Curve</div>
+  </div>
+
+  <!-- swqos -->
+  <div class="box" style="left:94px;top:650px;width:150px;height:52px;background:#2a1f10;border-color:#f59e0b;"><div class="t">Jito</div></div>
+  <div class="box" style="left:264px;top:650px;width:150px;height:52px;background:#2a1f10;border-color:#f59e0b;"><div class="t">NextBlock</div></div>
+  <div class="box" style="left:434px;top:650px;width:150px;height:52px;background:#2a1f10;border-color:#f59e0b;"><div class="t">Temporal</div></div>
+  <div class="box" style="left:604px;top:650px;width:150px;height:52px;background:#2a1f10;border-color:#f59e0b;"><div class="t">bloXroute</div></div>
+  <div class="box" style="left:774px;top:650px;width:150px;height:52px;background:#2a1f10;border-color:#f59e0b;"><div class="t">Zeroslot</div></div>
+  <div class="box" style="left:944px;top:650px;width:150px;height:52px;background:#2a1f10;border-color:#f59e0b;"><div class="t">Blockrazor</div></div>
+  <div class="box" style="left:1114px;top:650px;width:150px;height:52px;background:#2a1f10;border-color:#f59e0b;"><div class="t">Astralane</div></div>
+  <div class="box" style="left:1284px;top:650px;width:150px;height:52px;background:#2a1f10;border-color:#f59e0b;"><div class="t">Flashblock</div></div>
+
+  <!-- storage / management -->
+  <div class="box" style="left:1520px;top:280px;width:170px;height:140px;background:#2a1216;border-color:#ef4444;">
+    <div class="t">Redis</div>
+    <div class="s">钱包 · 参数模板 · 黑名单<br>交易消息 Pub/Sub</div>
+  </div>
+  <div class="box" style="left:1520px;top:450px;width:170px;height:140px;background:#0f2230;border-color:#38bdf8;">
+    <div class="t">Web 管理后台</div>
+    <div class="s">Gin + JWT<br>钱包 / 模板 / 黑名单 / 配置</div>
+  </div>
+  <div class="box" style="left:1520px;top:620px;width:170px;height:56px;background:#10151d;border-color:#64748b;">
+    <div class="t">用户 / 浏览器</div>
+  </div>
+
+  <svg class="lines" width="1720" height="780" viewBox="0 0 1720 780" fill="none">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#566075"/>
+      </marker>
+    </defs>
+
+    <!-- data flow -->
+    <path d="M 670 156 H 770" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 670 176 Q 920 216 1130 178" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 920 192 L 680 268" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 1260 192 L 720 268" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <!-- stream -> monitors -->
+    <path d="M 590 328 V 340 H 560 V 380" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 440 300 L 316 380" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 640 410 H 664" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <!-- bot -> dex bus -->
+    <path d="M 764 440 V 474" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 234 474 H 1294" stroke="#566075" stroke-width="1.5"/>
+    <path d="M 234 474 V 510" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 446 474 V 510" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 658 474 V 510" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 870 474 V 510" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 1082 474 V 510" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 1294 474 V 510" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <!-- dex -> swqos bus -->
+    <path d="M 976 474 V 596" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 169 596 H 1359" stroke="#566075" stroke-width="1.5"/>
+    <path d="M 169 596 V 650" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 339 596 V 650" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 509 596 V 650" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 679 596 V 650" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 849 596 V 650" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 1019 596 V 650" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 1189 596 V 650" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 1359 596 V 650" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <!-- swqos -> solana -->
+    <path d="M 94 676 H 190 V 156 H 410" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <!-- redis links -->
+    <path d="M 416 380 V 258 H 1520 V 280" stroke="#566075" stroke-width="1.5" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+    <path d="M 764 380 V 262 H 1560 V 280" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M 1605 450 V 420" stroke="#566075" stroke-width="1.5" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+    <path d="M 1605 620 V 590" stroke="#566075" stroke-width="1.5" marker-end="url(#arrow)"/>
+  </svg>
+
+  <div class="arw-label" style="left:784px;top:452px;">跟单买入</div>
+  <div class="arw-label" style="left:996px;top:540px;">交易提交</div>
+  <div class="arw-label" style="left:196px;top:140px;">提交至链上</div>
+</div>
+</body>
+</html>

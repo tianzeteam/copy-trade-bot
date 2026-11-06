@@ -61,12 +61,13 @@ type SchemeRequest struct {
 
 	// 交易触发和池子大小参数
 	// 代币创建时间过滤参数 (防止聪明钱包反向收割)
-	TokenAgeMinMinutes     int     `json:"token_age_min_minutes"` // 代币最小创建时间 (分钟)
-	TokenAgeMaxMinutes     int     `json:"token_age_max_minutes"` // 代币最大创建时间 (分钟)
-	MinFollowTriggerAmount float64 `json:"min_follow_trigger_amount"`
-	MaxFollowTriggerAmount float64 `json:"max_follow_trigger_amount"`
-	MinPoolSize            float64 `json:"min_pool_size"`
-	MaxPoolSize            float64 `json:"max_pool_size"`
+	TokenAgeMinMinutes     int                                `json:"token_age_min_minutes"` // 代币最小创建时间 (分钟)
+	TokenAgeMaxMinutes     int                                `json:"token_age_max_minutes"` // 代币最大创建时间 (分钟)
+	MinFollowTriggerAmount float64                            `json:"min_follow_trigger_amount"`
+	MaxFollowTriggerAmount float64                            `json:"max_follow_trigger_amount"`
+	MinPoolSize            float64                            `json:"min_pool_size"`
+	MaxPoolSize            float64                            `json:"max_pool_size"`
+	QuoteAmounts           map[string]types.QuoteAmountConfig `json:"quote_amounts"`
 
 	// 交易参数
 	MaxBuyAmount         float64 `json:"max_buy_amount"`
@@ -159,6 +160,7 @@ func (c *ParamSchemeController) CreateScheme(ctx *gin.Context) {
 		MaxFollowTriggerAmount: request.MaxFollowTriggerAmount,
 		MinPoolSize:            request.MinPoolSize,
 		MaxPoolSize:            request.MaxPoolSize,
+		QuoteAmounts:           request.QuoteAmounts,
 		BuySolAmount:           request.BuySolAmount,
 		BuySlippage:            request.BuySlippage,
 		SellSlippage:           request.SellSlippage,
@@ -221,6 +223,7 @@ func (c *ParamSchemeController) UpdateScheme(ctx *gin.Context) {
 	existingScheme.MaxFollowTriggerAmount = request.MaxFollowTriggerAmount
 	existingScheme.MinPoolSize = request.MinPoolSize
 	existingScheme.MaxPoolSize = request.MaxPoolSize
+	existingScheme.QuoteAmounts = request.QuoteAmounts
 	//existingScheme.MaxBuyAmount = request.MaxBuyAmount
 	//existingScheme.MinBuyAmount = request.MinBuyAmount
 	existingScheme.BuySolAmount = request.BuySolAmount
