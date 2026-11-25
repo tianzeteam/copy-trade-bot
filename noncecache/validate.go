@@ -13,6 +13,9 @@ import (
 	"github.com/gagliardetto/solana-go/rpc"
 )
 
+// ErrNonceValidationUnavailable 表示 RPC 暂时无法判断 nonce 状态；调用方不应据此创建新账户。
+var ErrNonceValidationUnavailable = errors.New("nonce 状态查询不可用")
+
 // nonce账户数据的bincode布局（共80字节）：
 //
 //	[0:4]   u32 版本号（当前为0）
@@ -92,12 +95,28 @@ func ValidateTradeWallet(ctx context.Context, rpcClient *rpc.Client, wallet sola
 
 // ValidateNonceAccount 校验nonce账户可用于当前交易钱包：
 // 已初始化，且authority等于交易钱包（AdvanceNonce必须由authority签名）。
+// 为兼容旧启动流程，RPC 网络错误仅告警放行；需要“严格判定”时使用 ValidateNonceAccountStrict。
 func ValidateNonceAccount(ctx context.Context, rpcClient *rpc.Client, nonceAccount, wallet solana.PublicKey) error {
+	return validateNonceAccount(ctx, rpcClient, nonceAccount, wallet, false)
+}
+
+// ValidateNonceAccountStrict 严格校验：RPC 失败也会返回错误，不会误判为可复用。
+func ValidateNonceAccountStrict(ctx context.Context, rpcClient *rpc.Client, nonceAccount, wallet solana.PublicKey) error {
+	return validateNonceAccount(ctx, rpcClient, nonceAccount, wallet, true)
+}
+
+func validateNonceAccount(ctx context.Context, rpcClient *rpc.Client, nonceAccount, wallet solana.PublicKey, strict bool) error {
+	if nonceAccount.IsZero() {
+		return fmt.Errorf("nonce账户地址为空")
+	}
 	accountInfo, err := rpcClient.GetAccountInfo(ctx, nonceAccount)
 	if err != nil || accountInfo == nil || accountInfo.Value == nil {
 		if isNotFoundErr(err) || (err == nil && (accountInfo == nil || accountInfo.Value == nil)) {
 			return fmt.Errorf("nonce账户 %s 不存在，无法用于AdvanceNonce；请修正config.yaml的nonce_account_pubkey，"+
 				"或设置skip_create_nonce_account=false由程序自动创建", nonceAccount.String())
+		}
+		if strict {
+			return fmt.Errorf("%w: %v", ErrNonceValidationUnavailable, err)
 		}
 		logger.Warnf("查询nonce账户信息失败，跳过nonce校验: %v", err)
 		return nil

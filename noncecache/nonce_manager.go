@@ -37,20 +37,32 @@ type NonceManager struct {
 
 // NewNonceManager 创建新的NonceManager实例
 func NewNonceManager(config *utils.Config) *NonceManager {
-
 	once.Do(func() {
-		nonceAccountPubkey := solana.MustPublicKeyFromBase58(config.NonceAccountPubkey)
+		// 自动创建模式下允许配置为空；非法地址按“未配置”处理，由 EnsureNonceAccount 决策。
+		nonceAccountPubkey := parseNonceAccountPubkey(config.NonceAccountPubkey)
 		rpcClient := rpc.New(config.RPCUrl)
 		nonceClient := client.NewClient(config.RPCUrl)
 		nonceManager = &NonceManager{
 			rpcClient:          rpcClient,
 			nonceClient:        nonceClient,
 			nonceAccountPubkey: &nonceAccountPubkey,
-			refreshInterval:    350 * time.Millisecond, // 默认150毫秒刷新一次
+			refreshInterval:    350 * time.Millisecond,
 			stopChan:           make(chan struct{}),
 		}
 	})
 	return nonceManager
+}
+
+func parseNonceAccountPubkey(raw string) solana.PublicKey {
+	if raw == "" {
+		return solana.PublicKey{}
+	}
+	pk, err := solana.PublicKeyFromBase58(raw)
+	if err != nil {
+		logger.Warnf("nonce_account_pubkey 非法，将按未配置处理: %v", err)
+		return solana.PublicKey{}
+	}
+	return pk
 }
 
 func GetNonceManager() *NonceManager {
