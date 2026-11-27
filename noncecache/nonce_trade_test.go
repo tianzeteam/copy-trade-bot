@@ -28,9 +28,24 @@ func tradeNonceHash(value byte) solana.Hash {
 }
 
 func startTradeNonceAcquisition(nm *NonceManager, ctx context.Context) <-chan tradeNonceResult {
+	return startTradeNonceAcquisitionWithPriority(nm, ctx, false)
+}
+
+func startPriorityTradeNonceAcquisition(nm *NonceManager, ctx context.Context) <-chan tradeNonceResult {
+	return startTradeNonceAcquisitionWithPriority(nm, ctx, true)
+}
+
+func startTradeNonceAcquisitionWithPriority(nm *NonceManager, ctx context.Context, priority bool) <-chan tradeNonceResult {
 	resultCh := make(chan tradeNonceResult, 1)
 	go func() {
-		nonce, release, err := nm.AcquireTradeNonce(ctx)
+		var nonce solana.Hash
+		var release func()
+		var err error
+		if priority {
+			nonce, release, err = nm.AcquirePriorityTradeNonce(ctx)
+		} else {
+			nonce, release, err = nm.AcquireTradeNonce(ctx)
+		}
 		resultCh <- tradeNonceResult{nonce: nonce, release: release, err: err}
 	}()
 	return resultCh
@@ -84,6 +99,22 @@ func waitForTradeNonceUpdateChannel(t *testing.T, nm *NonceManager) <-chan struc
 	return nil
 }
 
+func waitForTradeNonceWaiterCount(t *testing.T, nm *NonceManager, expected int) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	var waiting int
+	for time.Now().Before(deadline) {
+		nm.mutex.RLock()
+		waiting = len(nm.tradeNonceWaiters)
+		nm.mutex.RUnlock()
+		if waiting == expected {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatalf("等待 nonce 门禁队列长度超时: got=%d want=%d", waiting, expected)
+}
+
 func TestAcquireTradeNonceFirstUsesCurrentHash(t *testing.T) {
 	expected := tradeNonceHash(1)
 	nm := &NonceManager{globalBlockhash: &expected}
@@ -135,6 +166,131 @@ func TestAcquireTradeNonceSerializesConcurrentTrades(t *testing.T) {
 	firstRelease()
 	second := requireTradeNonceResult(t, resultCh, secondHash)
 	second.release()
+}
+
+func TestAcquirePriorityTradeNoncePreemptsNormalWaiters(t *testing.T) {
+	firstHash := tradeNonceHash(1)
+	secondHash := tradeNonceHash(2)
+	thirdHash := tradeNonceHash(3)
+	nm := &NonceManager{globalBlockhash: &firstHash}
+
+	_, firstRelease, err := nm.AcquireTradeNonce(context.Background())
+	if err != nil {
+		t.Fatalf("首次获取 nonce 失败: %v", err)
+	}
+	defer firstRelease()
+	nm.UpdateNonce(secondHash)
+
+	normalCtx, normalCancel := context.WithCancel(context.Background())
+	defer normalCancel()
+	normalResultCh := startTradeNonceAcquisition(nm, normalCtx)
+	waitForTradeNonceWaiterCount(t, nm, 1)
+
+	priorityCtx, priorityCancel := context.WithCancel(context.Background())
+	defer priorityCancel()
+	priorityResultCh := startPriorityTradeNonceAcquisition(nm, priorityCtx)
+	waitForTradeNonceWaiterCount(t, nm, 2)
+
+	firstRelease()
+	priorityResult := requireTradeNonceResult(t, priorityResultCh, secondHash)
+	defer priorityResult.release()
+	requireNoTradeNonceResult(t, normalResultCh)
+
+	nm.UpdateNonce(thirdHash)
+	priorityResult.release()
+	normalResult := requireTradeNonceResult(t, normalResultCh, thirdHash)
+	normalResult.release()
+}
+
+func TestAcquireTradeNonceFIFOWithinPriority(t *testing.T) {
+	tests := []struct {
+		name     string
+		priority bool
+	}{
+		{name: "normal"},
+		{name: "priority", priority: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			firstHash := tradeNonceHash(1)
+			secondHash := tradeNonceHash(2)
+			thirdHash := tradeNonceHash(3)
+			nm := &NonceManager{globalBlockhash: &firstHash}
+
+			_, holderRelease, err := nm.AcquireTradeNonce(context.Background())
+			if err != nil {
+				t.Fatalf("首次获取 nonce 失败: %v", err)
+			}
+			defer holderRelease()
+			nm.UpdateNonce(secondHash)
+
+			start := startTradeNonceAcquisition
+			if test.priority {
+				start = startPriorityTradeNonceAcquisition
+			}
+
+			firstCtx, firstCancel := context.WithCancel(context.Background())
+			defer firstCancel()
+			firstResultCh := start(nm, firstCtx)
+			waitForTradeNonceWaiterCount(t, nm, 1)
+
+			secondCtx, secondCancel := context.WithCancel(context.Background())
+			defer secondCancel()
+			secondResultCh := start(nm, secondCtx)
+			waitForTradeNonceWaiterCount(t, nm, 2)
+
+			holderRelease()
+			firstResult := requireTradeNonceResult(t, firstResultCh, secondHash)
+			defer firstResult.release()
+			requireNoTradeNonceResult(t, secondResultCh)
+
+			nm.UpdateNonce(thirdHash)
+			firstResult.release()
+			secondResult := requireTradeNonceResult(t, secondResultCh, thirdHash)
+			secondResult.release()
+		})
+	}
+}
+
+func TestAcquirePriorityTradeNonceCanceledDoesNotBlockNormalWaiter(t *testing.T) {
+	firstHash := tradeNonceHash(1)
+	secondHash := tradeNonceHash(2)
+	nm := &NonceManager{globalBlockhash: &firstHash}
+
+	_, holderRelease, err := nm.AcquireTradeNonce(context.Background())
+	if err != nil {
+		t.Fatalf("首次获取 nonce 失败: %v", err)
+	}
+	defer holderRelease()
+	nm.UpdateNonce(secondHash)
+
+	normalCtx, normalCancel := context.WithCancel(context.Background())
+	defer normalCancel()
+	normalResultCh := startTradeNonceAcquisition(nm, normalCtx)
+	waitForTradeNonceWaiterCount(t, nm, 1)
+
+	priorityCtx, priorityCancel := context.WithCancel(context.Background())
+	defer priorityCancel()
+	priorityResultCh := startPriorityTradeNonceAcquisition(nm, priorityCtx)
+	waitForTradeNonceWaiterCount(t, nm, 2)
+	priorityCancel()
+
+	select {
+	case result := <-priorityResultCh:
+		if !errors.Is(result.err, context.Canceled) {
+			t.Fatalf("应返回 context.Canceled，实际: %v", result.err)
+		}
+		if result.release != nil {
+			t.Fatal("获取失败时不应返回 release")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("高优先级等待者取消未返回")
+	}
+	waitForTradeNonceWaiterCount(t, nm, 1)
+
+	holderRelease()
+	normalResult := requireTradeNonceResult(t, normalResultCh, secondHash)
+	normalResult.release()
 }
 
 func TestAcquireTradeNonceWaitsForUpdateNonce(t *testing.T) {

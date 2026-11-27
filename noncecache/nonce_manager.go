@@ -24,6 +24,12 @@ var (
 	once         sync.Once
 )
 
+type tradeNonceWaiter struct {
+	ready    chan struct{}
+	priority bool
+	granted  bool
+}
+
 // NonceManager 管理nonce账户的结构体
 type NonceManager struct {
 	authorityPubkey     *solana.PublicKey
@@ -36,11 +42,12 @@ type NonceManager struct {
 	rpcClient           *rpc.Client
 	nonceClient         *client.Client
 
-	tradeGate      chan struct{}
-	nonceUpdateCh  chan struct{}
-	nonceVersion   uint64
-	lastTradeNonce solana.Hash
-	hasTradeNonce  bool
+	tradeGate         chan struct{}
+	tradeNonceWaiters []*tradeNonceWaiter
+	nonceUpdateCh     chan struct{}
+	nonceVersion      uint64
+	lastTradeNonce    solana.Hash
+	hasTradeNonce     bool
 }
 
 // NewNonceManager 创建新的NonceManager实例
@@ -265,25 +272,19 @@ func (nm *NonceManager) GetGlobalBlockhash() *solana.Hash {
 // AcquireTradeNonce 串行预留一笔交易使用的 nonce。
 // 调用方必须在广播结束（无论成功或失败）后调用返回的 release 函数。
 func (nm *NonceManager) AcquireTradeNonce(ctx context.Context) (solana.Hash, func(), error) {
-	nm.mutex.Lock()
-	if nm.tradeGate == nil {
-		nm.tradeGate = make(chan struct{}, 1)
-		nm.tradeGate <- struct{}{}
-	}
-	gate := nm.tradeGate
-	nm.mutex.Unlock()
+	return nm.acquireTradeNonce(ctx, false)
+}
 
-	select {
-	case <-ctx.Done():
-		return solana.Hash{}, nil, ctx.Err()
-	case <-gate:
-	}
+// AcquirePriorityTradeNonce 以高优先级串行预留一笔交易使用的 nonce。
+// 高优先级等待者先于普通等待者获得门禁；调用方必须调用返回的 release 函数。
+func (nm *NonceManager) AcquirePriorityTradeNonce(ctx context.Context) (solana.Hash, func(), error) {
+	return nm.acquireTradeNonce(ctx, true)
+}
 
-	var releaseOnce sync.Once
-	release := func() {
-		releaseOnce.Do(func() {
-			gate <- struct{}{}
-		})
+func (nm *NonceManager) acquireTradeNonce(ctx context.Context, priority bool) (solana.Hash, func(), error) {
+	release, err := nm.acquireTradeNonceGate(ctx, priority)
+	if err != nil {
+		return solana.Hash{}, nil, err
 	}
 
 	var timer *time.Timer
@@ -344,6 +345,98 @@ func (nm *NonceManager) AcquireTradeNonce(ctx context.Context) (solana.Hash, fun
 			return nonce, release, nil
 		}
 	}
+}
+
+func (nm *NonceManager) acquireTradeNonceGate(ctx context.Context, priority bool) (func(), error) {
+	waiter := &tradeNonceWaiter{
+		ready:    make(chan struct{}),
+		priority: priority,
+	}
+
+	nm.mutex.Lock()
+	if nm.tradeGate == nil {
+		nm.tradeGate = make(chan struct{}, 1)
+		nm.tradeGate <- struct{}{}
+	}
+	nm.tradeNonceWaiters = append(nm.tradeNonceWaiters, waiter)
+	nm.grantNextTradeNonceWaiterLocked()
+	nm.mutex.Unlock()
+
+	select {
+	case <-ctx.Done():
+		nm.cancelTradeNonceWaiter(waiter)
+		return nil, ctx.Err()
+	case <-waiter.ready:
+	}
+
+	var releaseOnce sync.Once
+	release := func() {
+		releaseOnce.Do(func() {
+			nm.releaseTradeNonceGate()
+		})
+	}
+	return release, nil
+}
+
+func (nm *NonceManager) cancelTradeNonceWaiter(waiter *tradeNonceWaiter) {
+	nm.mutex.Lock()
+	defer nm.mutex.Unlock()
+
+	if waiter.granted {
+		nm.releaseTradeNonceGateLocked()
+		return
+	}
+	for i, candidate := range nm.tradeNonceWaiters {
+		if candidate == waiter {
+			nm.removeTradeNonceWaiterLocked(i)
+			return
+		}
+	}
+}
+
+func (nm *NonceManager) releaseTradeNonceGate() {
+	nm.mutex.Lock()
+	nm.releaseTradeNonceGateLocked()
+	nm.mutex.Unlock()
+}
+
+func (nm *NonceManager) releaseTradeNonceGateLocked() {
+	nm.tradeGate <- struct{}{}
+	nm.grantNextTradeNonceWaiterLocked()
+}
+
+func (nm *NonceManager) grantNextTradeNonceWaiterLocked() {
+	if len(nm.tradeNonceWaiters) == 0 {
+		return
+	}
+	select {
+	case <-nm.tradeGate:
+	default:
+		return
+	}
+
+	index := 0
+	for i, waiter := range nm.tradeNonceWaiters {
+		if waiter.priority {
+			index = i
+			break
+		}
+	}
+	waiter := nm.removeTradeNonceWaiterLocked(index)
+	waiter.granted = true
+	close(waiter.ready)
+}
+
+func (nm *NonceManager) removeTradeNonceWaiterLocked(index int) *tradeNonceWaiter {
+	waiter := nm.tradeNonceWaiters[index]
+	copy(nm.tradeNonceWaiters[index:], nm.tradeNonceWaiters[index+1:])
+	last := len(nm.tradeNonceWaiters) - 1
+	nm.tradeNonceWaiters[last] = nil
+	nm.tradeNonceWaiters = nm.tradeNonceWaiters[:last]
+	if last == 0 {
+		nm.tradeNonceWaiters = nil
+	}
+	return waiter
 }
 
 func (nm *NonceManager) reserveTradeNonceLocked() (solana.Hash, bool) {
