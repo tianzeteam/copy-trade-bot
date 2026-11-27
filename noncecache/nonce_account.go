@@ -242,7 +242,10 @@ func (b *NonceManager) GetNonce(ctx context.Context, nonceAccountAddress string)
 	// Decode the base58-encoded nonce string to bytes
 	nonceBytes, err := base58.Decode(nonce)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode nonce: %v", err)
+		return nil, fmt.Errorf("failed to decode nonce string: %v", err)
+	}
+	if len(nonceBytes) != 32 {
+		return nil, fmt.Errorf("nonce 数据长度错误: got=%d want=32", len(nonceBytes))
 	}
 	nonceValue := solana.HashFromBytes(nonceBytes)
 	return &nonceValue, nil

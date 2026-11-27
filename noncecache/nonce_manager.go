@@ -17,6 +17,8 @@ import (
 	"github.com/gagliardetto/solana-go/rpc"
 )
 
+const tradeNonceAdvanceTimeout = 2 * time.Second
+
 var (
 	nonceManager *NonceManager
 	once         sync.Once
@@ -33,6 +35,12 @@ type NonceManager struct {
 	mutex               sync.RWMutex
 	rpcClient           *rpc.Client
 	nonceClient         *client.Client
+
+	tradeGate      chan struct{}
+	nonceUpdateCh  chan struct{}
+	nonceVersion   uint64
+	lastTradeNonce solana.Hash
+	hasTradeNonce  bool
 }
 
 // NewNonceManager 创建新的NonceManager实例
@@ -169,10 +177,12 @@ func (nm *NonceManager) RefreshGlobalBlockhash(ctx context.Context) error {
 	}
 
 	nm.mutex.Lock()
-	nm.globalBlockhash = globalBlockhash
+	changed := nm.setGlobalBlockhashLocked(globalBlockhash)
 	nm.mutex.Unlock()
 
-	logger.Debugf("全局区块哈希已刷新: %s", nm.globalBlockhash.String())
+	if changed {
+		logger.Debugf("全局区块哈希已刷新: %s", globalBlockhash.String())
+	}
 	return nil
 }
 
@@ -252,6 +262,104 @@ func (nm *NonceManager) GetGlobalBlockhash() *solana.Hash {
 	return nm.globalBlockhash
 }
 
+// AcquireTradeNonce 串行预留一笔交易使用的 nonce。
+// 调用方必须在广播结束（无论成功或失败）后调用返回的 release 函数。
+func (nm *NonceManager) AcquireTradeNonce(ctx context.Context) (solana.Hash, func(), error) {
+	nm.mutex.Lock()
+	if nm.tradeGate == nil {
+		nm.tradeGate = make(chan struct{}, 1)
+		nm.tradeGate <- struct{}{}
+	}
+	gate := nm.tradeGate
+	nm.mutex.Unlock()
+
+	select {
+	case <-ctx.Done():
+		return solana.Hash{}, nil, ctx.Err()
+	case <-gate:
+	}
+
+	var releaseOnce sync.Once
+	release := func() {
+		releaseOnce.Do(func() {
+			gate <- struct{}{}
+		})
+	}
+
+	var timer *time.Timer
+	var timeout <-chan time.Time
+	defer func() {
+		if timer != nil {
+			timer.Stop()
+		}
+	}()
+
+	for {
+		if err := ctx.Err(); err != nil {
+			release()
+			return solana.Hash{}, nil, err
+		}
+
+		nm.mutex.Lock()
+		if nonce, ok := nm.reserveTradeNonceLocked(); ok {
+			nm.mutex.Unlock()
+			return nonce, release, nil
+		}
+		if nm.globalBlockhash == nil {
+			nm.mutex.Unlock()
+			if err := nm.RefreshGlobalBlockhash(ctx); err != nil {
+				release()
+				return solana.Hash{}, nil, err
+			}
+			continue
+		}
+		if nm.nonceUpdateCh == nil {
+			nm.nonceUpdateCh = make(chan struct{})
+		}
+		updateCh := nm.nonceUpdateCh
+		nm.mutex.Unlock()
+
+		if timer == nil {
+			timer = time.NewTimer(tradeNonceAdvanceTimeout)
+			timeout = timer.C
+		}
+		select {
+		case <-ctx.Done():
+			release()
+			return solana.Hash{}, nil, ctx.Err()
+		case <-updateCh:
+		case <-timeout:
+			if err := nm.RefreshGlobalBlockhash(ctx); err != nil {
+				release()
+				return solana.Hash{}, nil, err
+			}
+
+			nm.mutex.Lock()
+			nonce, ok := nm.reserveTradeNonceLocked()
+			nm.mutex.Unlock()
+			if !ok {
+				release()
+				return solana.Hash{}, nil, fmt.Errorf("nonce 刷新后仍未变化，无法安全预留")
+			}
+			return nonce, release, nil
+		}
+	}
+}
+
+func (nm *NonceManager) reserveTradeNonceLocked() (solana.Hash, bool) {
+	if nm.globalBlockhash == nil {
+		return solana.Hash{}, false
+	}
+	if nm.hasTradeNonce && *nm.globalBlockhash == nm.lastTradeNonce {
+		return solana.Hash{}, false
+	}
+
+	nonce := *nm.globalBlockhash
+	nm.lastTradeNonce = nonce
+	nm.hasTradeNonce = true
+	return nonce, true
+}
+
 // GetNonceAccountAddress 获取nonce账户地址
 func (nm *NonceManager) GetNonceAccountAddress() string {
 	return nm.nonceAccountAddress
@@ -265,8 +373,25 @@ func (nm *NonceManager) GetNonceAccountPubkey() *solana.PublicKey {
 // UpdateNonce 更新全局区块哈希（从流更新中调用）
 func (nm *NonceManager) UpdateNonce(newNonce solana.Hash) {
 	nm.mutex.Lock()
-	nm.globalBlockhash = &newNonce
+	changed := nm.setGlobalBlockhashLocked(&newNonce)
 	nm.mutex.Unlock()
 
-	logger.Debugf("通过流更新全局区块哈希: %s", newNonce.String())
+	if changed {
+		logger.Debugf("通过流更新全局区块哈希: %s", newNonce.String())
+	}
+}
+
+func (nm *NonceManager) setGlobalBlockhashLocked(blockhash *solana.Hash) bool {
+	if blockhash == nil || (nm.globalBlockhash != nil && *nm.globalBlockhash == *blockhash) {
+		return false
+	}
+
+	nonce := *blockhash
+	nm.globalBlockhash = &nonce
+	nm.nonceVersion++
+	if nm.nonceUpdateCh != nil {
+		close(nm.nonceUpdateCh)
+		nm.nonceUpdateCh = nil
+	}
+	return true
 }
